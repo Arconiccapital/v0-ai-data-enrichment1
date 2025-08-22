@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { FileSpreadsheet, Plus, Upload, Users, Settings, Search, MoreHorizontal, Clock } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 
 const recentProjects = [
   {
@@ -46,6 +48,55 @@ const recentProjects = [
 ]
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const { setData } = useSpreadsheetStore()
+
+  const handleOpenProject = (projectId: number) => {
+    // Load sample data based on project
+    const sampleData = {
+      1: {
+        headers: ["Company Name", "Industry", "Location", "Website"],
+        data: [
+          ["TechCorp", "Technology", "San Francisco", ""],
+          ["HealthPlus", "Healthcare", "New York", ""],
+          ["FinanceHub", "Finance", "London", ""],
+          ["EduLearn", "Education", "Boston", ""],
+          ["RetailMax", "Retail", "Chicago", ""]
+        ]
+      },
+      2: {
+        headers: ["Lead Name", "Company", "Email", "Phone"],
+        data: [
+          ["John Smith", "ABC Corp", "", ""],
+          ["Jane Doe", "XYZ Inc", "", ""],
+          ["Bob Johnson", "123 Ltd", "", ""],
+          ["Alice Brown", "Tech Solutions", "", ""]
+        ]
+      },
+      3: {
+        headers: ["Customer ID", "Name", "Purchase Date", "Category"],
+        data: [
+          ["C001", "Acme Corp", "2024-01-15", "Enterprise"],
+          ["C002", "Beta Inc", "2024-01-20", "SMB"],
+          ["C003", "Gamma LLC", "2024-02-01", "Startup"]
+        ]
+      },
+      4: {
+        headers: ["Company", "Market Cap", "Sector", "Region"],
+        data: [
+          ["Apple", "", "Technology", "North America"],
+          ["Samsung", "", "Technology", "Asia"],
+          ["Toyota", "", "Automotive", "Asia"],
+          ["Nestle", "", "Consumer Goods", "Europe"]
+        ]
+      }
+    }
+
+    const projectData = sampleData[projectId] || sampleData[1]
+    setData(projectData.headers, projectData.data)
+    router.push("/")
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -102,14 +153,18 @@ export default function DashboardPage() {
 
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <Button className="bg-primary hover:bg-primary/90 font-sans">
-              <Plus className="h-4 w-4 mr-2" />
-              New Project
-            </Button>
-            <Button variant="outline" className="font-sans bg-transparent">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload CSV
-            </Button>
+            <Link href="/">
+              <Button className="bg-primary hover:bg-primary/90 font-sans">
+                <Plus className="h-4 w-4 mr-2" />
+                New Project
+              </Button>
+            </Link>
+            <Link href="/">
+              <Button variant="outline" className="font-sans bg-transparent">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload CSV
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -155,7 +210,12 @@ export default function DashboardPage() {
                     >
                       {project.status}
                     </Badge>
-                    <Button variant="outline" size="sm" className="font-sans bg-transparent">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="font-sans bg-transparent"
+                      onClick={() => handleOpenProject(project.id)}
+                    >
                       Open
                     </Button>
                     <Button variant="ghost" size="sm">
@@ -178,14 +238,18 @@ export default function DashboardPage() {
                 Get started by uploading your first CSV file or creating a new project.
               </p>
               <div className="flex items-center justify-center gap-3">
-                <Button className="bg-primary hover:bg-primary/90 font-sans">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload CSV
-                </Button>
-                <Button variant="outline" className="font-sans bg-transparent">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Project
-                </Button>
+                <Link href="/">
+                  <Button className="bg-primary hover:bg-primary/90 font-sans">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload CSV
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button variant="outline" className="font-sans bg-transparent">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Project
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

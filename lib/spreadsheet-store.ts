@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { FormatMode, CustomFormat } from "@/lib/enrichment-utils"
 
 interface EnrichmentStatus {
   enriching: boolean
@@ -6,17 +7,79 @@ interface EnrichmentStatus {
   prompt?: string
 }
 
+interface ColumnFormatPreference {
+  formatMode: FormatMode
+  dataType?: string
+  customFormat?: CustomFormat
+}
+
+interface ColumnAnalysis {
+  columnName: string
+  columnIndex: number
+  totalCells: number
+  filledCells: number
+  emptyCells: number
+  completeness: number
+  dataTypes: {
+    emails: number
+    urls: number
+    numbers: number
+    dates: number
+    text: number
+  }
+  uniqueValues: number
+  mostCommon: { value: string; count: number }[]
+}
+
+interface DataAnalysis {
+  totalRows: number
+  totalColumns: number
+  overallCompleteness: number
+  columnAnalyses: ColumnAnalysis[]
+  enrichmentSuggestions: string[]
+  insights: string[]
+}
+
+interface FilterCriteria {
+  column: string
+  operator: 'equals' | 'contains' | 'greater' | 'less' | 'empty' | 'not_empty'
+  value?: string
+}
+
+type SelectionMode = 'single' | 'multiple' | 'range'
+
 interface SpreadsheetStore {
   headers: string[]
   data: string[][]
   hasData: boolean
   enrichmentStatus: Record<number, EnrichmentStatus>
+  columnFormats: Record<string, ColumnFormatPreference>
+  // Selection state
+  selectedRows: Set<number>
+  selectedColumns: Set<number>
+  selectionMode: SelectionMode
+  filterCriteria: FilterCriteria[]
+  // Data methods
   setData: (headers: string[], rows: string[][]) => void
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
   addColumn: (header: string) => void
   clearData: () => void
+  // Enrichment methods
   enrichColumn: (columnIndex: number, prompt: string) => Promise<void>
-  enrichColumnToNew: (sourceColumnIndex: number, newColumnName: string, prompt: string) => Promise<void>
+  enrichColumnToNew: (sourceColumnIndex: number, newColumnName: string, prompt: string, formatMode?: FormatMode, customFormat?: CustomFormat) => Promise<void>
+  analyzeData: () => DataAnalysis
+  setColumnFormat: (columnName: string, preference: ColumnFormatPreference) => void
+  getColumnFormat: (columnName: string) => ColumnFormatPreference | undefined
+  // Selection methods
+  toggleRowSelection: (rowIndex: number) => void
+  toggleColumnSelection: (colIndex: number) => void
+  selectAllRows: () => void
+  clearSelection: () => void
+  setSelectionMode: (mode: SelectionMode) => void
+  applyFilter: (filter: FilterCriteria) => void
+  removeFilter: (index: number) => void
+  getFilteredData: () => { headers: string[]; rows: string[][] }
+  getSelectedData: () => { headers: string[]; rows: string[][] }
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
@@ -24,6 +87,11 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   data: [],
   hasData: false,
   enrichmentStatus: {},
+  columnFormats: {},
+  selectedRows: new Set(),
+  selectedColumns: new Set(),
+  selectionMode: 'multiple',
+  filterCriteria: [],
 
   setData: (headers, rows) =>
     set({
@@ -104,7 +172,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     }
   },
 
-  enrichColumnToNew: async (sourceColumnIndex, newColumnName, prompt) => {
+  enrichColumnToNew: async (sourceColumnIndex, newColumnName, prompt, formatMode, customFormat) => {
     const { data, headers, addColumn } = get()
 
     // First, add the new column
@@ -130,9 +198,18 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
           },
         }))
 
-        // Get value from source column
-        const sourceValue = data[rowIndex][sourceColumnIndex]
-        const enrichedValue = await enrichCell(sourceValue, prompt)
+        // Create row context object with all column data
+        const rowContext = {}
+        headers.forEach((header, colIndex) => {
+          if (header && data[rowIndex][colIndex]) {
+            rowContext[header] = data[rowIndex][colIndex]
+          }
+        })
+
+        // Get primary value from source column if specified
+        const primaryValue = sourceColumnIndex >= 0 ? data[rowIndex][sourceColumnIndex] : ""
+        
+        const enrichedValue = await enrichCellWithContext(rowContext, primaryValue, prompt, headers, customFormat)
 
         // Update the new column with enriched value
         set((state) => {
@@ -156,6 +233,271 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         },
       }))
     }
+  },
+
+  analyzeData: () => {
+    const { headers, data } = get()
+    
+    if (!data.length || !headers.length) {
+      return {
+        totalRows: 0,
+        totalColumns: 0,
+        overallCompleteness: 0,
+        columnAnalyses: [],
+        enrichmentSuggestions: [],
+        insights: []
+      }
+    }
+
+    const columnAnalyses: ColumnAnalysis[] = []
+    let totalFilledCells = 0
+    let totalCells = 0
+
+    // Analyze each column
+    headers.forEach((header, colIndex) => {
+      const columnData = data.map(row => row[colIndex] || "")
+      const filledCells = columnData.filter(cell => cell.trim() !== "").length
+      const emptyCells = columnData.length - filledCells
+      
+      // Detect data types
+      const dataTypes = {
+        emails: 0,
+        urls: 0,
+        numbers: 0,
+        dates: 0,
+        text: 0
+      }
+
+      columnData.forEach(cell => {
+        if (!cell) return
+        
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cell)) {
+          dataTypes.emails++
+        } else if (/^https?:\/\//.test(cell) || /^www\./.test(cell)) {
+          dataTypes.urls++
+        } else if (/^\d{4}-\d{2}-\d{2}/.test(cell) || /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(cell)) {
+          dataTypes.dates++
+        } else if (/^[\d,.$]+$/.test(cell.replace(/[$,]/g, ''))) {
+          dataTypes.numbers++
+        } else {
+          dataTypes.text++
+        }
+      })
+
+      // Find unique values and most common
+      const valueCount = new Map<string, number>()
+      columnData.forEach(cell => {
+        if (cell) {
+          valueCount.set(cell, (valueCount.get(cell) || 0) + 1)
+        }
+      })
+
+      const mostCommon = Array.from(valueCount.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([value, count]) => ({ value, count }))
+
+      columnAnalyses.push({
+        columnName: header,
+        columnIndex: colIndex,
+        totalCells: columnData.length,
+        filledCells,
+        emptyCells,
+        completeness: Math.round((filledCells / columnData.length) * 100),
+        dataTypes,
+        uniqueValues: valueCount.size,
+        mostCommon
+      })
+
+      totalFilledCells += filledCells
+      totalCells += columnData.length
+    })
+
+    // Generate enrichment suggestions
+    const enrichmentSuggestions: string[] = []
+    
+    columnAnalyses.forEach(analysis => {
+      if (analysis.completeness < 30) {
+        if (analysis.columnName.toLowerCase().includes('email')) {
+          enrichmentSuggestions.push(`Enrich "${analysis.columnName}" column to find email addresses`)
+        } else if (analysis.columnName.toLowerCase().includes('website') || analysis.columnName.toLowerCase().includes('url')) {
+          enrichmentSuggestions.push(`Enrich "${analysis.columnName}" column to find websites`)
+        } else if (analysis.emptyCells > 0) {
+          enrichmentSuggestions.push(`Fill empty cells in "${analysis.columnName}" column (${analysis.emptyCells} empty)`)
+        }
+      }
+    })
+
+    // Generate insights
+    const insights: string[] = []
+    
+    const overallCompleteness = Math.round((totalFilledCells / totalCells) * 100)
+    
+    if (overallCompleteness < 50) {
+      insights.push(`Your data is ${overallCompleteness}% complete. Consider enriching empty columns.`)
+    } else if (overallCompleteness < 80) {
+      insights.push(`Good progress! Your data is ${overallCompleteness}% complete.`)
+    } else {
+      insights.push(`Excellent! Your data is ${overallCompleteness}% complete.`)
+    }
+
+    // Check for email columns
+    const emailColumns = columnAnalyses.filter(col => 
+      col.columnName.toLowerCase().includes('email') && col.completeness < 50
+    )
+    if (emailColumns.length > 0) {
+      insights.push(`${emailColumns.length} email column(s) need enrichment`)
+    }
+
+    // Check for URL columns
+    const urlColumns = columnAnalyses.filter(col => 
+      (col.columnName.toLowerCase().includes('website') || col.columnName.toLowerCase().includes('url')) 
+      && col.completeness < 50
+    )
+    if (urlColumns.length > 0) {
+      insights.push(`${urlColumns.length} website column(s) need enrichment`)
+    }
+
+    // Check for columns with high uniqueness
+    columnAnalyses.forEach(col => {
+      if (col.uniqueValues === col.filledCells && col.filledCells > 5) {
+        insights.push(`"${col.columnName}" contains all unique values - good for identification`)
+      }
+    })
+
+    return {
+      totalRows: data.length,
+      totalColumns: headers.length,
+      overallCompleteness,
+      columnAnalyses,
+      enrichmentSuggestions,
+      insights
+    }
+  },
+
+  setColumnFormat: (columnName, preference) =>
+    set((state) => ({
+      columnFormats: {
+        ...state.columnFormats,
+        [columnName]: preference
+      }
+    })),
+
+  getColumnFormat: (columnName) => {
+    const { columnFormats } = get()
+    return columnFormats[columnName]
+  },
+
+  // Selection methods
+  toggleRowSelection: (rowIndex) =>
+    set((state) => {
+      const newSelectedRows = new Set(state.selectedRows)
+      if (newSelectedRows.has(rowIndex)) {
+        newSelectedRows.delete(rowIndex)
+      } else {
+        if (state.selectionMode === 'single') {
+          newSelectedRows.clear()
+        }
+        newSelectedRows.add(rowIndex)
+      }
+      return { selectedRows: newSelectedRows }
+    }),
+
+  toggleColumnSelection: (colIndex) =>
+    set((state) => {
+      const newSelectedColumns = new Set(state.selectedColumns)
+      if (newSelectedColumns.has(colIndex)) {
+        newSelectedColumns.delete(colIndex)
+      } else {
+        newSelectedColumns.add(colIndex)
+      }
+      return { selectedColumns: newSelectedColumns }
+    }),
+
+  selectAllRows: () =>
+    set((state) => ({
+      selectedRows: new Set(Array.from({ length: state.data.length }, (_, i) => i))
+    })),
+
+  clearSelection: () =>
+    set({
+      selectedRows: new Set(),
+      selectedColumns: new Set()
+    }),
+
+  setSelectionMode: (mode) =>
+    set({ selectionMode: mode }),
+
+  applyFilter: (filter) =>
+    set((state) => ({
+      filterCriteria: [...state.filterCriteria, filter]
+    })),
+
+  removeFilter: (index) =>
+    set((state) => ({
+      filterCriteria: state.filterCriteria.filter((_, i) => i !== index)
+    })),
+
+  getFilteredData: () => {
+    const { headers, data, filterCriteria } = get()
+    
+    if (filterCriteria.length === 0) {
+      return { headers, rows: data }
+    }
+
+    const filteredRows = data.filter((row) => {
+      return filterCriteria.every((filter) => {
+        const colIndex = headers.indexOf(filter.column)
+        if (colIndex === -1) return true
+        
+        const cellValue = row[colIndex] || ''
+        
+        switch (filter.operator) {
+          case 'equals':
+            return cellValue === filter.value
+          case 'contains':
+            return cellValue.toLowerCase().includes((filter.value || '').toLowerCase())
+          case 'greater':
+            return parseFloat(cellValue) > parseFloat(filter.value || '0')
+          case 'less':
+            return parseFloat(cellValue) < parseFloat(filter.value || '0')
+          case 'empty':
+            return cellValue.trim() === ''
+          case 'not_empty':
+            return cellValue.trim() !== ''
+          default:
+            return true
+        }
+      })
+    })
+
+    return { headers, rows: filteredRows }
+  },
+
+  getSelectedData: () => {
+    const { headers, data, selectedRows, selectedColumns } = get()
+    
+    // If no selection, return empty
+    if (selectedRows.size === 0 && selectedColumns.size === 0) {
+      return { headers: [], rows: [] }
+    }
+    
+    // Filter headers based on selected columns
+    const selectedHeaders = selectedColumns.size > 0
+      ? headers.filter((_, index) => selectedColumns.has(index))
+      : headers
+    
+    // Filter rows based on selected rows
+    const selectedData = selectedRows.size > 0
+      ? data.filter((_, index) => selectedRows.has(index))
+      : data
+    
+    // Filter columns in each row if columns are selected
+    const finalData = selectedColumns.size > 0
+      ? selectedData.map(row => row.filter((_, index) => selectedColumns.has(index)))
+      : selectedData
+    
+    return { headers: selectedHeaders, rows: finalData }
   },
 }))
 
@@ -192,6 +534,60 @@ async function enrichCell(value: string, prompt: string): Promise<string> {
     return data.enrichedValue
   } catch (error) {
     console.error("[v0] Error enriching cell:", error)
+    throw new Error(`Failed to enrich cell: ${error.message}`)
+  }
+}
+
+async function enrichCellWithContext(
+  rowContext: Record<string, string>,
+  primaryValue: string,
+  prompt: string,
+  headers: string[],
+  customFormat?: CustomFormat
+): Promise<string> {
+  try {
+    // Replace column placeholders in prompt with actual values
+    let processedPrompt = prompt
+    headers.forEach((header) => {
+      if (header && rowContext[header]) {
+        const placeholder = new RegExp(`\\{${header}\\}`, 'gi')
+        processedPrompt = processedPrompt.replace(placeholder, rowContext[header])
+      }
+    })
+
+    console.log("[v0] Enriching with row context:", rowContext, "and prompt:", processedPrompt)
+
+    const response = await fetch("/api/enrich", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        value: primaryValue,
+        prompt: processedPrompt,
+        rowContext,
+        customFormat,
+      }),
+    })
+
+    console.log("[v0] API response status:", response.status)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.log("[v0] API error response:", errorText)
+      throw new Error(`API returned ${response.status}: ${errorText}`)
+    }
+
+    const data = await response.json()
+    console.log("[v0] API response data:", data)
+
+    if (!data.enrichedValue) {
+      throw new Error("No enriched value returned from API")
+    }
+
+    return data.enrichedValue
+  } catch (error) {
+    console.error("[v0] Error enriching cell with context:", error)
     throw new Error(`Failed to enrich cell: ${error.message}`)
   }
 }

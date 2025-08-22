@@ -21,7 +21,26 @@ import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import Link from "next/link"
 
 export default function HomePage() {
-  const { data, headers, hasData } = useSpreadsheetStore()
+  const { data, headers, hasData, clearData } = useSpreadsheetStore()
+
+  const handleExport = () => {
+    const csvContent = [
+      headers.join(","),
+      ...data.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "exported-data.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleShare = () => {
+    alert("Share functionality coming soon! You can export the CSV and share it manually.")
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,24 +50,26 @@ export default function HomePage() {
           <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col shadow-sm">
             {/* Logo/Brand */}
             <div className="p-4 border-b border-sidebar-border">
-              <div className="flex items-center gap-3">
+              <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                   <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <span className="font-sans font-semibold text-sidebar-foreground text-lg">AI DataEnrich</span>
-              </div>
+              </Link>
             </div>
 
             {/* Navigation */}
             <div className="flex-1 p-4">
               <div className="space-y-1">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                >
-                  <Home className="h-4 w-4 mr-3" />
-                  Home
-                </Button>
+                <Link href="/dashboard">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
+                  >
+                    <Home className="h-4 w-4 mr-3" />
+                    Dashboard
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
@@ -153,6 +174,10 @@ export default function HomePage() {
                       variant="default"
                       size="sm"
                       className="bg-primary text-primary-foreground hover:bg-primary/90 font-sans shadow-sm"
+                      onClick={() => {
+                        clearData()
+                        window.location.reload()
+                      }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       New sheet
@@ -161,6 +186,7 @@ export default function HomePage() {
                       variant="outline"
                       size="sm"
                       className="font-sans border-border hover:bg-muted bg-transparent"
+                      onClick={handleExport}
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -181,7 +207,12 @@ export default function HomePage() {
                     <Sparkles className="h-4 w-4 mr-2" />
                     Enrich
                   </Button>
-                  <Button variant="outline" size="sm" className="font-sans border-border hover:bg-muted bg-transparent">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="font-sans border-border hover:bg-muted bg-transparent"
+                    onClick={handleShare}
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
                     Share
                   </Button>
@@ -224,12 +255,12 @@ export default function HomePage() {
           <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                   <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                     <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
-                </div>
+                </Link>
                 <div className="flex items-center gap-3">
                   <Link href="/auth/login">
                     <Button variant="ghost" size="sm" className="font-sans">

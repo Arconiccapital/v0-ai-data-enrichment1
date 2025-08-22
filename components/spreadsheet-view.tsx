@@ -8,18 +8,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Sparkles, Plus, Loader2, Info, X, Download, Settings } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Sparkles, Plus, Loader2, Info, X, Download, Settings, BarChart3, ArrowRight, Filter } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { AIEnrichmentDialog } from "@/components/ai-enrichment-dialog"
+import { DataAnalysisDialog } from "@/components/data-analysis-dialog"
+import { SmartSelectionDialog } from "@/components/smart-selection-dialog"
 import { cn } from "@/lib/utils"
 
 export function SpreadsheetView() {
-  const { headers, data, updateCell, enrichmentStatus, addColumn } = useSpreadsheetStore()
+  const { 
+    headers, 
+    data, 
+    updateCell, 
+    enrichmentStatus, 
+    addColumn,
+    selectedRows,
+    selectedColumns,
+    toggleRowSelection,
+    toggleColumnSelection,
+    selectAllRows,
+    clearSelection,
+    getSelectedData
+  } = useSpreadsheetStore()
+  const router = useRouter()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false)
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
+  const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false)
   const [newColumnName, setNewColumnName] = useState("")
   const [showCellDetails, setShowCellDetails] = useState(false)
+  const [showSelectionTools, setShowSelectionTools] = useState(false)
+  const [smartSelectionOpen, setSmartSelectionOpen] = useState(false)
+  
+  const hasSelection = selectedRows.size > 0 || selectedColumns.size > 0
+  const selectedRowCount = selectedRows.size
+  const selectedColumnCount = selectedColumns.size
 
   const handleCellClick = (rowIndex: number, colIndex: number) => {
     setSelectedCell({ row: rowIndex, col: colIndex })
@@ -40,6 +65,25 @@ export function SpreadsheetView() {
       setNewColumnName("")
       setAddColumnDialogOpen(false)
     }
+  }
+
+  const handleGenerateOutput = () => {
+    // Store selected data in session storage for the outputs page
+    const selectedData = getSelectedData()
+    if (selectedData.rows.length > 0) {
+      sessionStorage.setItem('selectedData', JSON.stringify(selectedData))
+      router.push('/outputs')
+    }
+  }
+
+  const handleSelectAll = () => {
+    selectAllRows()
+    // Select all columns too
+    headers.forEach((_, index) => {
+      if (!selectedColumns.has(index)) {
+        toggleColumnSelection(index)
+      }
+    })
   }
 
   const handleExport = () => {
@@ -71,9 +115,56 @@ export function SpreadsheetView() {
               <Badge variant="secondary" className="text-xs font-medium">
                 {data.length} rows × {headers.length} columns
               </Badge>
+              {hasSelection && (
+                <Badge variant="default" className="text-xs font-medium bg-blue-600">
+                  {selectedRowCount} rows, {selectedColumnCount} columns selected
+                </Badge>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Selection Controls */}
+              {!hasSelection ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSmartSelectionOpen(true)}
+                    className="text-sm bg-transparent"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Smart Select
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAll}
+                    className="text-sm bg-transparent"
+                  >
+                    Select All
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelection}
+                    className="text-sm bg-transparent"
+                  >
+                    Clear Selection
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleGenerateOutput}
+                    className="bg-green-600 text-white hover:bg-green-700"
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    Generate Output ({selectedRowCount})
+                  </Button>
+                </>
+              )}
+              
               <Dialog open={addColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="text-sm bg-transparent">
@@ -112,6 +203,15 @@ export function SpreadsheetView() {
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setAnalysisDialogOpen(true)}
+                className="text-sm bg-transparent"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Analyze Data
+              </Button>
               <Button variant="outline" size="sm" onClick={handleExport} className="text-sm bg-transparent">
                 <Download className="h-4 w-4 mr-2" />
                 Export
@@ -120,6 +220,7 @@ export function SpreadsheetView() {
                 size="sm"
                 onClick={() => setEnrichmentDialogOpen(true)}
                 className="bg-black text-white hover:bg-gray-800"
+                data-enrich-button
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Enrich Data
@@ -134,7 +235,19 @@ export function SpreadsheetView() {
               <table className="w-full border-collapse bg-white">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="w-12 h-10 text-center text-xs font-medium text-gray-500 border-r border-gray-200 bg-gray-50 sticky left-0 z-20">
+                    <th className="w-10 h-10 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-20">
+                      <Checkbox
+                        checked={selectedRows.size === data.length && data.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            selectAllRows()
+                          } else {
+                            clearSelection()
+                          }
+                        }}
+                      />
+                    </th>
+                    <th className="w-12 h-10 text-center text-xs font-medium text-gray-500 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-20">
                       #
                     </th>
                     {headers.map((header, index) => (
@@ -154,8 +267,17 @@ export function SpreadsheetView() {
                 </thead>
                 <tbody>
                   {data.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="hover:bg-gray-50 border-b border-gray-100">
-                      <td className="w-12 h-10 text-center text-xs font-medium text-gray-500 border-r border-gray-200 bg-gray-50 sticky left-0 z-10">
+                    <tr key={rowIndex} className={cn(
+                      "hover:bg-gray-50 border-b border-gray-100",
+                      selectedRows.has(rowIndex) && "bg-blue-50"
+                    )}>
+                      <td className="w-10 h-10 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-10">
+                        <Checkbox
+                          checked={selectedRows.has(rowIndex)}
+                          onCheckedChange={() => toggleRowSelection(rowIndex)}
+                        />
+                      </td>
+                      <td className="w-12 h-10 text-center text-xs font-medium text-gray-500 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-10">
                         {rowIndex + 1}
                       </td>
                       {row.map((cell, colIndex) => (
@@ -278,6 +400,8 @@ export function SpreadsheetView() {
       )}
 
       <AIEnrichmentDialog open={enrichmentDialogOpen} onOpenChange={setEnrichmentDialogOpen} />
+      <DataAnalysisDialog open={analysisDialogOpen} onOpenChange={setAnalysisDialogOpen} />
+      <SmartSelectionDialog open={smartSelectionOpen} onOpenChange={setSmartSelectionOpen} />
     </div>
   )
 }

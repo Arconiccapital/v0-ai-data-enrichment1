@@ -1,20 +1,51 @@
 import { LinkupClient } from "linkup-sdk"
+import { validateAndExtractValue, formatTemplates, applyCustomFormat } from "@/lib/enrichment-utils"
 
 const client = new LinkupClient({ apiKey: "0e82fb78-e35f-48ae-aa64-af16af4fcaab" })
 
 export async function POST(request: Request) {
   try {
-    const { value, prompt } = await request.json()
+    const { value, prompt, rowContext, customFormat } = await request.json()
 
-    if (!value || !prompt) {
-      return Response.json({ error: "Missing value or prompt" }, { status: 400 })
+    if (!prompt) {
+      return Response.json({ error: "Missing prompt" }, { status: 400 })
     }
 
     try {
-      // Create search query by combining the cell value with the prompt
-      const searchQuery = `${value} ${prompt.replace(/\{value\}/g, value)}`
+      // Extract format mode and data type from prompt
+      const formatModeMatch = prompt.match(/\[Format mode: (\w+)\]/)
+      const formatMode = formatModeMatch ? formatModeMatch[1] : 'strict'
+      const typeMatch = prompt.match(/\[Expected type: (\w+)\]/)
+      const expectedType = typeMatch ? typeMatch[1] : 'text'
+      const patternMatch = prompt.match(/\[Pattern: ([^\]]+)\]/)
+      const customPattern = patternMatch ? patternMatch[1] : null
+      
+      // Clean prompt from annotations
+      const cleanPrompt = prompt
+        .replace(/\[Expected type: \w+\]/, '')
+        .replace(/\[Format mode: \w+\]/, '')
+        .replace(/\[Pattern: [^\]]+\]/, '')
+        .trim()
+      
+      // Create search query using row context if available
+      let searchQuery = cleanPrompt
+      
+      if (rowContext && Object.keys(rowContext).length > 0) {
+        // Build context string from all row data
+        const contextParts = Object.entries(rowContext)
+          .filter(([key, val]) => val)
+          .map(([key, val]) => `${key}: ${val}`)
+          .join(", ")
+        
+        searchQuery = `${contextParts}. ${cleanPrompt}`
+        console.log("[v0] Using row context for search:", contextParts)
+      } else if (value) {
+        // Fallback to single value if no context
+        searchQuery = `${value} ${cleanPrompt.replace(/\{value\}/g, value)}`
+      }
 
       console.log("[v0] Linkup search query:", searchQuery)
+      console.log("[v0] Expected data type:", expectedType)
 
       const response = await client.search({
         query: searchQuery,
@@ -28,35 +59,89 @@ export async function POST(request: Request) {
       let enrichedValue = value // fallback to original value
 
       if (response.answer) {
-        // Use the AI-generated answer from Linkup
         enrichedValue = response.answer
 
-        // For specific prompt types, try to extract more targeted information
-        if (prompt.toLowerCase().includes("website") || prompt.toLowerCase().includes("url")) {
-          // Look for URLs in the sources
-          if (response.sources && response.sources.length > 0) {
-            const urlSource = response.sources.find((source) => source.url)
-            if (urlSource) {
-              enrichedValue = urlSource.url
+        // Apply format validation based on mode
+        if (formatMode === 'custom' && customFormat) {
+          // Apply custom format validation
+          const customValidation = applyCustomFormat(enrichedValue, customFormat)
+          if (customValidation.extracted) {
+            enrichedValue = customValidation.extracted
+            console.log("[v0] Extracted custom formatted value:", enrichedValue)
+          } else if (!customValidation.valid) {
+            console.log("[v0] Warning: Could not extract value matching custom pattern")
+          }
+        } else if (formatMode === 'strict') {
+          // Apply strict format validation based on expected type
+          const validation = validateAndExtractValue(enrichedValue, expectedType)
+          
+          if (validation.extracted) {
+            // Successfully extracted formatted value
+            enrichedValue = validation.extracted
+            console.log("[v0] Extracted formatted value:", enrichedValue)
+          } else if (!validation.valid && formatTemplates[expectedType]?.extractor) {
+            // Try harder extraction for specific types
+            if (expectedType === 'url' && response.sources?.length > 0) {
+              // Look for URLs in sources
+              const urlSource = response.sources.find((source) => source.url)
+              if (urlSource) {
+                enrichedValue = urlSource.url
+              }
+            } else if (expectedType === 'email') {
+              // Try to extract from full text
+              const extracted = formatTemplates.email.extractor(response.answer)
+              if (extracted) {
+                enrichedValue = extracted
+              }
             }
           }
-        } else if (prompt.toLowerCase().includes("email")) {
-          // Look for email patterns in the answer
-          const emailMatch = response.answer.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
-          if (emailMatch) {
-            enrichedValue = emailMatch[0]
+          
+          // Final validation
+          const finalValidation = validateAndExtractValue(enrichedValue, expectedType)
+          if (finalValidation.valid || finalValidation.extracted) {
+            enrichedValue = finalValidation.extracted || finalValidation.value
+          } else {
+            console.log(`[v0] Warning: Could not extract valid ${expectedType} from response`)
           }
         }
+        // For 'free' mode, no validation needed
       }
 
-      return Response.json({ enrichedValue: enrichedValue.trim() })
+      const isValidated = formatMode === 'custom' 
+        ? customFormat && applyCustomFormat(enrichedValue.trim(), customFormat).valid
+        : formatMode === 'strict' 
+          ? validateAndExtractValue(enrichedValue.trim(), expectedType).valid
+          : true // free mode is always "valid"
+      
+      return Response.json({ 
+        enrichedValue: enrichedValue.trim(),
+        dataType: expectedType,
+        formatMode,
+        validated: isValidated
+      })
     } catch (linkupError) {
       console.log("[v0] Linkup API error:", linkupError.message)
       console.log("[v0] Linkup API not available, using mock enrichment")
 
       // Fallback to mock enrichment for demo purposes
-      const mockEnrichment = generateMockEnrichment(value, prompt)
-      return Response.json({ enrichedValue: mockEnrichment })
+      const primaryValue = value || (rowContext ? Object.values(rowContext)[0] : "")
+      const cleanPrompt = prompt
+        .replace(/\[Expected type: \w+\]/, '')
+        .replace(/\[Format mode: \w+\]/, '')
+        .replace(/\[Pattern: [^\]]+\]/, '')
+        .trim()
+      const typeMatch = prompt.match(/\[Expected type: (\w+)\]/)
+      const expectedType = typeMatch ? typeMatch[1] : 'text'
+      const formatModeMatch = prompt.match(/\[Format mode: (\w+)\]/)
+      const formatMode = formatModeMatch ? formatModeMatch[1] : 'strict'
+      
+      const mockEnrichment = generateMockEnrichment(primaryValue, cleanPrompt, rowContext, expectedType, formatMode, customFormat)
+      
+      return Response.json({ 
+        enrichedValue: mockEnrichment,
+        dataType: expectedType,
+        validated: true // Mock data is already formatted correctly
+      })
     }
   } catch (error) {
     console.error("Enrichment API error:", error)
@@ -64,32 +149,100 @@ export async function POST(request: Request) {
   }
 }
 
-function generateMockEnrichment(value: string, prompt: string): string {
+function generateMockEnrichment(
+  value: string, 
+  prompt: string, 
+  rowContext?: Record<string, string>, 
+  expectedType?: string,
+  formatMode?: string,
+  customFormat?: any
+): string {
   const lowerPrompt = prompt.toLowerCase()
   const lowerValue = value.toLowerCase()
+  
+  // Use context for more accurate mock data if available
+  const companyName = rowContext?.["Company Name"] || rowContext?.["Company"] || value
+  const location = rowContext?.["Location"] || rowContext?.["Region"] || ""
+  
+  // Generate based on expected type if provided
+  if (expectedType) {
+    switch (expectedType) {
+      case 'email':
+        const leadName = rowContext?.["Lead Name"] || ""
+        if (leadName) {
+          const firstName = leadName.split(" ")[0].toLowerCase()
+          return `${firstName}@${companyName.toLowerCase().replace(/\s+/g, "")}.com`
+        }
+        return `contact@${companyName.toLowerCase().replace(/\s+/g, "")}.com`
+      
+      case 'url':
+        return `https://www.${companyName.toLowerCase().replace(/\s+/g, "")}.com`
+      
+      case 'phone':
+        return `+1 (555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`
+      
+      case 'currency':
+        const amounts = ["$10M", "$50M", "$100M", "$500M", "$1B", "$5B"]
+        return amounts[Math.floor(Math.random() * amounts.length)]
+      
+      case 'percentage':
+        return `${Math.floor(Math.random() * 100)}%`
+      
+      case 'date':
+        const year = 2000 + Math.floor(Math.random() * 24)
+        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')
+        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      
+      case 'number':
+        return String(Math.floor(Math.random() * 10000))
+    }
+  }
 
   // Company-related enrichments
   if (lowerPrompt.includes("website") || lowerPrompt.includes("url")) {
-    return `https://www.${value.toLowerCase().replace(/\s+/g, "")}.com`
+    return `https://www.${companyName.toLowerCase().replace(/\s+/g, "")}.com`
   }
 
   if (lowerPrompt.includes("category") || lowerPrompt.includes("industry")) {
+    // Use industry from context if available
+    if (rowContext?.["Industry"]) {
+      return rowContext["Industry"] + " Services"
+    }
     const categories = ["Technology", "Healthcare", "Finance", "E-commerce", "SaaS", "Manufacturing", "Consulting"]
     return categories[Math.floor(Math.random() * categories.length)]
   }
 
-  if (lowerPrompt.includes("revenue") || lowerPrompt.includes("funding")) {
-    const amounts = ["$1M-10M", "$10M-50M", "$50M-100M", "$100M+", "Series A", "Series B", "Series C"]
+  if (lowerPrompt.includes("revenue") || lowerPrompt.includes("funding") || lowerPrompt.includes("market cap")) {
+    const amounts = ["$1M-10M", "$10M-50M", "$50M-100M", "$100M+", "$1B+", "Series A", "Series B", "Series C"]
     return amounts[Math.floor(Math.random() * amounts.length)]
   }
 
   if (lowerPrompt.includes("location") || lowerPrompt.includes("headquarters")) {
+    // Return existing location if in context
+    if (location) {
+      return location + ", USA"
+    }
     const locations = ["San Francisco, CA", "New York, NY", "Austin, TX", "Seattle, WA", "Boston, MA", "Chicago, IL"]
     return locations[Math.floor(Math.random() * locations.length)]
   }
 
   if (lowerPrompt.includes("email") || lowerPrompt.includes("contact")) {
-    return `contact@${value.toLowerCase().replace(/\s+/g, "")}.com`
+    const leadName = rowContext?.["Lead Name"] || ""
+    if (leadName) {
+      const firstName = leadName.split(" ")[0].toLowerCase()
+      return `${firstName}@${companyName.toLowerCase().replace(/\s+/g, "")}.com`
+    }
+    return `contact@${companyName.toLowerCase().replace(/\s+/g, "")}.com`
+  }
+  
+  if (lowerPrompt.includes("phone")) {
+    return `+1 (555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`
+  }
+  
+  if (lowerPrompt.includes("ceo") || lowerPrompt.includes("founder")) {
+    const names = ["John Smith", "Sarah Johnson", "Michael Chen", "Emily Davis", "Robert Wilson"]
+    return names[Math.floor(Math.random() * names.length)]
   }
 
   if (lowerPrompt.includes("description") || lowerPrompt.includes("about")) {
