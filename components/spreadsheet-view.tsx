@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Sparkles, Plus, Loader2, Info, X, Download, BarChart3, ArrowRight, Filter, Play, Zap, ChevronDown, FileSpreadsheet, FileJson, FileText, CheckSquare, MousePointer, Settings } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Sparkles, Plus, Loader2, Info, X, Download, BarChart3, ArrowRight, Filter, Play, Zap, ChevronDown, FileSpreadsheet, FileJson, FileText, CheckSquare, MousePointer, Settings, LayoutDashboard, Share2, Mail, Copy, Clipboard, Scissors } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +34,11 @@ import { DataAnalysisDialog } from "@/components/data-analysis-dialog"
 import { SmartSelectionDialog } from "@/components/smart-selection-dialog"
 import { cn } from "@/lib/utils"
 
-export function SpreadsheetView() {
+interface SpreadsheetViewProps {
+  activeWorkflowStep?: string | null
+}
+
+export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const { 
     headers, 
     data, 
@@ -52,7 +57,8 @@ export function SpreadsheetView() {
     enrichExistingColumn,
     selectedCells,
     toggleCellSelection,
-    clearCellSelection
+    clearCellSelection,
+    getCellExplanation
   } = useSpreadsheetStore()
   const router = useRouter()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
@@ -70,6 +76,33 @@ export function SpreadsheetView() {
   const [editValue, setEditValue] = useState("")
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
   const [resizingColumn, setResizingColumn] = useState<number | null>(null)
+
+  // Keyboard shortcuts for copy/paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedCell && !editingCell) {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+        const modifier = isMac ? e.metaKey : e.ctrlKey
+        
+        if (modifier) {
+          if (e.key === 'c') {
+            e.preventDefault()
+            const value = data[selectedCell.row][selectedCell.col]
+            handleCopyCell(value)
+          } else if (e.key === 'v') {
+            e.preventDefault()
+            handlePasteCell(selectedCell.row, selectedCell.col)
+          } else if (e.key === 'x') {
+            e.preventDefault()
+            handleCutCell(selectedCell.row, selectedCell.col)
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedCell, editingCell, data])
   
   const hasSelection = selectedRows.size > 0 || selectedColumns.size > 0
   const selectedRowCount = selectedRows.size
@@ -82,6 +115,31 @@ export function SpreadsheetView() {
 
   const handleCellChange = (value: string, rowIndex: number, colIndex: number) => {
     updateCell(rowIndex, colIndex, value)
+  }
+
+  // Copy/Paste/Cut handlers
+  const handleCopyCell = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      // You could show a toast notification here
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const handlePasteCell = async (rowIndex: number, colIndex: number) => {
+    try {
+      const text = await navigator.clipboard.readText()
+      handleCellChange(text, rowIndex, colIndex)
+    } catch (err) {
+      console.error('Failed to paste:', err)
+    }
+  }
+
+  const handleCutCell = async (rowIndex: number, colIndex: number) => {
+    const value = data[rowIndex][colIndex]
+    await handleCopyCell(value)
+    handleCellChange("", rowIndex, colIndex)
   }
 
   const isCellEnriching = (rowIndex: number, colIndex: number) => {
@@ -119,6 +177,23 @@ export function SpreadsheetView() {
     }
   }
 
+  const handleCreateDashboard = () => {
+    // Store selected data and navigate to dashboard creation
+    const selectedData = getSelectedData()
+    if (selectedData.rows.length > 0) {
+      sessionStorage.setItem('dashboardData', JSON.stringify(selectedData))
+      router.push('/dashboard/create')
+    } else if (selectedCell) {
+      // If no rows selected but a cell is selected, use that row
+      const cellData = {
+        headers: headers,
+        rows: [data[selectedCell.row]]
+      }
+      sessionStorage.setItem('dashboardData', JSON.stringify(cellData))
+      router.push('/dashboard/create')
+    }
+  }
+
   const handleSelectAll = () => {
     selectAllRows()
     // Select all columns too
@@ -146,170 +221,169 @@ export function SpreadsheetView() {
 
   const selectedCellValue = selectedCell ? data[selectedCell.row]?.[selectedCell.col] || "" : ""
   const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
+  
+  // Calculate total table width
+  const calculateTableWidth = () => {
+    let totalWidth = 40 + 48 // checkbox (40px) + row number (48px) columns
+    headers.forEach((_, index) => {
+      totalWidth += columnWidths[index] || 200
+    })
+    return totalWidth
+  }
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Main Content */}
-      <div className={cn("flex flex-col transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-black">Spreadsheet</h1>
-              <Badge className="text-xs font-medium bg-gray-100 text-gray-700 border-gray-300">
-                {data.length} rows × {headers.length} columns
-              </Badge>
-              {hasSelection && (
-                <Badge className="text-xs font-medium bg-black text-white border-0 shadow-md">
-                  {selectedRowCount} rows, {selectedColumnCount} columns selected
-                </Badge>
-              )}
+      <div className={cn("flex flex-col min-h-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
+        {/* Action Toolbar */}
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          {/* Helper text based on workflow step */}
+          {activeWorkflowStep && (
+            <div className="text-xs text-gray-500 mb-2">
+              {activeWorkflowStep === 'import' && "Add or modify columns to prepare your data structure"}
+              {activeWorkflowStep === 'enrich' && "Use AI to add valuable data to your spreadsheet"}
+              {activeWorkflowStep === 'analyze' && "Generate insights and analyze your enriched data"}
+              {activeWorkflowStep === 'output' && "Create reports and dashboards from your analysis"}
+              {activeWorkflowStep === 'export' && "Export your data in your preferred format"}
             </div>
-
-            <div className="flex items-center gap-3">
-              {/* Selection Group */}
-              <div className="flex items-center gap-2 pr-3 border-r border-gray-200">
-                {!hasSelection ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-sm">
-                        <MousePointer className="h-4 w-4 mr-2" />
-                        Select
-                        <ChevronDown className="h-3 w-3 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem onClick={handleSelectAll}>
-                        <CheckSquare className="h-4 w-4 mr-2" />
-                        Select All
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setSmartSelectionOpen(true)}>
-                        <Filter className="h-4 w-4 mr-2" />
-                        Smart Select...
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Badge className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200">
-                      {selectedRowCount} rows, {selectedColumnCount} columns
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearSelection}
-                      className="text-sm text-gray-600 hover:text-gray-900"
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Data Actions Group */}
+          )}
+          {activeWorkflowStep ? (
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setAddColumnDialogOpen(true)}
-                  className="text-sm"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Column
-                </Button>
+                {/* Import step - only show Add Column */}
+                {activeWorkflowStep === 'import' && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setAddColumnDialogOpen(true)}
+                    data-add-column
+                    className="bg-black text-white hover:bg-gray-800"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Column
+                  </Button>
+                )}
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                      <ChevronDown className="h-3 w-3 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Export Format</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleExport}>
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      CSV File
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
-                      // Export as Excel
-                      const csvContent = [
-                        headers.join("\t"),
-                        ...data.map((row) => row.join("\t")),
-                      ].join("\n")
-                      const blob = new Blob([csvContent], { type: "application/vnd.ms-excel" })
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement("a")
-                      a.href = url
-                      a.download = "enriched-data.xls"
-                      a.click()
-                      URL.revokeObjectURL(url)
-                    }}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      Excel File
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
-                      // Export as JSON
-                      const jsonData = data.map(row => 
-                        headers.reduce((obj, header, index) => {
-                          obj[header] = row[index]
-                          return obj
-                        }, {} as Record<string, string>)
-                      )
-                      const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: "application/json" })
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement("a")
-                      a.href = url
-                      a.download = "enriched-data.json"
-                      a.click()
-                      URL.revokeObjectURL(url)
-                    }}>
-                      <FileJson className="h-4 w-4 mr-2" />
-                      JSON File
-                    </DropdownMenuItem>
-                    {hasSelection && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleGenerateOutput}>
-                          <ArrowRight className="h-4 w-4 mr-2" />
-                          Generate Output ({selectedRowCount} rows)
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {/* AI Features Group */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                {/* Enrich step - only show Enrich button */}
+                {activeWorkflowStep === 'enrich' && (
                   <Button
                     size="sm"
-                    className="bg-black text-white hover:bg-gray-800 shadow-md"
+                    className="bg-black text-white hover:bg-gray-800"
+                    onClick={() => {
+                      setEnrichmentScope('all')
+                      setEnrichmentColumnIndex(undefined)
+                      setEnrichmentDialogOpen(true)
+                    }}
                     data-enrich-button
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Enrich & Analyze
-                    <ChevronDown className="h-3 w-3 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>AI Features</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setEnrichmentDialogOpen(true)}>
-                    <Zap className="h-4 w-4 mr-2" />
                     Enrich Data
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setAnalysisDialogOpen(true)}>
+                  </Button>
+                )}
+
+                {/* Analyze step - only show Analyze button */}
+                {activeWorkflowStep === 'analyze' && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setAnalysisDialogOpen(true)}
+                    data-analysis-trigger
+                    className="bg-black text-white hover:bg-gray-800"
+                  >
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Analyze Data
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </Button>
+                )}
 
-              {/* Add Column Dialog - Keep existing */}
-              <Dialog open={addColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
+                {/* Output step - show Report and Dashboard buttons */}
+                {activeWorkflowStep === 'output' && (
+                  <>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleGenerateOutput}
+                      data-output-trigger
+                      className="bg-black text-white hover:bg-gray-800"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Generate Report
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCreateDashboard}
+                      disabled={!hasSelection}
+                      data-dashboard-trigger
+                    >
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Create Dashboard
+                    </Button>
+                  </>
+                )}
+
+                {/* Export step - only show Export button */}
+                {activeWorkflowStep === 'export' && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExport}
+                    data-export-trigger
+                    className="bg-black text-white hover:bg-gray-800"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Data
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Status Bar */}
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-xs">
+                {data.length} rows × {headers.length} columns
+              </Badge>
+              {hasSelection && (
+                <>
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedRowCount} {selectedRowCount === 1 ? 'row' : 'rows'} selected
+                  </Badge>
+                  {selectedColumnCount > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedColumnCount} {selectedColumnCount === 1 ? 'column' : 'columns'}
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSelection}
+                    className="h-6 text-xs"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Clear
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSmartSelectionOpen(true)}
+              className="h-6 text-xs"
+            >
+              <Filter className="h-3 w-3 mr-1" />
+              Smart Select
+            </Button>
+          </div>
+        </div>
+
+
+        {/* Add Column Dialog - Keep existing */}
+        <Dialog open={addColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
                 <DialogContent className="sm:max-w-[400px]">
                   <DialogHeader>
                     <DialogTitle>Add New Column</DialogTitle>
@@ -351,18 +425,14 @@ export function SpreadsheetView() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </div>
+        </Dialog>
 
-        <div className="flex-1 overflow-hidden bg-gray-50">
-          <div className="h-full overflow-auto">
-            <div className="w-full">
-              <table className="table-fixed border-collapse bg-white" style={{ width: 'max-content' }}>
-                <thead>
+        <div className="flex-1 overflow-hidden bg-gray-50 flex flex-col min-h-0">
+          <div className="flex-1 overflow-auto relative">
+            <table className="table-fixed border-collapse bg-white" style={{ width: `${calculateTableWidth()}px` }}>
+                <thead className="sticky top-0 z-30">
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="w-10 h-10 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-20">
+                    <th className="w-10 h-12 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-40">
                       <Checkbox
                         checked={selectedRows.size === data.length && data.length > 0}
                         onCheckedChange={(checked) => {
@@ -374,23 +444,23 @@ export function SpreadsheetView() {
                         }}
                       />
                     </th>
-                    <th className="w-12 h-10 text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-20">
+                    <th className="w-12 h-12 text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-40">
                       #
                     </th>
                     {headers.map((header, index) => (
                       <th
                         key={index}
-                        className="h-10 px-4 text-left text-sm font-medium text-gray-700 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative"
-                        style={{ width: columnWidths[index] || 200, minWidth: 100, maxWidth: 500 }}
+                        className="h-12 px-4 text-left text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative"
+                        style={{ width: `${columnWidths[index] || 200}px`, minWidth: '100px' }}
                       >
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
-                            <div className="relative h-full">
+                            <div className="relative h-full flex items-center">
                               <div 
-                                className="flex items-center gap-2 cursor-pointer"
+                                className="flex items-center gap-2 cursor-pointer flex-1"
                                 onClick={() => handleOpenEnrichmentForColumn(index, 'all')}
                               >
-                                <span className="truncate">{header}</span>
+                                <span className="truncate flex-1">{header}</span>
                                 {columnEnrichmentConfigs[index]?.isConfigured && (
                                   <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" title="Enrichment configured" />
                                 )}
@@ -406,7 +476,7 @@ export function SpreadsheetView() {
                               </div>
                               {/* Column resize handle */}
                               <div
-                                className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 transition-colors"
+                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors"
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
@@ -416,7 +486,7 @@ export function SpreadsheetView() {
                                   
                                   const handleMouseMove = (e: MouseEvent) => {
                                     const diff = e.clientX - startX
-                                    const newWidth = Math.max(100, Math.min(500, startWidth + diff))
+                                    const newWidth = Math.max(100, startWidth + diff)
                                     setColumnWidths(prev => ({ ...prev, [index]: newWidth }))
                                   }
                                   
@@ -464,27 +534,27 @@ export function SpreadsheetView() {
                       "hover:bg-gray-50 border-b border-gray-100",
                       selectedRows.has(rowIndex) && "bg-gray-100"
                     )}>
-                      <td className="w-10 h-10 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-10">
+                      <td className="w-10 h-12 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-10">
                         <Checkbox
                           checked={selectedRows.has(rowIndex)}
                           onCheckedChange={() => toggleRowSelection(rowIndex)}
                         />
                       </td>
-                      <td className="w-12 h-10 text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-10">
+                      <td className="w-12 h-12 text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-10">
                         {rowIndex + 1}
                       </td>
                       {row.map((cell, colIndex) => (
                         <td
                           key={colIndex}
                           className={cn(
-                            "h-10 border-r border-gray-200 cursor-pointer relative group",
+                            "h-12 border-r border-gray-200 cursor-pointer relative group",
                             selectedCell?.row === rowIndex &&
                               selectedCell?.col === colIndex &&
                               "bg-blue-50 ring-2 ring-blue-500 ring-inset",
                             isCellEnriching(rowIndex, colIndex) && "bg-blue-50",
                             selectedCells.has(`${rowIndex}-${colIndex}`) && "bg-yellow-50"
                           )}
-                          style={{ width: columnWidths[colIndex] || 200, minWidth: 100, maxWidth: 500 }}
+                          style={{ width: `${columnWidths[colIndex] || 200}px`, minWidth: '100px' }}
                         >
                           <ContextMenu>
                             <ContextMenuTrigger asChild>
@@ -521,20 +591,77 @@ export function SpreadsheetView() {
                                     autoFocus
                                   />
                                 ) : (
-                                  <div 
-                                    className="px-4 py-2 text-sm text-gray-900 truncate group-hover:bg-gray-50 overflow-hidden"
-                                    title={cell}
-                                  >
-                                    {cell}
-                                  </div>
+                                  (() => {
+                                    const explanation = getCellExplanation(rowIndex, colIndex)
+                                    const cellContent = (
+                                      <div 
+                                        className="px-4 py-2 text-sm text-gray-900 truncate group-hover:bg-gray-50 overflow-hidden"
+                                        title={cell}
+                                      >
+                                        {cell}
+                                      </div>
+                                    )
+                                    
+                                    if (explanation) {
+                                      return (
+                                        <TooltipProvider delayDuration={300}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              {cellContent}
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-xs">
+                                              <p className="text-sm">{explanation}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )
+                                    }
+                                    
+                                    return cellContent
+                                  })()
                                 )}
                               </div>
                             </ContextMenuTrigger>
                             <ContextMenuContent>
                               <ContextMenuLabel>Cell Actions</ContextMenuLabel>
                               <ContextMenuSeparator />
+                              
+                              {/* Copy/Paste/Cut actions */}
+                              <ContextMenuItem onClick={() => handleCopyCell(cell)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy
+                              </ContextMenuItem>
+                              <ContextMenuItem onClick={() => handlePasteCell(rowIndex, colIndex)}>
+                                <Clipboard className="h-4 w-4 mr-2" />
+                                Paste
+                              </ContextMenuItem>
+                              <ContextMenuItem onClick={() => handleCutCell(rowIndex, colIndex)}>
+                                <Scissors className="h-4 w-4 mr-2" />
+                                Cut
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              
+                              {/* Edit actions */}
+                              <ContextMenuItem onClick={() => {
+                                setEditingCell({ row: rowIndex, col: colIndex })
+                                setEditValue(cell)
+                              }}>
+                                Edit Cell
+                              </ContextMenuItem>
+                              <ContextMenuItem onClick={() => handleCellChange("", rowIndex, colIndex)}>
+                                Clear Cell
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              
+                              {/* Selection actions */}
+                              <ContextMenuItem onClick={() => toggleCellSelection(rowIndex, colIndex)}>
+                                {selectedCells.has(`${rowIndex}-${colIndex}`) ? 'Deselect Cell' : 'Select Cell'}
+                              </ContextMenuItem>
+                              
+                              {/* Enrichment actions (if configured) */}
                               {columnEnrichmentConfigs[colIndex]?.isConfigured && (
                                 <>
+                                  <ContextMenuSeparator />
                                   <ContextMenuItem onClick={() => handleOpenEnrichmentForColumn(colIndex, 'cell', rowIndex)}>
                                     <Sparkles className="h-4 w-4 mr-2" />
                                     Enrich This Cell
@@ -546,15 +673,8 @@ export function SpreadsheetView() {
                                     <Sparkles className="h-4 w-4 mr-2" />
                                     Enrich Selected Cells
                                   </ContextMenuItem>
-                                  <ContextMenuSeparator />
                                 </>
                               )}
-                              <ContextMenuItem onClick={() => toggleCellSelection(rowIndex, colIndex)}>
-                                {selectedCells.has(`${rowIndex}-${colIndex}`) ? 'Deselect Cell' : 'Select Cell'}
-                              </ContextMenuItem>
-                              <ContextMenuItem onClick={() => handleCellChange("", rowIndex, colIndex)}>
-                                Clear Cell
-                              </ContextMenuItem>
                             </ContextMenuContent>
                           </ContextMenu>
                         </td>
@@ -563,7 +683,6 @@ export function SpreadsheetView() {
                   ))}
                 </tbody>
               </table>
-            </div>
           </div>
         </div>
 
@@ -639,7 +758,11 @@ export function SpreadsheetView() {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start bg-transparent"
-                  onClick={() => setEnrichmentDialogOpen(true)}
+                  onClick={() => {
+                    if (selectedCell) {
+                      handleOpenEnrichmentForColumn(selectedCell.col, 'all')
+                    }
+                  }}
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   Enrich this column
@@ -651,6 +774,15 @@ export function SpreadsheetView() {
                   onClick={() => handleCellChange("", selectedCell.row, selectedCell.col)}
                 >
                   Clear cell
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start bg-transparent"
+                  onClick={handleCreateDashboard}
+                >
+                  <LayoutDashboard className="h-4 w-4 mr-2" />
+                  Create Dashboard
                 </Button>
               </CardContent>
             </Card>

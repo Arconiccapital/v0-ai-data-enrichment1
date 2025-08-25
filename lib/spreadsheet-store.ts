@@ -66,6 +66,7 @@ interface SpreadsheetStore {
   columnFormats: Record<string, ColumnFormatPreference>
   columnEnrichmentConfigs: Record<number, ColumnEnrichmentConfig>
   selectedCells: Set<string> // Format: "row-col"
+  cellExplanations: Record<string, string> // Format: "row-col" -> explanation
   // Selection state
   selectedRows: Set<number>
   selectedColumns: Set<number>
@@ -74,7 +75,7 @@ interface SpreadsheetStore {
   // Data methods
   setData: (headers: string[], rows: string[][]) => void
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
-  addColumn: (header: string) => void
+  addColumn: (header: string) => number
   addColumnWithEnrichment: (header: string, config?: Partial<ColumnEnrichmentConfig>) => void
   clearData: () => void
   // Enrichment methods
@@ -101,6 +102,10 @@ interface SpreadsheetStore {
   removeFilter: (index: number) => void
   getFilteredData: () => { headers: string[]; rows: string[][] }
   getSelectedData: () => { headers: string[]; rows: string[][] }
+  // Explanation methods
+  setCellExplanation: (rowIndex: number, colIndex: number, explanation: string) => void
+  getCellExplanation: (rowIndex: number, colIndex: number) => string | undefined
+  setColumnExplanations: (colIndex: number, explanations: string[]) => void
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
@@ -111,6 +116,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   columnFormats: {},
   columnEnrichmentConfigs: {},
   selectedCells: new Set(),
+  cellExplanations: {},
   selectedRows: new Set(),
   selectedColumns: new Set(),
   selectionMode: 'multiple',
@@ -132,11 +138,15 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       return { data: newData }
     }),
 
-  addColumn: (header) =>
-    set((state) => ({
+  addColumn: (header) => {
+    const state = get()
+    const newColumnIndex = state.headers.length
+    set({
       headers: [...state.headers, header],
       data: state.data.map((row) => [...row, ""]),
-    })),
+    })
+    return newColumnIndex
+  },
 
   addColumnWithEnrichment: (header, config) =>
     set((state) => {
@@ -785,6 +795,34 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     
     return { headers: selectedHeaders, rows: finalData }
   },
+
+  setCellExplanation: (rowIndex, colIndex, explanation) =>
+    set((state) => {
+      const key = `${rowIndex}-${colIndex}`
+      return {
+        cellExplanations: {
+          ...state.cellExplanations,
+          [key]: explanation
+        }
+      }
+    }),
+
+  getCellExplanation: (rowIndex, colIndex) => {
+    const key = `${rowIndex}-${colIndex}`
+    return get().cellExplanations[key]
+  },
+
+  setColumnExplanations: (colIndex, explanations) =>
+    set((state) => {
+      const newExplanations = { ...state.cellExplanations }
+      explanations.forEach((explanation, rowIndex) => {
+        if (explanation) {
+          const key = `${rowIndex}-${colIndex}`
+          newExplanations[key] = explanation
+        }
+      })
+      return { cellExplanations: newExplanations }
+    }),
 }))
 
 async function enrichCell(value: string, prompt: string): Promise<string> {

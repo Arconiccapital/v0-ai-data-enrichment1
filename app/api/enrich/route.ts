@@ -61,6 +61,38 @@ export async function POST(request: Request) {
       if (response.answer) {
         enrichedValue = response.answer
 
+        // Extract specific formats
+        if (expectedType === 'name') {
+          // Extract names from sentences
+          const namePattern = /\b([A-Z][a-z]+(?: [A-Z][a-z]+)+)\b/g
+          const names = enrichedValue.match(namePattern)
+          if (names && names.length > 0) {
+            enrichedValue = names.join(', ')
+            console.log("[v0] Extracted names:", enrichedValue)
+          }
+        } else if (expectedType === 'company') {
+          // Extract company name, remove common suffixes
+          const companyPattern = /\b([A-Z][a-zA-Z0-9\s&]+(?:Inc|LLC|Ltd|Corp|Company|Co)?\.?)\b/
+          const match = enrichedValue.match(companyPattern)
+          if (match) {
+            enrichedValue = match[1].trim()
+          }
+        } else if (expectedType === 'title') {
+          // Extract job title
+          const titlePattern = /\b((?:Chief|Senior|Junior|Lead|Head|Director|Manager|VP|President|CEO|CTO|CFO|COO)[^,.;]*)\b/i
+          const match = enrichedValue.match(titlePattern)
+          if (match) {
+            enrichedValue = match[1].trim()
+          }
+        } else if (expectedType === 'location') {
+          // Extract location (city, state/country)
+          const locationPattern = /\b([A-Z][a-zA-Z\s]+(?:,\s*[A-Z]{2})?(?:,\s*[A-Z][a-zA-Z\s]+)?)\b/
+          const match = enrichedValue.match(locationPattern)
+          if (match) {
+            enrichedValue = match[1].trim()
+          }
+        }
+
         // Apply format validation based on mode
         if (formatMode === 'custom' && customFormat) {
           // Apply custom format validation
@@ -167,6 +199,26 @@ function generateMockEnrichment(
   // Generate based on expected type if provided
   if (expectedType) {
     switch (expectedType) {
+      case 'name':
+        // Return just names for founder/CEO prompts
+        if (lowerPrompt.includes("founder") || lowerPrompt.includes("ceo")) {
+          const names = ["John Smith", "Sarah Johnson", "Michael Chen, David Lee", "Emily Davis", "Robert Wilson, Anna Brown"]
+          return names[Math.floor(Math.random() * names.length)]
+        }
+        return "John Doe"
+      
+      case 'company':
+        return companyName
+      
+      case 'title':
+        const titles = ["CEO", "CTO", "VP of Sales", "Director of Marketing", "Senior Engineer", "Product Manager"]
+        return titles[Math.floor(Math.random() * titles.length)]
+      
+      case 'location':
+        if (location) return location
+        const locations = ["San Francisco, CA", "New York, NY", "Austin, TX", "Seattle, WA", "Boston, MA"]
+        return locations[Math.floor(Math.random() * locations.length)]
+      
       case 'email':
         const leadName = rowContext?.["Lead Name"] || ""
         if (leadName) {

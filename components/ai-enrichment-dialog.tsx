@@ -52,7 +52,7 @@ export function AIEnrichmentDialog({
   
   const [columnName, setColumnName] = useState("")
   const [prompt, setPrompt] = useState("")
-  const [dataType, setDataType] = useState("auto")
+  const [dataType, setDataType] = useState("text")
   const [isEnriching, setIsEnriching] = useState(false)
   const [isNewColumn, setIsNewColumn] = useState(true)
   const [enrichmentRange, setEnrichmentRange] = useState<'first' | 'all'>('first')
@@ -62,6 +62,11 @@ export function AIEnrichmentDialog({
 
   // Initialize based on whether we're enriching an existing column or creating a new one
   useEffect(() => {
+    // Check for enrichment configuration from sidebar
+    const storedFormat = sessionStorage.getItem('enrichmentFormat')
+    const storedPrompt = sessionStorage.getItem('enrichmentPrompt')
+    const storedContextColumns = sessionStorage.getItem('enrichmentContextColumns')
+    
     if (columnIndex !== undefined && columnIndex >= 0) {
       setIsNewColumn(false)
       const existingColumnName = headers[columnIndex]
@@ -87,8 +92,57 @@ export function AIEnrichmentDialog({
     } else {
       setIsNewColumn(true)
       setColumnName("")
-      setPrompt("")
-      setDataType("auto")
+      
+      // Use stored values from sidebar if available
+      if (storedPrompt) {
+        setPrompt(storedPrompt)
+        sessionStorage.removeItem('enrichmentPrompt')
+      } else {
+        setPrompt("")
+      }
+      
+      if (storedFormat) {
+        // Map format values to dialog's dataType values
+        const formatMapping: Record<string, string> = {
+          'name': 'text',
+          'email': 'email',
+          'url': 'url',
+          'phone': 'phone',
+          'company': 'company',
+          'jobtitle': 'title',
+          'address': 'location',
+          'currency': 'currency',
+          'percentage': 'percentage',
+          'number': 'number',
+          'date': 'date',
+          'linkedin': 'url',
+          'twitter': 'text',
+          'score': 'number',
+          'status': 'text',
+          'yesno': 'text',
+          'category': 'text',
+          'country': 'location',
+          'description': 'text',
+          'list': 'text',
+          'json': 'text',
+          'text': 'text'
+        }
+        setDataType(formatMapping[storedFormat] || 'auto')
+        sessionStorage.removeItem('enrichmentFormat')
+      } else {
+        setDataType("text")
+      }
+      
+      if (storedContextColumns) {
+        try {
+          const columns = JSON.parse(storedContextColumns)
+          const columnNames = columns.map((idx: number) => headers[idx]).filter(Boolean)
+          setSelectedContextColumns(columnNames)
+        } catch (e) {
+          console.error('Failed to parse context columns', e)
+        }
+        sessionStorage.removeItem('enrichmentContextColumns')
+      }
     }
   }, [columnIndex, headers, getColumnEnrichmentConfig, enrichmentScope, selectedRowCount])
 
@@ -111,10 +165,27 @@ export function AIEnrichmentDialog({
       // Determine format mode and prepare prompt
       let fullPrompt = prompt
       let formatMode = 'free'
-      let actualDataType = dataType === "auto" ? "text" : dataType
+      let actualDataType = dataType
       
       // Add format instructions if a specific type is selected
-      if (dataType !== "auto" && formatTemplates[dataType]) {
+      if (dataType === "text") {
+        // Name format - extract just names
+        formatMode = 'strict'
+        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the name(s), no additional text, sentences, or explanation. Format: First Last (e.g., John Smith). If multiple names, separate with comma.`
+        fullPrompt = `${fullPrompt}\n[Expected type: name]`
+      } else if (dataType === "company") {
+        formatMode = 'strict'
+        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the company name, no additional text or explanation.`
+        fullPrompt = `${fullPrompt}\n[Expected type: company]`
+      } else if (dataType === "title") {
+        formatMode = 'strict'
+        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the job title, no additional text or explanation.`
+        fullPrompt = `${fullPrompt}\n[Expected type: title]`
+      } else if (dataType === "location") {
+        formatMode = 'strict'
+        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the location (city, state/country), no additional text or explanation.`
+        fullPrompt = `${fullPrompt}\n[Expected type: location]`
+      } else if (dataType !== "auto" && formatTemplates[dataType]) {
         formatMode = 'strict'
         const formatInstruction = formatTemplates[dataType].instruction
         if (!fullPrompt.includes(formatInstruction)) {
@@ -172,8 +243,8 @@ export function AIEnrichmentDialog({
         } else if (enrichmentScope === 'selected' && selectedRows.size > 0) {
           // Enrich selected cells
           await enrichSelectedCells(columnIndex, selectedRows, fullPrompt, contextColumns)
-        } else if (enrichmentRange === 'first') {
-          // Enrich first N cells
+        } else if (enrichmentRange === 'first' && enrichmentScope !== 'cell' && enrichmentScope !== 'selected') {
+          // Enrich first N cells (only when not in cell or selected mode)
           const rowsToEnrich = new Set<number>()
           for (let i = 0; i < Math.min(firstN, data.length); i++) {
             rowsToEnrich.add(i)
@@ -188,7 +259,7 @@ export function AIEnrichmentDialog({
       onOpenChange(false)
       setPrompt("")
       setColumnName("")
-      setDataType("auto")
+      setDataType("text")
       setSelectedContextColumns([])
       setShowAdvanced(false)
     } catch (error) {
@@ -249,15 +320,18 @@ export function AIEnrichmentDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto-detect</SelectItem>
-                <SelectItem value="text">Text</SelectItem>
+                <SelectItem value="text">Name</SelectItem>
                 <SelectItem value="email">Email Address</SelectItem>
                 <SelectItem value="url">Website/URL</SelectItem>
                 <SelectItem value="phone">Phone Number</SelectItem>
+                <SelectItem value="company">Company</SelectItem>
+                <SelectItem value="title">Job Title</SelectItem>
+                <SelectItem value="location">Location</SelectItem>
                 <SelectItem value="number">Number</SelectItem>
                 <SelectItem value="currency">Currency/Money</SelectItem>
                 <SelectItem value="percentage">Percentage</SelectItem>
                 <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="auto">Other/Auto-detect</SelectItem>
               </SelectContent>
             </Select>
           </div>

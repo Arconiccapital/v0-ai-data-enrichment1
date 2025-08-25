@@ -1,322 +1,93 @@
 "use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import {
-  FileSpreadsheet,
-  Home,
-  FileText,
-  Mail,
-  Share2,
-  Users,
-  Plus,
-  Search,
-  Download,
-  MoreHorizontal,
-  Sparkles,
-} from "lucide-react"
 import { CSVUploader } from "@/components/csv-uploader"
 import { SpreadsheetView } from "@/components/spreadsheet-view"
+import { AppNavigation } from "@/components/app-navigation"
+import { WorkflowIndicator } from "@/components/workflow-indicator"
+import { SidebarNav } from "@/components/sidebar-nav"
+import { EnrichSidebar } from "@/components/enrich-sidebar"
+import { AnalyzeSidebar } from "@/components/analyze-sidebar"
+import { OutputSidebar } from "@/components/output-sidebar"
+import { ExportSidebar } from "@/components/export-sidebar"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
-import Link from "next/link"
 
 export default function HomePage() {
-  const { data, headers, hasData, clearData } = useSpreadsheetStore()
+  const { hasData } = useSpreadsheetStore()
+  const [activeWorkflowStep, setActiveWorkflowStep] = useState<string | null>(null)
 
-  const handleExport = () => {
-    const csvContent = [
-      headers.join(","),
-      ...data.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "exported-data.csv"
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const handleShare = () => {
-    alert("Share functionality coming soon! You can export the CSV and share it manually.")
-  }
-
-  return (
-    <div className="min-h-screen bg-white">
-      {hasData ? (
-        <div className="flex h-screen">
-          {/* Left Sidebar */}
-          <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
-            {/* Logo/Brand */}
-            <div className="p-4 border-b border-gray-200">
-              <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-                  <FileSpreadsheet className="h-5 w-5 text-white" />
-                </div>
-                <span className="font-sans font-semibold text-lg text-black">AI DataEnrich</span>
-              </Link>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex-1 p-4">
-              <div className="space-y-1">
-                <Link href="/dashboard">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-gray-700 hover:bg-gray-100 font-sans rounded-md"
-                  >
-                    <Home className="h-4 w-4 mr-3" />
-                    Dashboard
-                  </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                >
-                  <FileText className="h-4 w-4 mr-3" />
-                  Templates
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                >
-                  <Mail className="h-4 w-4 mr-3" />
-                  Email
-                </Button>
-              </div>
-
-              {/* Shared Section */}
-              <div className="mt-8">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground font-sans uppercase tracking-wide">
-                    Shared
-                  </span>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-sidebar-accent rounded-md">
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="space-y-1">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                  >
-                    <Share2 className="h-4 w-4 mr-3" />
-                    Shared with me
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                  >
-                    <Users className="h-4 w-4 mr-3" />
-                    Public sheets
-                  </Button>
-                </div>
-              </div>
-
-              {/* Private Section */}
-              <div className="mt-8">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground font-sans uppercase tracking-wide">
-                    Private
-                  </span>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-sidebar-accent rounded-md">
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="space-y-1">
-                  <Button
-                    variant="default"
-                    className="w-full justify-start bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/80 border-0 font-sans rounded-md shadow-sm"
-                  >
-                    <FileSpreadsheet className="h-4 w-4 mr-3" />
-                    Company Data
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                  >
-                    <FileSpreadsheet className="h-4 w-4 mr-3" />
-                    Copy of Company
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
-                  >
-                    <FileSpreadsheet className="h-4 w-4 mr-3" />
-                    Copy of Company
-                  </Button>
-                </div>
-              </div>
-
-              {/* Team Section */}
-              <div className="mt-8">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground font-sans uppercase tracking-wide">
-                    Team
-                  </span>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-sidebar-accent rounded-md">
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col bg-background">
-            {/* Top Toolbar */}
-            <div className="bg-card border-b border-border px-6 py-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 font-sans shadow-sm"
-                      onClick={() => {
-                        clearData()
-                        window.location.reload()
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      New sheet
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="font-sans border-border hover:bg-muted bg-transparent"
-                      onClick={handleExport}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="font-sans border-border hover:bg-muted bg-transparent"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-sans shadow-sm"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Enrich
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="font-sans border-border hover:bg-muted bg-transparent"
-                    onClick={handleShare}
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
-                  </Button>
-                  <Button variant="outline" size="sm" className="font-sans border-border hover:bg-muted bg-transparent">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Sheet Header */}
-            <div className="bg-card border-b border-border px-6 py-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value="100m-Aussie-Companies-Default-view-export-1753009923726 (1)"
-                    className="text-lg font-medium border-0 p-0 h-auto bg-transparent focus-visible:ring-0 text-foreground"
-                    readOnly
-                  />
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Select cell</span>
-                  <div className="flex items-center gap-1">
-                    <Search className="h-4 w-4" />
-                    <MoreHorizontal className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Spreadsheet Content */}
-            <div className="flex-1 bg-background">
-              <SpreadsheetView />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="min-h-screen bg-white">
-          {/* Header */}
-          <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-sm">
-            <div className="container mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                  <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-                    <FileSpreadsheet className="h-5 w-5 text-white" />
-                  </div>
-                  <h1 className="text-2xl font-sans font-semibold text-black">AI DataEnrich</h1>
-                </Link>
-                <div className="flex items-center gap-3">
-                  <Link href="/auth/login">
-                    <Button variant="ghost" size="sm" className="font-sans">
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/auth/signup">
-                    <Button size="sm" className="bg-black text-white hover:bg-gray-800 font-sans">
-                      Get Started
-                    </Button>
-                  </Link>
-                  <Link href="/pricing">
-                    <Button variant="ghost" size="sm" className="font-sans">
-                      Pricing
-                    </Button>
-                  </Link>
-                  <Link href="/faq">
-                    <Button variant="ghost" size="sm" className="font-sans">
-                      FAQ
-                    </Button>
-                  </Link>
-                  <Link href="/help">
-                    <Button variant="ghost" size="sm" className="font-sans">
-                      Help
-                    </Button>
-                  </Link>
-                  <Link href="/contact">
-                    <Button variant="ghost" size="sm" className="font-sans">
-                      Contact
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <main className="py-24 px-6">
-            <div className="container mx-auto max-w-4xl text-center">
-              <h1 className="font-sans text-5xl font-bold leading-tight tracking-tight text-black mb-6">
-                A workspace to transform
-                <br />
-                <span className="text-black">your data</span>
+  // Show upload page if no data
+  if (!hasData) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <AppNavigation />
+        
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-2xl">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Welcome to AI DataEnrich
               </h1>
-              <p className="font-sans text-xl leading-relaxed text-gray-600 mb-12 max-w-3xl mx-auto">
-                Upload data from any source and watch it instantly integrate into your workspace with AI-powered enrichment.
+              <p className="text-lg text-gray-600">
+                Upload your CSV data to get started with AI-powered enrichment and analysis
               </p>
-
-              <Card className="max-w-2xl mx-auto border border-gray-200 shadow-lg bg-white">
-                <CardContent className="p-8">
-                  <CSVUploader />
-                </CardContent>
-              </Card>
             </div>
-          </main>
+            
+            <CSVUploader />
+          </div>
         </div>
-      )}
+      </div>
+    )
+  }
+
+  const handleWorkflowStepClick = (stepId: string) => {
+    // If clicking the same step, close it
+    if (activeWorkflowStep === stepId) {
+      setActiveWorkflowStep(null)
+    } else {
+      setActiveWorkflowStep(stepId)
+    }
+  }
+
+  // Main application with data loaded
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Top Navigation */}
+      <AppNavigation />
+      
+      {/* Workflow Indicator */}
+      <WorkflowIndicator 
+        onStepClick={handleWorkflowStepClick}
+        activeStep={activeWorkflowStep}
+      />
+      
+      {/* Main Content with Sidebar */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar */}
+        <SidebarNav />
+        
+        {/* Content Area */}
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <SpreadsheetView activeWorkflowStep={activeWorkflowStep} />
+          </div>
+          
+          {/* Right Sidebar based on active workflow step */}
+          {activeWorkflowStep === 'enrich' && (
+            <EnrichSidebar onClose={() => setActiveWorkflowStep(null)} />
+          )}
+          {activeWorkflowStep === 'analyze' && (
+            <AnalyzeSidebar onClose={() => setActiveWorkflowStep(null)} />
+          )}
+          {activeWorkflowStep === 'output' && (
+            <OutputSidebar onClose={() => setActiveWorkflowStep(null)} />
+          )}
+          {activeWorkflowStep === 'export' && (
+            <ExportSidebar onClose={() => setActiveWorkflowStep(null)} />
+          )}
+        </div>
+      </div>
     </div>
   )
 }
