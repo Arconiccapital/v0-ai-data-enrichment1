@@ -147,20 +147,20 @@ export default function DashboardPage() {
       <main className="container mx-auto px-6 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="font-sans text-3xl font-bold text-foreground mb-2">Your Projects</h1>
-          <p className="text-muted-foreground font-sans">Manage and enrich your data projects.</p>
+          <h1 className="font-sans text-4xl font-black text-black mb-2">Your Projects</h1>
+          <p className="text-gray-600 font-sans text-lg">Manage and enrich your data projects with AI power.</p>
         </div>
 
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <Button className="bg-primary hover:bg-primary/90 font-sans">
+              <Button className="bg-black text-white hover:bg-gray-800 border-0 font-sans">
                 <Plus className="h-4 w-4 mr-2" />
                 New Project
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="outline" className="font-sans bg-transparent">
+              <Button variant="outline" className="bg-white hover:bg-gray-50 border-gray-300 hover:border-gray-400 font-sans">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload CSV
               </Button>
@@ -171,16 +171,16 @@ export default function DashboardPage() {
         {/* Projects Grid */}
         <div className="grid gap-6">
           {recentProjects.map((project) => (
-            <Card key={project.id} className="border-border shadow-sm hover:shadow-md transition-shadow">
+            <Card key={project.id} className="bg-white border border-gray-200 hover:shadow-lg transition-shadow duration-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <FileSpreadsheet className="h-6 w-6 text-primary" />
+                    <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-md">
+                      <FileSpreadsheet className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-sans font-semibold text-foreground text-lg">{project.name}</h3>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground font-sans mt-1">
+                      <h3 className="font-sans font-bold text-gray-800 text-lg">{project.name}</h3>
+                      <div className="flex items-center gap-4 text-sm text-gray-600 font-sans mt-1">
                         <span>
                           {project.enriched}/{project.rows} rows enriched
                         </span>

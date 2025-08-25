@@ -43,18 +43,18 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       {hasData ? (
         <div className="flex h-screen">
           {/* Left Sidebar */}
-          <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col shadow-sm">
+          <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
             {/* Logo/Brand */}
-            <div className="p-4 border-b border-sidebar-border">
+            <div className="p-4 border-b border-gray-200">
               <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-                  <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                  <FileSpreadsheet className="h-5 w-5 text-white" />
                 </div>
-                <span className="font-sans font-semibold text-sidebar-foreground text-lg">AI DataEnrich</span>
+                <span className="font-sans font-semibold text-lg text-black">AI DataEnrich</span>
               </Link>
             </div>
 
@@ -64,7 +64,7 @@ export default function HomePage() {
                 <Link href="/dashboard">
                   <Button
                     variant="ghost"
-                    className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-sans rounded-md"
+                    className="w-full justify-start text-gray-700 hover:bg-gray-100 font-sans rounded-md"
                   >
                     <Home className="h-4 w-4 mr-3" />
                     Dashboard
@@ -250,16 +250,16 @@ export default function HomePage() {
           </div>
         </div>
       ) : (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-white">
           {/* Header */}
-          <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+          <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-sm">
             <div className="container mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-                    <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
+                  <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                    <FileSpreadsheet className="h-5 w-5 text-white" />
                   </div>
-                  <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+                  <h1 className="text-2xl font-sans font-semibold text-black">AI DataEnrich</h1>
                 </Link>
                 <div className="flex items-center gap-3">
                   <Link href="/auth/login">
@@ -268,7 +268,7 @@ export default function HomePage() {
                     </Button>
                   </Link>
                   <Link href="/auth/signup">
-                    <Button size="sm" className="bg-primary hover:bg-primary/90 font-sans shadow-sm">
+                    <Button size="sm" className="bg-black text-white hover:bg-gray-800 font-sans">
                       Get Started
                     </Button>
                   </Link>
@@ -299,17 +299,16 @@ export default function HomePage() {
 
           <main className="py-24 px-6">
             <div className="container mx-auto max-w-4xl text-center">
-              <h1 className="font-sans text-5xl font-bold leading-tight tracking-tight text-foreground mb-6">
+              <h1 className="font-sans text-5xl font-bold leading-tight tracking-tight text-black mb-6">
                 A workspace to transform
                 <br />
-                <span className="text-foreground">your data</span>
+                <span className="text-black">your data</span>
               </h1>
-              <p className="font-sans text-xl leading-relaxed text-muted-foreground mb-12 max-w-3xl mx-auto">
-                Upload data from any source and watch it instantly integrate into your workspace with AI-powered
-                enrichment.
+              <p className="font-sans text-xl leading-relaxed text-gray-600 mb-12 max-w-3xl mx-auto">
+                Upload data from any source and watch it instantly integrate into your workspace with AI-powered enrichment.
               </p>
 
-              <Card className="max-w-2xl mx-auto shadow-sm border-border bg-card">
+              <Card className="max-w-2xl mx-auto border border-gray-200 shadow-lg bg-white">
                 <CardContent className="p-8">
                   <CSVUploader />
                 </CardContent>

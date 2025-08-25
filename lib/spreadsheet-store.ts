@@ -13,6 +13,16 @@ interface ColumnFormatPreference {
   customFormat?: CustomFormat
 }
 
+interface ColumnEnrichmentConfig {
+  columnIndex: number
+  columnName: string
+  prompt: string
+  formatMode: FormatMode
+  dataType?: string
+  customFormat?: CustomFormat
+  isConfigured: boolean
+}
+
 interface ColumnAnalysis {
   columnName: string
   columnIndex: number
@@ -54,6 +64,8 @@ interface SpreadsheetStore {
   hasData: boolean
   enrichmentStatus: Record<number, EnrichmentStatus>
   columnFormats: Record<string, ColumnFormatPreference>
+  columnEnrichmentConfigs: Record<number, ColumnEnrichmentConfig>
+  selectedCells: Set<string> // Format: "row-col"
   // Selection state
   selectedRows: Set<number>
   selectedColumns: Set<number>
@@ -63,14 +75,23 @@ interface SpreadsheetStore {
   setData: (headers: string[], rows: string[][]) => void
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
   addColumn: (header: string) => void
+  addColumnWithEnrichment: (header: string, config?: Partial<ColumnEnrichmentConfig>) => void
   clearData: () => void
   // Enrichment methods
-  enrichColumn: (columnIndex: number, prompt: string) => Promise<void>
-  enrichColumnToNew: (sourceColumnIndex: number, newColumnName: string, prompt: string, formatMode?: FormatMode, customFormat?: CustomFormat) => Promise<void>
+  enrichColumn: (columnIndex: number, prompt: string, contextColumns?: Set<number>) => Promise<void>
+  enrichColumnToNew: (sourceColumnIndex: number, newColumnName: string, prompt: string, formatMode?: FormatMode, customFormat?: CustomFormat, contextColumns?: Set<number>) => Promise<void>
+  enrichSingleCell: (rowIndex: number, columnIndex: number, prompt?: string, contextColumns?: Set<number>) => Promise<void>
+  enrichSelectedCells: (columnIndex: number, selectedRows: Set<number>, prompt?: string, contextColumns?: Set<number>) => Promise<void>
+  enrichExistingColumn: (columnIndex: number, scope: 'cell' | 'selected' | 'all', selectedRows?: Set<number>, rowIndex?: number) => Promise<void>
+  storeColumnEnrichmentConfig: (columnIndex: number, config: Partial<ColumnEnrichmentConfig>) => void
+  getColumnEnrichmentConfig: (columnIndex: number) => ColumnEnrichmentConfig | undefined
   analyzeData: () => DataAnalysis
   setColumnFormat: (columnName: string, preference: ColumnFormatPreference) => void
   getColumnFormat: (columnName: string) => ColumnFormatPreference | undefined
   // Selection methods
+  toggleCellSelection: (rowIndex: number, colIndex: number) => void
+  clearCellSelection: () => void
+  getSelectedCells: () => Array<{ row: number; col: number }>
   toggleRowSelection: (rowIndex: number) => void
   toggleColumnSelection: (colIndex: number) => void
   selectAllRows: () => void
@@ -88,6 +109,8 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   hasData: false,
   enrichmentStatus: {},
   columnFormats: {},
+  columnEnrichmentConfigs: {},
+  selectedCells: new Set(),
   selectedRows: new Set(),
   selectedColumns: new Set(),
   selectionMode: 'multiple',
@@ -115,6 +138,29 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       data: state.data.map((row) => [...row, ""]),
     })),
 
+  addColumnWithEnrichment: (header, config) =>
+    set((state) => {
+      const newColumnIndex = state.headers.length
+      const newState = {
+        headers: [...state.headers, header],
+        data: state.data.map((row) => [...row, ""]),
+        columnEnrichmentConfigs: config ? {
+          ...state.columnEnrichmentConfigs,
+          [newColumnIndex]: {
+            columnIndex: newColumnIndex,
+            columnName: header,
+            prompt: config.prompt || "",
+            formatMode: config.formatMode || 'strict',
+            dataType: config.dataType,
+            customFormat: config.customFormat,
+            isConfigured: !!config.prompt,
+            ...config
+          }
+        } : state.columnEnrichmentConfigs
+      }
+      return newState
+    }),
+
   clearData: () =>
     set({
       headers: [],
@@ -123,7 +169,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       enrichmentStatus: {},
     }),
 
-  enrichColumn: async (columnIndex, prompt) => {
+  enrichColumn: async (columnIndex, prompt, contextColumns) => {
     const { data, headers } = get()
 
     // Set enrichment status
@@ -145,8 +191,27 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
           },
         }))
 
-        const currentValue = data[rowIndex][columnIndex]
-        const enrichedValue = await enrichCell(currentValue, prompt)
+        // Create row context with optional column filtering
+        const rowContext = {}
+        if (contextColumns && contextColumns.size > 0) {
+          // Use only selected context columns
+          contextColumns.forEach(colIndex => {
+            const header = headers[colIndex]
+            if (header && data[rowIndex][colIndex]) {
+              rowContext[header] = data[rowIndex][colIndex]
+            }
+          })
+        } else {
+          // Use all columns (backward compatibility)
+          headers.forEach((header, colIndex) => {
+            if (header && data[rowIndex][colIndex]) {
+              rowContext[header] = data[rowIndex][colIndex]
+            }
+          })
+        }
+
+        const currentValue = data[rowIndex][columnIndex] || ""
+        const enrichedValue = await enrichCellWithContext(rowContext, currentValue, prompt, headers)
 
         // Update the cell with enriched value
         set((state) => {
@@ -172,7 +237,193 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     }
   },
 
-  enrichColumnToNew: async (sourceColumnIndex, newColumnName, prompt, formatMode, customFormat) => {
+  enrichSingleCell: async (rowIndex, columnIndex, prompt, contextColumns) => {
+    const { data, headers, columnEnrichmentConfigs } = get()
+    
+    // Use provided prompt or get from column config
+    const enrichmentPrompt = prompt || columnEnrichmentConfigs[columnIndex]?.prompt
+    if (!enrichmentPrompt) {
+      console.error("No prompt provided for enrichment")
+      return
+    }
+
+    // Set enrichment status
+    set((state) => ({
+      enrichmentStatus: {
+        ...state.enrichmentStatus,
+        [columnIndex]: { enriching: true, prompt: enrichmentPrompt, currentRow: rowIndex },
+      },
+    }))
+
+    try {
+      // Create row context with optional column filtering
+      const rowContext = {}
+      if (contextColumns && contextColumns.size > 0) {
+        // Use only selected context columns
+        contextColumns.forEach(colIndex => {
+          const header = headers[colIndex]
+          if (header && data[rowIndex][colIndex]) {
+            rowContext[header] = data[rowIndex][colIndex]
+          }
+        })
+      } else {
+        // Use all columns (backward compatibility)
+        headers.forEach((header, colIndex) => {
+          if (header && data[rowIndex][colIndex]) {
+            rowContext[header] = data[rowIndex][colIndex]
+          }
+        })
+      }
+
+      const primaryValue = data[rowIndex][columnIndex] || ""
+      const enrichedValue = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+
+      // Update the cell
+      set((state) => {
+        const newData = [...state.data]
+        newData[rowIndex] = [...newData[rowIndex]]
+        newData[rowIndex][columnIndex] = enrichedValue
+        return { data: newData }
+      })
+    } catch (error) {
+      console.error("Single cell enrichment failed:", error)
+    } finally {
+      // Clear enrichment status
+      set((state) => ({
+        enrichmentStatus: {
+          ...state.enrichmentStatus,
+          [columnIndex]: { enriching: false },
+        },
+      }))
+    }
+  },
+
+  enrichSelectedCells: async (columnIndex, selectedRows, prompt, contextColumns) => {
+    const { data, headers, columnEnrichmentConfigs } = get()
+    
+    // Use provided prompt or get from column config
+    const enrichmentPrompt = prompt || columnEnrichmentConfigs[columnIndex]?.prompt
+    if (!enrichmentPrompt) {
+      console.error("No prompt provided for enrichment")
+      return
+    }
+
+    // Set enrichment status
+    set((state) => ({
+      enrichmentStatus: {
+        ...state.enrichmentStatus,
+        [columnIndex]: { enriching: true, prompt: enrichmentPrompt, currentRow: 0 },
+      },
+    }))
+
+    try {
+      // Process selected rows
+      const rowsToProcess = Array.from(selectedRows).sort((a, b) => a - b)
+      
+      for (const rowIndex of rowsToProcess) {
+        // Update current row being processed
+        set((state) => ({
+          enrichmentStatus: {
+            ...state.enrichmentStatus,
+            [columnIndex]: { ...state.enrichmentStatus[columnIndex], currentRow: rowIndex },
+          },
+        }))
+
+        // Create row context with optional column filtering
+        const rowContext = {}
+        if (contextColumns && contextColumns.size > 0) {
+          // Use only selected context columns
+          contextColumns.forEach(colIndex => {
+            const header = headers[colIndex]
+            if (header && data[rowIndex][colIndex]) {
+              rowContext[header] = data[rowIndex][colIndex]
+            }
+          })
+        } else {
+          // Use all columns (backward compatibility)
+          headers.forEach((header, colIndex) => {
+            if (header && data[rowIndex][colIndex]) {
+              rowContext[header] = data[rowIndex][colIndex]
+            }
+          })
+        }
+
+        const primaryValue = data[rowIndex][columnIndex] || ""
+        const enrichedValue = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+
+        // Update the cell
+        set((state) => {
+          const newData = [...state.data]
+          newData[rowIndex] = [...newData[rowIndex]]
+          newData[rowIndex][columnIndex] = enrichedValue
+          return { data: newData }
+        })
+
+        // Small delay to show progress
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+    } catch (error) {
+      console.error("Selected cells enrichment failed:", error)
+    } finally {
+      // Clear enrichment status
+      set((state) => ({
+        enrichmentStatus: {
+          ...state.enrichmentStatus,
+          [columnIndex]: { enriching: false },
+        },
+      }))
+    }
+  },
+
+  enrichExistingColumn: async (columnIndex, scope, selectedRows, rowIndex) => {
+    const { enrichColumn, enrichSingleCell, enrichSelectedCells, columnEnrichmentConfigs } = get()
+    const config = columnEnrichmentConfigs[columnIndex]
+    
+    if (!config || !config.prompt) {
+      console.error("Column has no enrichment configuration")
+      return
+    }
+
+    switch (scope) {
+      case 'cell':
+        if (rowIndex !== undefined) {
+          await enrichSingleCell(rowIndex, columnIndex, config.prompt)
+        }
+        break
+      case 'selected':
+        if (selectedRows && selectedRows.size > 0) {
+          await enrichSelectedCells(columnIndex, selectedRows, config.prompt)
+        }
+        break
+      case 'all':
+        await enrichColumn(columnIndex, config.prompt)
+        break
+    }
+  },
+
+  storeColumnEnrichmentConfig: (columnIndex, config) =>
+    set((state) => ({
+      columnEnrichmentConfigs: {
+        ...state.columnEnrichmentConfigs,
+        [columnIndex]: {
+          columnIndex,
+          columnName: state.headers[columnIndex] || "",
+          prompt: "",
+          formatMode: 'strict' as FormatMode,
+          isConfigured: false,
+          ...state.columnEnrichmentConfigs[columnIndex],
+          ...config,
+          isConfigured: !!config.prompt
+        }
+      }
+    })),
+
+  getColumnEnrichmentConfig: (columnIndex) => {
+    const { columnEnrichmentConfigs } = get()
+    return columnEnrichmentConfigs[columnIndex]
+  },
+
+  enrichColumnToNew: async (sourceColumnIndex, newColumnName, prompt, formatMode, customFormat, contextColumns) => {
     const { data, headers, addColumn } = get()
 
     // First, add the new column
@@ -198,13 +449,24 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
           },
         }))
 
-        // Create row context object with all column data
+        // Create row context with optional column filtering
         const rowContext = {}
-        headers.forEach((header, colIndex) => {
-          if (header && data[rowIndex][colIndex]) {
-            rowContext[header] = data[rowIndex][colIndex]
-          }
-        })
+        if (contextColumns && contextColumns.size > 0) {
+          // Use only selected context columns
+          contextColumns.forEach(colIndex => {
+            const header = headers[colIndex]
+            if (header && data[rowIndex][colIndex]) {
+              rowContext[header] = data[rowIndex][colIndex]
+            }
+          })
+        } else {
+          // Use all columns (backward compatibility)
+          headers.forEach((header, colIndex) => {
+            if (header && data[rowIndex][colIndex]) {
+              rowContext[header] = data[rowIndex][colIndex]
+            }
+          })
+        }
 
         // Get primary value from source column if specified
         const primaryValue = sourceColumnIndex >= 0 ? data[rowIndex][sourceColumnIndex] : ""
@@ -386,6 +648,30 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   getColumnFormat: (columnName) => {
     const { columnFormats } = get()
     return columnFormats[columnName]
+  },
+
+  // Cell selection methods
+  toggleCellSelection: (rowIndex, colIndex) =>
+    set((state) => {
+      const cellKey = `${rowIndex}-${colIndex}`
+      const newSelectedCells = new Set(state.selectedCells)
+      if (newSelectedCells.has(cellKey)) {
+        newSelectedCells.delete(cellKey)
+      } else {
+        newSelectedCells.add(cellKey)
+      }
+      return { selectedCells: newSelectedCells }
+    }),
+
+  clearCellSelection: () =>
+    set({ selectedCells: new Set() }),
+
+  getSelectedCells: () => {
+    const { selectedCells } = get()
+    return Array.from(selectedCells).map(cellKey => {
+      const [row, col] = cellKey.split('-').map(Number)
+      return { row, col }
+    })
   },
 
   // Selection methods

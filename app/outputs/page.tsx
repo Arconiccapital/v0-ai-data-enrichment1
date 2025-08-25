@@ -41,7 +41,7 @@ export default function OutputsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-6 py-4">
@@ -89,7 +89,7 @@ export default function OutputsPage() {
                   
                   <div>
                     <h4 className="text-sm font-medium mb-2">Sample Data:</h4>
-                    <div className="bg-gray-50 rounded-lg p-3 max-h-96 overflow-auto">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-96 overflow-auto">
                       <table className="text-xs w-full">
                         <thead>
                           <tr className="border-b">
@@ -158,7 +158,7 @@ export default function OutputsPage() {
                       </p>
                       
                       <div className="grid grid-cols-2 gap-4">
-                        <Card className="cursor-pointer hover:border-blue-500 transition-colors">
+                        <Card className="cursor-pointer hover:border-gray-400 transition-colors border border-gray-200">
                           <CardHeader>
                             <CardTitle className="text-sm">Pitch Deck</CardTitle>
                             <CardDescription className="text-xs">
@@ -166,7 +166,7 @@ export default function OutputsPage() {
                             </CardDescription>
                           </CardHeader>
                         </Card>
-                        <Card className="cursor-pointer hover:border-blue-500 transition-colors">
+                        <Card className="cursor-pointer hover:border-gray-400 transition-colors border border-gray-200">
                           <CardHeader>
                             <CardTitle className="text-sm">Data Summary</CardTitle>
                             <CardDescription className="text-xs">
@@ -197,7 +197,7 @@ export default function OutputsPage() {
                       </p>
                       
                       <div className="grid grid-cols-2 gap-4">
-                        <Card className="cursor-pointer hover:border-blue-500 transition-colors">
+                        <Card className="cursor-pointer hover:border-gray-400 transition-colors border border-gray-200">
                           <CardHeader>
                             <CardTitle className="text-sm">Executive Summary</CardTitle>
                             <CardDescription className="text-xs">
@@ -205,7 +205,7 @@ export default function OutputsPage() {
                             </CardDescription>
                           </CardHeader>
                         </Card>
-                        <Card className="cursor-pointer hover:border-blue-500 transition-colors">
+                        <Card className="cursor-pointer hover:border-gray-400 transition-colors border border-gray-200">
                           <CardHeader>
                             <CardTitle className="text-sm">Detailed Analysis</CardTitle>
                             <CardDescription className="text-xs">
@@ -243,6 +243,17 @@ export default function OutputsPage() {
                             {selectedData.headers.map((header, idx) => (
                               <option key={idx} value={header}>{header}</option>
                             ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium">Name Format</label>
+                          <select className="w-full mt-1 p-2 border rounded-md">
+                            <option value="first_last">First Last (e.g., John Smith)</option>
+                            <option value="last_first">Last, First (e.g., Smith, John)</option>
+                            <option value="first_only">First Name Only (e.g., John)</option>
+                            <option value="title_last">Title + Last (e.g., Mr. Smith)</option>
+                            <option value="full_formal">Full Formal (e.g., Mr. John Smith)</option>
                           </select>
                         </div>
 
