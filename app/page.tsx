@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { CSVUploader } from "@/components/csv-uploader"
 import { SpreadsheetView } from "@/components/spreadsheet-view"
@@ -26,9 +27,18 @@ export default function HomePage() {
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-2xl">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Welcome to AI DataEnrich
-              </h1>
+              <div className="flex flex-col items-center gap-4 mb-6">
+                <Image 
+                  src="/arconic-logo.svg" 
+                  alt="Arconic" 
+                  width={200} 
+                  height={50}
+                  className="h-12 w-auto"
+                />
+                <h1 className="text-3xl font-bold text-gray-900">
+                  AI DataEnrich
+                </h1>
+              </div>
               <p className="text-lg text-gray-600">
                 Upload your CSV data to get started with AI-powered enrichment and analysis
               </p>

@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { FileSpreadsheet, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -36,10 +37,14 @@ export default function SignupPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <FileSpreadsheet className="h-6 w-6 text-primary-foreground" />
-          </div>
+        <div className="flex flex-col items-center justify-center gap-2 mb-8">
+          <Image 
+            src="/arconic-logo.svg" 
+            alt="Arconic" 
+            width={160} 
+            height={40}
+            className="h-10 w-auto mb-2"
+          />
           <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
         </div>
 
