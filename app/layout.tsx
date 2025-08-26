@@ -10,7 +10,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "AI DataEnrich - The AI-powered way to do your spreadsheet work",
+  title: "Lighthouse AI - The AI-powered way to do your spreadsheet work",
   description:
     "Transform your CSV files into enriched datasets with intelligent AI automation. Upload, enrich, and analyze your data with human-level precision.",
   generator: "v0.app",
@@ -22,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${inter.variable} h-full`}>
+      <body className="h-full overflow-hidden">{children}</body>
     </html>
   )
 }

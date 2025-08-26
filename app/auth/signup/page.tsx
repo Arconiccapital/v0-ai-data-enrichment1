@@ -45,7 +45,7 @@ export default function SignupPage() {
             height={40}
             className="h-10 w-auto mb-2"
           />
-          <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+          <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
         </div>
 
         <Card className="border-border shadow-sm">

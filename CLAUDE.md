@@ -1,4 +1,4 @@
-# AI Data Enrichment Application
+# Lighthouse AI Application
 
 A Next.js application for uploading CSV files and enriching data using AI-powered search and analysis.
 

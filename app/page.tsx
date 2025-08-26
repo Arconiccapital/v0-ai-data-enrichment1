@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { CSVUploader } from "@/components/csv-uploader"
@@ -17,11 +17,21 @@ import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 export default function HomePage() {
   const { hasData } = useSpreadsheetStore()
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<string | null>(null)
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
+  const [hasOpenedEnrich, setHasOpenedEnrich] = useState(false)
+
+  // Auto-open enrich sidebar when data is first loaded
+  useEffect(() => {
+    if (hasData && !hasOpenedEnrich) {
+      setActiveWorkflowStep('enrich')
+      setHasOpenedEnrich(true)
+    }
+  }, [hasData, hasOpenedEnrich])
 
   // Show upload page if no data
   if (!hasData) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="h-screen bg-white flex flex-col overflow-hidden">
         <AppNavigation />
         
         <div className="flex-1 flex items-center justify-center p-8">
@@ -36,7 +46,7 @@ export default function HomePage() {
                   className="h-12 w-auto"
                 />
                 <h1 className="text-3xl font-bold text-gray-900">
-                  AI DataEnrich
+                  Lighthouse AI
                 </h1>
               </div>
               <p className="text-lg text-gray-600">
@@ -56,13 +66,32 @@ export default function HomePage() {
     if (activeWorkflowStep === stepId) {
       setActiveWorkflowStep(null)
     } else {
+      // Mark the previous step as completed when moving to a new step
+      if (activeWorkflowStep) {
+        setCompletedSteps(prev => new Set([...prev, activeWorkflowStep]))
+      }
       setActiveWorkflowStep(stepId)
+    }
+  }
+
+  // Function to progress to the next workflow step
+  const progressToNextStep = () => {
+    const workflowSteps = ['enrich', 'analyze', 'output', 'export']
+    const currentIndex = workflowSteps.indexOf(activeWorkflowStep || '')
+    
+    if (currentIndex !== -1 && currentIndex < workflowSteps.length - 1) {
+      // Mark current step as completed
+      if (activeWorkflowStep) {
+        setCompletedSteps(prev => new Set([...prev, activeWorkflowStep]))
+      }
+      // Move to next step
+      setActiveWorkflowStep(workflowSteps[currentIndex + 1])
     }
   }
 
   // Main application with data loaded
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Top Navigation */}
       <AppNavigation />
       
@@ -79,22 +108,37 @@ export default function HomePage() {
         
         {/* Content Area */}
         <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 min-w-0 flex flex-col">
             <SpreadsheetView activeWorkflowStep={activeWorkflowStep} />
           </div>
           
           {/* Right Sidebar based on active workflow step */}
-          {activeWorkflowStep === 'enrich' && (
-            <EnrichSidebar onClose={() => setActiveWorkflowStep(null)} />
-          )}
-          {activeWorkflowStep === 'analyze' && (
-            <AnalyzeSidebar onClose={() => setActiveWorkflowStep(null)} />
-          )}
-          {activeWorkflowStep === 'output' && (
-            <OutputSidebar onClose={() => setActiveWorkflowStep(null)} />
-          )}
-          {activeWorkflowStep === 'export' && (
-            <ExportSidebar onClose={() => setActiveWorkflowStep(null)} />
+          {activeWorkflowStep && (
+            <div className="flex-shrink-0">
+              {activeWorkflowStep === 'enrich' && (
+                <EnrichSidebar 
+                  onClose={() => setActiveWorkflowStep(null)}
+                  onComplete={progressToNextStep}
+                />
+              )}
+              {activeWorkflowStep === 'analyze' && (
+                <AnalyzeSidebar 
+                  onClose={() => setActiveWorkflowStep(null)}
+                  onComplete={progressToNextStep}
+                />
+              )}
+              {activeWorkflowStep === 'output' && (
+                <OutputSidebar 
+                  onClose={() => setActiveWorkflowStep(null)}
+                  onComplete={progressToNextStep}
+                />
+              )}
+              {activeWorkflowStep === 'export' && (
+                <ExportSidebar 
+                  onClose={() => setActiveWorkflowStep(null)}
+                />
+              )}
+            </div>
           )}
         </div>
       </div>

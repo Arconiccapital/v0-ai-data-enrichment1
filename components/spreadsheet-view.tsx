@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Sparkles, Plus, Loader2, Info, X, Download, BarChart3, ArrowRight, Filter, Play, Zap, ChevronDown, FileSpreadsheet, FileJson, FileText, CheckSquare, MousePointer, Settings, LayoutDashboard, Share2, Mail, Copy, Clipboard, Scissors } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Download, BarChart3, ArrowRight, Filter, Play, Zap, ChevronDown, FileSpreadsheet, FileJson, FileText, CheckSquare, MousePointer, Settings, LayoutDashboard, Share2, Mail, Copy, Clipboard, Scissors, PanelRight } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,14 +77,20 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
   const [resizingColumn, setResizingColumn] = useState<number | null>(null)
 
-  // Keyboard shortcuts for copy/paste
+  // Keyboard shortcuts for copy/paste and cell details
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (selectedCell && !editingCell) {
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
-        const modifier = isMac ? e.metaKey : e.ctrlKey
-        
-        if (modifier) {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const modifier = isMac ? e.metaKey : e.ctrlKey
+      
+      if (modifier) {
+        // Toggle cell details with Cmd/Ctrl + I
+        if (e.key === 'i' && selectedCell) {
+          e.preventDefault()
+          setShowCellDetails(prev => !prev)
+        }
+        // Copy/paste/cut operations
+        else if (selectedCell && !editingCell) {
           if (e.key === 'c') {
             e.preventDefault()
             const value = data[selectedCell.row][selectedCell.col]
@@ -110,7 +116,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
 
   const handleCellClick = (rowIndex: number, colIndex: number) => {
     setSelectedCell({ row: rowIndex, col: colIndex })
-    setShowCellDetails(true)
+    // Don't auto-open details panel - let user explicitly open it
   }
 
   const handleCellChange = (value: string, rowIndex: number, colIndex: number) => {
@@ -232,21 +238,11 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-full bg-white overflow-hidden">
       {/* Main Content */}
-      <div className={cn("flex flex-col min-h-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
+      <div className={cn("flex flex-col min-w-0 min-h-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
         {/* Action Toolbar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
-          {/* Helper text based on workflow step */}
-          {activeWorkflowStep && (
-            <div className="text-xs text-gray-500 mb-2">
-              {activeWorkflowStep === 'import' && "Add or modify columns to prepare your data structure"}
-              {activeWorkflowStep === 'enrich' && "Use AI to add valuable data to your spreadsheet"}
-              {activeWorkflowStep === 'analyze' && "Generate insights and analyze your enriched data"}
-              {activeWorkflowStep === 'output' && "Create reports and dashboards from your analysis"}
-              {activeWorkflowStep === 'export' && "Export your data in your preferred format"}
-            </div>
-          )}
           {activeWorkflowStep ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -378,6 +374,19 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
               <Filter className="h-3 w-3 mr-1" />
               Smart Select
             </Button>
+            
+            {selectedCell && (
+              <Button
+                variant={showCellDetails ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowCellDetails(!showCellDetails)}
+                className="h-6 text-xs"
+                title="Toggle cell details (Cmd/Ctrl + I)"
+              >
+                <PanelRight className="h-3 w-3 mr-1" />
+                Cell Details
+              </Button>
+            )}
           </div>
         </div>
 
@@ -427,7 +436,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                 </DialogContent>
         </Dialog>
 
-        <div className="flex-1 overflow-hidden bg-gray-50 flex flex-col min-h-0">
+        <div className="flex-1 bg-gray-50 flex flex-col min-w-0">
           <div className="flex-1 overflow-auto relative">
             <table className="table-fixed border-collapse bg-white" style={{ width: `${calculateTableWidth()}px` }}>
                 <thead className="sticky top-0 z-30">
@@ -547,10 +556,10 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                         <td
                           key={colIndex}
                           className={cn(
-                            "h-12 border-r border-gray-200 cursor-pointer relative group",
+                            "h-12 border-r border-gray-200 cursor-pointer relative group transition-all duration-150",
                             selectedCell?.row === rowIndex &&
                               selectedCell?.col === colIndex &&
-                              "bg-blue-50 ring-2 ring-blue-500 ring-inset",
+                              "bg-blue-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-white z-20",
                             isCellEnriching(rowIndex, colIndex) && "bg-blue-50",
                             selectedCells.has(`${rowIndex}-${colIndex}`) && "bg-yellow-50"
                           )}
@@ -593,9 +602,14 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                                 ) : (
                                   (() => {
                                     const explanation = getCellExplanation(rowIndex, colIndex)
+                                    const isSelected = selectedCell?.row === rowIndex && selectedCell?.col === colIndex
                                     const cellContent = (
                                       <div 
-                                        className="px-4 py-2 text-sm text-gray-900 truncate group-hover:bg-gray-50 overflow-hidden"
+                                        className={cn(
+                                          "px-4 py-2 text-sm truncate",
+                                          isSelected ? "text-gray-900 font-medium" : "text-gray-900",
+                                          !isSelected && "group-hover:bg-gray-50"
+                                        )}
                                         title={cell}
                                       >
                                         {cell}

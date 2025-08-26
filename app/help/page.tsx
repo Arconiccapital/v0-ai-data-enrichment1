@@ -19,7 +19,7 @@ import Link from "next/link"
 const helpSections = [
   {
     title: "Getting Started",
-    description: "Learn the basics of AI DataEnrich",
+    description: "Learn the basics of Lighthouse AI",
     icon: BookOpen,
     articles: [
       { title: "Quick Start Guide", description: "Get up and running in 5 minutes", badge: "Popular" },
@@ -65,7 +65,7 @@ const helpSections = [
 
 export default function HelpPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-6 py-4">
@@ -74,7 +74,7 @@ export default function HelpPage() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                 <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+              <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/faq">
@@ -97,7 +97,8 @@ export default function HelpPage() {
         </div>
       </header>
 
-      <main className="py-24 px-6">
+      <div className="flex-1 overflow-auto">
+        <main className="py-24 px-6">
         <div className="container mx-auto max-w-6xl">
           {/* Hero Section */}
           <div className="text-center mb-16">
@@ -105,7 +106,7 @@ export default function HelpPage() {
               Help Center
             </h1>
             <p className="font-sans text-xl leading-relaxed text-muted-foreground mb-8">
-              Everything you need to know about using AI DataEnrich
+              Everything you need to know about using Lighthouse AI
             </p>
           </div>
 
@@ -250,7 +251,8 @@ export default function HelpPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

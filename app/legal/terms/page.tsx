@@ -6,7 +6,7 @@ import Link from "next/link"
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-6 py-4">
@@ -15,7 +15,7 @@ export default function TermsOfServicePage() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                 <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+              <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/legal/privacy">
@@ -33,7 +33,8 @@ export default function TermsOfServicePage() {
         </div>
       </header>
 
-      <main className="py-16 px-6">
+      <div className="flex-1 overflow-auto">
+        <main className="py-16 px-6">
         <div className="container mx-auto max-w-4xl">
           <div className="mb-12">
             <h1 className="font-sans text-4xl font-bold text-foreground mb-4">Terms of Service</h1>
@@ -45,20 +46,20 @@ export default function TermsOfServicePage() {
               <section>
                 <h2 className="font-sans text-2xl font-semibold text-foreground mb-4">1. Acceptance of Terms</h2>
                 <p className="text-foreground font-sans leading-relaxed mb-4">
-                  By accessing and using AI DataEnrich ("the Service"), you accept and agree to be bound by the terms
+                  By accessing and using Lighthouse AI ("the Service"), you accept and agree to be bound by the terms
                   and provision of this agreement. If you do not agree to abide by the above, please do not use this
                   service.
                 </p>
                 <p className="text-foreground font-sans leading-relaxed">
                   These Terms of Service ("Terms") govern your use of our website located at aidataenrich.com (the
-                  "Service") operated by AI DataEnrich ("us", "we", or "our").
+                  "Service") operated by Lighthouse AI ("us", "we", or "our").
                 </p>
               </section>
 
               <section>
                 <h2 className="font-sans text-2xl font-semibold text-foreground mb-4">2. Description of Service</h2>
                 <p className="text-foreground font-sans leading-relaxed mb-4">
-                  AI DataEnrich provides AI-powered data enrichment services that allow users to upload CSV files and
+                  Lighthouse AI provides AI-powered data enrichment services that allow users to upload CSV files and
                   enhance them with additional information using artificial intelligence and web search capabilities.
                 </p>
                 <p className="text-foreground font-sans leading-relaxed">
@@ -123,7 +124,7 @@ export default function TermsOfServicePage() {
               <section>
                 <h2 className="font-sans text-2xl font-semibold text-foreground mb-4">7. Limitation of Liability</h2>
                 <p className="text-foreground font-sans leading-relaxed mb-4">
-                  In no event shall AI DataEnrich, nor its directors, employees, partners, agents, suppliers, or
+                  In no event shall Lighthouse AI, nor its directors, employees, partners, agents, suppliers, or
                   affiliates, be liable for any indirect, incidental, special, consequential, or punitive damages,
                   including without limitation, loss of profits, data, use, goodwill, or other intangible losses,
                   resulting from your use of the Service.
@@ -173,7 +174,8 @@ export default function TermsOfServicePage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

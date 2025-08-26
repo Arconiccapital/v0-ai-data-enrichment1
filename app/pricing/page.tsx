@@ -64,7 +64,7 @@ const pricingTiers = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-6 py-4">
@@ -73,7 +73,7 @@ export default function PricingPage() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                 <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+              <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/auth/login">
@@ -91,7 +91,8 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="py-24 px-6">
+      <div className="flex-1 overflow-auto">
+        <main className="py-24 px-6">
         <div className="container mx-auto max-w-7xl">
           {/* Hero Section */}
           <div className="text-center mb-16">
@@ -197,7 +198,7 @@ export default function PricingPage() {
           <div className="text-center mt-16 p-12 bg-muted rounded-lg">
             <h2 className="font-sans text-3xl font-bold text-foreground mb-4">Ready to transform your data?</h2>
             <p className="font-sans text-xl text-muted-foreground mb-8">
-              Join thousands of professionals who trust AI DataEnrich with their data.
+              Join thousands of professionals who trust Lighthouse AI with their data.
             </p>
             <div className="flex items-center justify-center gap-4">
               <Link href="/auth/signup">
@@ -217,7 +218,8 @@ export default function PricingPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

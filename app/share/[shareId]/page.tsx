@@ -341,7 +341,7 @@ export default function SharedDashboardPage({ params }: { params: Promise<{ shar
         {/* Footer */}
         <div className="mt-12 pt-8 border-t text-center">
           <p className="text-sm text-gray-600 mb-2">
-            This dashboard was created with AI Data Enrichment
+            This dashboard was created with Lighthouse AI
           </p>
           <Link href="/" className="text-blue-600 hover:underline text-sm flex items-center justify-center gap-1">
             <ExternalLink className="h-4 w-4" />

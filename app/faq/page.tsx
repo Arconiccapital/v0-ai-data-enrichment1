@@ -121,7 +121,7 @@ export default function FAQPage() {
     .filter((category) => category.questions.length > 0)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-6 py-4">
@@ -130,7 +130,7 @@ export default function FAQPage() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                 <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+              <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/help">
@@ -153,7 +153,8 @@ export default function FAQPage() {
         </div>
       </header>
 
-      <main className="py-24 px-6">
+      <div className="flex-1 overflow-auto">
+        <main className="py-24 px-6">
         <div className="container mx-auto max-w-4xl">
           {/* Hero Section */}
           <div className="text-center mb-16">
@@ -161,7 +162,7 @@ export default function FAQPage() {
               Frequently Asked Questions
             </h1>
             <p className="font-sans text-xl leading-relaxed text-muted-foreground mb-8">
-              Find answers to common questions about AI DataEnrich
+              Find answers to common questions about Lighthouse AI
             </p>
 
             {/* Search */}
@@ -201,7 +202,7 @@ export default function FAQPage() {
           <div className="text-center mt-16 p-12 bg-muted rounded-lg">
             <h2 className="font-sans text-3xl font-bold text-foreground mb-4">Still have questions?</h2>
             <p className="font-sans text-xl text-muted-foreground mb-8">
-              Our support team is here to help you get the most out of AI DataEnrich.
+              Our support team is here to help you get the most out of Lighthouse AI.
             </p>
             <div className="flex items-center justify-center gap-4">
               <Link href="/contact">
@@ -223,7 +224,8 @@ export default function FAQPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

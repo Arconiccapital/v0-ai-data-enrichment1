@@ -334,7 +334,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-6 py-4">
@@ -343,7 +343,7 @@ export default function SettingsPage() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
                 <FileSpreadsheet className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-sans font-semibold text-foreground">AI DataEnrich</h1>
+              <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
             </Link>
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" className="font-sans">
@@ -357,9 +357,9 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-64 bg-sidebar border-r border-sidebar-border min-h-screen">
+        <div className="w-64 bg-sidebar border-r border-sidebar-border">
           <div className="p-6">
             <h2 className="font-sans text-lg font-semibold text-sidebar-foreground mb-4">Settings</h2>
             <nav className="space-y-1">
@@ -382,7 +382,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8">{renderSection()}</div>
+        <div className="flex-1 p-8 overflow-auto">{renderSection()}</div>
       </div>
     </div>
   )

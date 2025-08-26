@@ -17,7 +17,7 @@ export function AppNavigation() {
             className="h-8 w-auto"
           />
           <span className="text-gray-400 mx-2">|</span>
-          <h1 className="text-xl font-semibold text-black">AI DataEnrich</h1>
+          <h1 className="text-xl font-semibold text-black">Lighthouse AI</h1>
         </Link>
       </div>
     </div>

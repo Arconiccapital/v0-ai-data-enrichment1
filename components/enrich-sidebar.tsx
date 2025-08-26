@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { X, Sparkles, Play, Plus, Loader2, Check } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { X, Sparkles, Play, Plus, Loader2, Check, ChevronRight, ChevronDown } from "lucide-react"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 
 interface EnrichSidebarProps {
@@ -26,6 +27,20 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
   const [columnAdded, setColumnAdded] = useState(false)
   const [enrichmentRange, setEnrichmentRange] = useState<'first' | 'all'>('first')
   const [firstN, setFirstN] = useState(10)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    column: false,
+    prompt: false,
+    format: false,
+    context: false,
+    range: false
+  })
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
+  }
 
   const handleAddColumn = () => {
     if (columnName.trim()) {
@@ -198,7 +213,7 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
   ]
 
   return (
-    <div className="w-96 h-full bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-96 flex-shrink-0 h-full bg-white border-l border-gray-200 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
@@ -216,16 +231,32 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-4">
           {/* Add New Column */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Add New Column</CardTitle>
-              <CardDescription className="text-xs">
-                Create a column to store enriched data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Collapsible
+            open={openSections.column}
+            onOpenChange={() => toggleSection('column')}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm">Add New Column</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        Create a column to store enriched data
+                      </CardDescription>
+                    </div>
+                    {openSections.column ? (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
               <div className="flex gap-2">
                 <Input
                   placeholder="Column name..."
@@ -242,18 +273,36 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                   {columnAdded ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Enrichment Prompt */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Enrichment Prompt</CardTitle>
-              <CardDescription className="text-xs">
-                Describe what data you want to add
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <Collapsible
+            open={openSections.prompt}
+            onOpenChange={() => toggleSection('prompt')}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm">Enrichment Prompt</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        Describe what data you want to add
+                      </CardDescription>
+                    </div>
+                    {openSections.prompt ? (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
               <Textarea
                 placeholder="E.g., Find the CEO's email address for each company"
                 value={prompt}
@@ -285,18 +334,36 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Output Format */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Output Format</CardTitle>
-              <CardDescription className="text-xs">
-                Choose how the data should be formatted
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Collapsible
+            open={openSections.format}
+            onOpenChange={() => toggleSection('format')}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm">Output Format</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        Choose how the data should be formatted
+                      </CardDescription>
+                    </div>
+                    {openSections.format ? (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
               <ScrollArea className="h-64">
                 <RadioGroup value={outputFormat} onValueChange={setOutputFormat}>
                   <div className="space-y-2">
@@ -323,18 +390,36 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                   className="mt-2"
                 />
               )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Context Columns */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Context Columns</CardTitle>
-              <CardDescription className="text-xs">
-                Select columns to use as context for enrichment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Collapsible
+            open={openSections.context}
+            onOpenChange={() => toggleSection('context')}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm">Context Columns</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        Select columns to use as context for enrichment
+                      </CardDescription>
+                    </div>
+                    {openSections.context ? (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
               <div className="space-y-2">
                 {headers.map((header, idx) => (
                   <label
@@ -357,18 +442,36 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                   </label>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Enrichment Range */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Enrichment Range</CardTitle>
-              <CardDescription className="text-xs">
-                Choose how many rows to enrich
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Collapsible
+            open={openSections.range}
+            onOpenChange={() => toggleSection('range')}
+          >
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm">Enrichment Range</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        Choose how many rows to enrich
+                      </CardDescription>
+                    </div>
+                    {openSections.range ? (
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-500" />
+                    )}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
               <RadioGroup value={enrichmentRange} onValueChange={(value) => setEnrichmentRange(value as 'first' | 'all')}>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -406,8 +509,10 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                   : `Will enrich all ${data.length} rows`
                 }
               </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         </div>
       </ScrollArea>
 
