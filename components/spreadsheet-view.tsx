@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Sparkles, Plus, Loader2, Info, X, Download, BarChart3, ArrowRight, Filter, Play, Zap, ChevronDown, FileSpreadsheet, FileJson, FileText, CheckSquare, MousePointer, Settings, LayoutDashboard, Share2, Mail, Copy, Clipboard, Scissors, PanelRight } from "lucide-react"
+import { SpreadsheetCell } from "./spreadsheet-cell"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,8 +73,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [enrichmentColumnIndex, setEnrichmentColumnIndex] = useState<number | undefined>()
   const [enrichmentScope, setEnrichmentScope] = useState<'cell' | 'selected' | 'all'>('all')
   const [currentEnrichRow, setCurrentEnrichRow] = useState<number | undefined>()
-  const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null)
-  const [editValue, setEditValue] = useState("")
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
   const [resizingColumn, setResizingColumn] = useState<number | null>(null)
 
@@ -90,7 +89,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
           setShowCellDetails(prev => !prev)
         }
         // Copy/paste/cut operations
-        else if (selectedCell && !editingCell) {
+        else if (selectedCell) {
           if (e.key === 'c') {
             e.preventDefault()
             const value = data[selectedCell.row][selectedCell.col]
@@ -108,7 +107,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedCell, editingCell, data])
+  }, [selectedCell, data])
   
   const hasSelection = selectedRows.size > 0 || selectedColumns.size > 0
   const selectedRowCount = selectedRows.size
@@ -553,145 +552,25 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                         {rowIndex + 1}
                       </td>
                       {row.map((cell, colIndex) => (
-                        <td
+                        <SpreadsheetCell
                           key={colIndex}
-                          className={cn(
-                            "h-12 border-r border-gray-200 cursor-pointer relative group transition-all duration-150",
-                            selectedCell?.row === rowIndex &&
-                              selectedCell?.col === colIndex &&
-                              "bg-blue-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-white z-20",
-                            isCellEnriching(rowIndex, colIndex) && "bg-blue-50",
-                            selectedCells.has(`${rowIndex}-${colIndex}`) && "bg-yellow-50"
-                          )}
-                          style={{ width: `${columnWidths[colIndex] || 200}px`, minWidth: '100px' }}
-                        >
-                          <ContextMenu>
-                            <ContextMenuTrigger asChild>
-                              <div 
-                                className="h-full"
-                                onClick={() => handleCellClick(rowIndex, colIndex)}
-                                onDoubleClick={() => {
-                                  setEditingCell({ row: rowIndex, col: colIndex })
-                                  setEditValue(cell)
-                                }}
-                              >
-                                {isCellEnriching(rowIndex, colIndex) && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-blue-50 z-10">
-                                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                                  </div>
-                                )}
-                                {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
-                                  <Input
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onBlur={() => {
-                                      handleCellChange(editValue, rowIndex, colIndex)
-                                      setEditingCell(null)
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleCellChange(editValue, rowIndex, colIndex)
-                                        setEditingCell(null)
-                                      } else if (e.key === 'Escape') {
-                                        setEditingCell(null)
-                                      }
-                                    }}
-                                    className="h-full w-full border-0 focus:ring-2 focus:ring-blue-500 text-sm"
-                                    autoFocus
-                                  />
-                                ) : (
-                                  (() => {
-                                    const explanation = getCellExplanation(rowIndex, colIndex)
-                                    const isSelected = selectedCell?.row === rowIndex && selectedCell?.col === colIndex
-                                    const cellContent = (
-                                      <div 
-                                        className={cn(
-                                          "px-4 py-2 text-sm truncate",
-                                          isSelected ? "text-gray-900 font-medium" : "text-gray-900",
-                                          !isSelected && "group-hover:bg-gray-50"
-                                        )}
-                                        title={cell}
-                                      >
-                                        {cell}
-                                      </div>
-                                    )
-                                    
-                                    if (explanation) {
-                                      return (
-                                        <TooltipProvider delayDuration={300}>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              {cellContent}
-                                            </TooltipTrigger>
-                                            <TooltipContent className="max-w-xs">
-                                              <p className="text-sm">{explanation}</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                      )
-                                    }
-                                    
-                                    return cellContent
-                                  })()
-                                )}
-                              </div>
-                            </ContextMenuTrigger>
-                            <ContextMenuContent>
-                              <ContextMenuLabel>Cell Actions</ContextMenuLabel>
-                              <ContextMenuSeparator />
-                              
-                              {/* Copy/Paste/Cut actions */}
-                              <ContextMenuItem onClick={() => handleCopyCell(cell)}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                Copy
-                              </ContextMenuItem>
-                              <ContextMenuItem onClick={() => handlePasteCell(rowIndex, colIndex)}>
-                                <Clipboard className="h-4 w-4 mr-2" />
-                                Paste
-                              </ContextMenuItem>
-                              <ContextMenuItem onClick={() => handleCutCell(rowIndex, colIndex)}>
-                                <Scissors className="h-4 w-4 mr-2" />
-                                Cut
-                              </ContextMenuItem>
-                              <ContextMenuSeparator />
-                              
-                              {/* Edit actions */}
-                              <ContextMenuItem onClick={() => {
-                                setEditingCell({ row: rowIndex, col: colIndex })
-                                setEditValue(cell)
-                              }}>
-                                Edit Cell
-                              </ContextMenuItem>
-                              <ContextMenuItem onClick={() => handleCellChange("", rowIndex, colIndex)}>
-                                Clear Cell
-                              </ContextMenuItem>
-                              <ContextMenuSeparator />
-                              
-                              {/* Selection actions */}
-                              <ContextMenuItem onClick={() => toggleCellSelection(rowIndex, colIndex)}>
-                                {selectedCells.has(`${rowIndex}-${colIndex}`) ? 'Deselect Cell' : 'Select Cell'}
-                              </ContextMenuItem>
-                              
-                              {/* Enrichment actions (if configured) */}
-                              {columnEnrichmentConfigs[colIndex]?.isConfigured && (
-                                <>
-                                  <ContextMenuSeparator />
-                                  <ContextMenuItem onClick={() => handleOpenEnrichmentForColumn(colIndex, 'cell', rowIndex)}>
-                                    <Sparkles className="h-4 w-4 mr-2" />
-                                    Enrich This Cell
-                                  </ContextMenuItem>
-                                  <ContextMenuItem onClick={() => {
-                                    toggleCellSelection(rowIndex, colIndex)
-                                    handleOpenEnrichmentForColumn(colIndex, 'selected')
-                                  }}>
-                                    <Sparkles className="h-4 w-4 mr-2" />
-                                    Enrich Selected Cells
-                                  </ContextMenuItem>
-                                </>
-                              )}
-                            </ContextMenuContent>
-                          </ContextMenu>
-                        </td>
+                          value={cell}
+                          rowIndex={rowIndex}
+                          colIndex={colIndex}
+                          isSelected={selectedCell?.row === rowIndex && selectedCell?.col === colIndex}
+                          isEnriching={isCellEnriching(rowIndex, colIndex)}
+                          isMultiSelected={selectedCells.has(`${rowIndex}-${colIndex}`)}
+                          explanation={getCellExplanation(rowIndex, colIndex)}
+                          columnWidth={columnWidths[colIndex] || 200}
+                          isColumnConfigured={columnEnrichmentConfigs[colIndex]?.isConfigured}
+                          onCellClick={handleCellClick}
+                          onCellChange={handleCellChange}
+                          onCopyCell={handleCopyCell}
+                          onPasteCell={handlePasteCell}
+                          onCutCell={handleCutCell}
+                          onToggleSelection={toggleCellSelection}
+                          onEnrichCell={handleOpenEnrichmentForColumn}
+                        />
                       ))}
                     </tr>
                   ))}
