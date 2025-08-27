@@ -69,6 +69,18 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
         // Brief delay to show success message
         await new Promise(resolve => setTimeout(resolve, 500))
         
+        // Extract generation metadata from API response
+        const generationMetadata = result.process ? {
+          prompt: result.process.prompt,
+          query: result.process.query,
+          response: result.process.response,
+          citations: result.process.citations || [],
+          timestamp: result.process.timestamp,
+          itemsFound: result.process.itemsFound,
+          requestedCount: result.process.requestedCount,
+          source: result.source
+        } : undefined
+        
         setDataFromTemplate({
           id: 'custom-search',
           name: 'Search Results',
@@ -77,7 +89,7 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
           category: 'business',
           columns: [{ name: 'Results', type: 'text' }],
           sampleData: result.data.map((item: string) => ({ 'Results': item }))
-        })
+        }, generationMetadata)
         onClose()
       } else {
         setProgress('No data found. Try a different search.')

@@ -33,6 +33,7 @@ import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { AIEnrichmentDialog } from "@/components/ai-enrichment-dialog"
 import { DataAnalysisDialog } from "@/components/data-analysis-dialog"
 import { SmartSelectionDialog } from "@/components/smart-selection-dialog"
+import { GenerationInfoBanner } from "@/components/generation-info-banner"
 import { cn } from "@/lib/utils"
 
 interface SpreadsheetViewProps {
@@ -60,7 +61,8 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     toggleCellSelection,
     clearCellSelection,
     getCellExplanation,
-    getCellMetadata
+    getCellMetadata,
+    getGenerationMetadata
   } = useSpreadsheetStore()
   const router = useRouter()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
@@ -76,6 +78,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [currentEnrichRow, setCurrentEnrichRow] = useState<number | undefined>()
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
   const [resizingColumn, setResizingColumn] = useState<number | null>(null)
+  const [showGenerationInfo, setShowGenerationInfo] = useState(true)
 
   // Keyboard shortcuts for copy/paste and cell details
   useEffect(() => {
@@ -237,10 +240,20 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     return totalWidth
   }
 
+  const generationMetadata = getGenerationMetadata()
+
   return (
     <div className="flex h-full bg-white overflow-auto">
       {/* Main Content */}
       <div className={cn("flex flex-col min-w-0 min-h-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
+        {/* Generation Info Banner */}
+        {generationMetadata && showGenerationInfo && (
+          <GenerationInfoBanner 
+            metadata={generationMetadata}
+            onDismiss={() => setShowGenerationInfo(false)}
+          />
+        )}
+        
         {/* Action Toolbar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           {activeWorkflowStep ? (

@@ -50,7 +50,9 @@ Return as JSON array.`
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.2,
-        max_tokens: 2000
+        max_tokens: 2000,
+        return_citations: true,
+        return_related_questions: false
       })
     })
 
@@ -65,12 +67,21 @@ Return as JSON array.`
     const data = await response.json()
     console.log("[Find Data] Perplexity response received")
 
-    // Extract items from the response
+    // Extract items and citations from the response
     let items: string[] = []
+    let citations: string[] = []
+    let fullResponse = ''
     
     if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
       const content = data.choices[0].message.content
+      fullResponse = content
       console.log("[Find Data] Raw Perplexity response:", content.substring(0, 500))
+      
+      // Extract citations if available
+      if (data.citations) {
+        citations = data.citations
+        console.log("[Find Data] Found", citations.length, "citations")
+      }
       
       // Try to parse as JSON first
       try {
@@ -110,12 +121,25 @@ Return as JSON array.`
 
     console.log(`[Find Data] Found ${items.length} real items from Perplexity search`)
     
+    // Build search query for audit trail
+    const searchQuery = `Search the internet for: ${prompt}`
+    
     return NextResponse.json({ 
       data: items,
       count: items.length,
       type,
       source: 'perplexity-sonar',
-      model: 'sonar'
+      model: 'sonar',
+      // Add process information for audit trail
+      process: {
+        prompt: prompt,
+        query: searchQuery,
+        response: fullResponse,
+        citations: citations,
+        timestamp: new Date().toISOString(),
+        itemsFound: items.length,
+        requestedCount: count
+      }
     })
 
   } catch (error: any) {

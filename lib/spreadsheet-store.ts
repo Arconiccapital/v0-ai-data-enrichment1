@@ -67,11 +67,23 @@ interface CellMetadata {
   isEnriched: boolean
 }
 
+interface GenerationMetadata {
+  prompt: string
+  query: string
+  response: string
+  citations: string[]
+  timestamp: string
+  itemsFound: number
+  requestedCount: number
+  source: string
+}
+
 interface SpreadsheetStore {
   headers: string[]
   data: string[][]
   hasData: boolean
   currentTemplate?: TemplateDefinition
+  generationMetadata?: GenerationMetadata // Store generation process info
   enrichmentStatus: Record<number, EnrichmentStatus>
   columnFormats: Record<string, ColumnFormatPreference>
   columnEnrichmentConfigs: Record<number, ColumnEnrichmentConfig>
@@ -85,7 +97,7 @@ interface SpreadsheetStore {
   filterCriteria: FilterCriteria[]
   // Data methods
   setData: (headers: string[], rows: string[][]) => void
-  setDataFromTemplate: (template: TemplateDefinition) => void
+  setDataFromTemplate: (template: TemplateDefinition, generationMetadata?: GenerationMetadata) => void
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
   addColumn: (header: string) => number
   addColumnWithEnrichment: (header: string, config?: Partial<ColumnEnrichmentConfig>) => void
@@ -120,6 +132,7 @@ interface SpreadsheetStore {
   setColumnExplanations: (colIndex: number, explanations: string[]) => void
   // Metadata methods
   getCellMetadata: (rowIndex: number, colIndex: number) => CellMetadata | undefined
+  getGenerationMetadata: () => GenerationMetadata | undefined
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
@@ -146,7 +159,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       currentTemplate: undefined,
     }),
 
-  setDataFromTemplate: (template) => {
+  setDataFromTemplate: (template, generationMetadata) => {
     // Extract headers from template columns
     const headers = template.columns.map(col => col.name)
     
@@ -163,6 +176,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       cellExplanations: {},
       currentTemplate: template,
       enrichmentStatus: {},
+      generationMetadata: generationMetadata || undefined,
     })
   },
 
@@ -927,6 +941,10 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   getCellMetadata: (rowIndex, colIndex) => {
     const key = `${rowIndex}-${colIndex}`
     return get().cellMetadata.get(key)
+  },
+  
+  getGenerationMetadata: () => {
+    return get().generationMetadata
   },
 }))
 
