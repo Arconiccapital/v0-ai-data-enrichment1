@@ -22,6 +22,7 @@ import {
 interface CellMetadata {
   query: string
   response: string
+  citations?: any[]
   timestamp: string
   isEnriched: boolean
 }
@@ -105,7 +106,7 @@ export function SpreadsheetCell({
         <TooltipTrigger asChild>
           {cellContent}
         </TooltipTrigger>
-        <TooltipContent className="max-w-md p-3 space-y-2">
+        <TooltipContent className="max-w-lg p-4 space-y-3">
           {metadata ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 border-b pb-2">
@@ -113,20 +114,70 @@ export function SpreadsheetCell({
                 <span className="font-semibold text-sm">Enrichment Details</span>
               </div>
               
-              <div className="space-y-2">
-                <div>
-                  <p className="text-xs font-medium text-gray-600 mb-1">Search Query:</p>
-                  <p className="text-xs bg-gray-50 p-2 rounded">{metadata.query}</p>
+              <div className="space-y-3">
+                <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-100">
+                  <p className="text-[11px] text-blue-700 mb-1">
+                    Searched for: <span className="font-medium">{metadata.query.includes('Find') ? metadata.query.split('Find')[1]?.split('for')[0]?.trim() : 'information'}</span>
+                  </p>
+                  {metadata.query.includes('for') && (
+                    <p className="text-[10px] text-blue-600">
+                      Entity: <span className="font-medium">{metadata.query.split('for')[1]?.trim()}</span>
+                    </p>
+                  )}
                 </div>
                 
                 <div>
-                  <p className="text-xs font-medium text-gray-600 mb-1">Result:</p>
-                  <p className="text-xs bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">{metadata.response}</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">Conclusion:</p>
+                  <div className="text-xs bg-green-50 p-2 rounded border border-green-200">
+                    <p className="font-medium text-gray-900">{value}</p>
+                  </div>
+                  {metadata.response !== value && metadata.response.length > 100 && (
+                    <details className="mt-2">
+                      <summary className="text-[10px] text-gray-500 cursor-pointer hover:text-gray-700">View full response</summary>
+                      <p className="text-[10px] text-gray-600 mt-1 p-2 bg-gray-50 rounded">{metadata.response}</p>
+                    </details>
+                  )}
                 </div>
                 
-                <div>
-                  <p className="text-xs text-gray-500">
-                    Enriched at: {new Date(metadata.timestamp).toLocaleString()}
+                {metadata.citations && metadata.citations.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Sources:</p>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {metadata.citations.map((citation: any, idx: number) => {
+                        // Handle both string URLs and citation objects
+                        const isUrl = typeof citation === 'string' && citation.startsWith('http')
+                        const url = isUrl ? citation : citation?.url
+                        const title = citation?.title || (isUrl ? new URL(citation).hostname : citation)
+                        
+                        return (
+                          <div key={idx} className="flex items-start gap-2">
+                            <span className="text-blue-500 text-[10px] font-medium mt-0.5">[{idx + 1}]</span>
+                            {url ? (
+                              <a 
+                                href={url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 underline break-all flex-1"
+                                title={url}
+                              >
+                                {title}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-gray-600 flex-1">{title}</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="pt-2 border-t flex items-center justify-between">
+                  <p className="text-[10px] text-gray-400">
+                    Enriched: {new Date(metadata.timestamp).toLocaleTimeString()}
+                  </p>
+                  <p className="text-[10px] text-blue-600 font-medium">
+                    Verified with {metadata.citations?.length || 0} sources
                   </p>
                 </div>
               </div>

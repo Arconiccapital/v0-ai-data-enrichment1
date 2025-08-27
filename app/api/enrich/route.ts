@@ -72,7 +72,9 @@ Return only the specific data requested, nothing else.`
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.1,
-        max_tokens: 150
+        max_tokens: 150,
+        return_citations: true,
+        return_related_questions: false
       })
     })
 
@@ -85,14 +87,20 @@ Return only the specific data requested, nothing else.`
     }
 
     const data = await response.json()
-    console.log("[v0] Perplexity response received")
+    console.log("[v0] Perplexity response received", JSON.stringify(data, null, 2))
 
     let enrichedValue = value // fallback to original value
     let fullResponse = '' // Store the full response for audit trail
+    let citations = [] // Store citations/sources
 
     if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
       fullResponse = data.choices[0].message.content
       enrichedValue = fullResponse.trim()
+      
+      // Extract citations if available
+      if (data.citations) {
+        citations = data.citations
+      }
       
       // Clean up common response patterns
       enrichedValue = enrichedValue
@@ -134,6 +142,7 @@ Return only the specific data requested, nothing else.`
       process: {
         query: searchQuery,
         response: fullResponse,
+        citations: citations,
         timestamp: new Date().toISOString()
       }
     })

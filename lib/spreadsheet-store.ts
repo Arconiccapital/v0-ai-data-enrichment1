@@ -62,6 +62,7 @@ type SelectionMode = 'single' | 'multiple' | 'range'
 interface CellMetadata {
   query: string
   response: string
+  citations?: any[]
   timestamp: string
   isEnriched: boolean
 }
@@ -272,6 +273,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
             newMetadata.set(cellKey, {
               query: result.process.query,
               response: result.process.response,
+              citations: result.process.citations,
               timestamp: result.process.timestamp,
               isEnriched: true
             })
@@ -352,6 +354,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
           newMetadata.set(cellKey, {
             query: result.process.query,
             response: result.process.response,
+            citations: result.process.citations,
             timestamp: result.process.timestamp,
             isEnriched: true
           })
@@ -440,6 +443,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
             newMetadata.set(cellKey, {
               query: result.process.query,
               response: result.process.response,
+              citations: result.process.citations,
               timestamp: result.process.timestamp,
               isEnriched: true
             })
@@ -577,6 +581,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
             newMetadata.set(cellKey, {
               query: result.process.query,
               response: result.process.response,
+              citations: result.process.citations,
               timestamp: result.process.timestamp,
               isEnriched: true
             })
@@ -968,7 +973,7 @@ async function enrichCellWithContext(
   prompt: string,
   headers: string[],
   customFormat?: CustomFormat
-): Promise<{ value: string; process?: { query: string; response: string; timestamp: string } }> {
+): Promise<{ value: string; process?: { query: string; response: string; citations?: any[]; timestamp: string } }> {
   try {
     // Replace column placeholders in prompt with actual values
     let processedPrompt = prompt
