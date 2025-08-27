@@ -105,7 +105,7 @@ export function WorkflowIndicator({ onStepClick, activeStep }: WorkflowIndicator
                 >
                   <div className="flex items-center gap-2">
                     <div className={cn(
-                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
+                      "w-6 h-6 flex items-center justify-center text-xs font-medium",
                       isCompleted ? "bg-green-100 text-green-600" : 
                       isActive ? "bg-blue-500 text-white" : 
                       "bg-gray-200 text-gray-600"

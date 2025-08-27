@@ -84,7 +84,7 @@ export function CSVUploader() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+          "border-2 border-dashed p-8 text-center cursor-pointer transition-colors",
           isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25",
           uploading && "pointer-events-none opacity-50",
         )}
@@ -110,7 +110,7 @@ export function CSVUploader() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+            <div className="mx-auto w-12 h-12 bg-primary/10 flex items-center justify-center">
               <FileText className="h-6 w-6 text-primary" />
             </div>
             <div className="space-y-2">
@@ -127,7 +127,7 @@ export function CSVUploader() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+        <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20">
           <AlertCircle className="h-4 w-4 text-destructive" />
           <p className="text-sm text-destructive">{error}</p>
         </div>

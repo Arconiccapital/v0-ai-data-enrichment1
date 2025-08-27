@@ -237,7 +237,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   }
 
   return (
-    <div className="flex h-full bg-white overflow-hidden">
+    <div className="flex h-full bg-white overflow-auto">
       {/* Main Content */}
       <div className={cn("flex flex-col min-w-0 min-h-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
         {/* Action Toolbar */}
@@ -411,7 +411,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                         autoFocus
                       />
                     </div>
-                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2 p-3 bg-gray-50">
                       <Info className="h-4 w-4 text-gray-500" />
                       <p className="text-sm text-gray-600">
                         After adding the column, right-click its header to configure AI enrichment.
@@ -592,7 +592,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
             </div>
             <div className="flex items-center gap-2">
               <span>Ready for AI enrichment</span>
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-green-500"></div>
             </div>
           </div>
         </div>

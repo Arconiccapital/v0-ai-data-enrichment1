@@ -167,7 +167,7 @@ export function ExportSidebar({ onClose }: ExportSidebarProps) {
                         return (
                           <label
                             key={f.value}
-                            className="flex items-start gap-3 cursor-pointer p-2 rounded hover:bg-gray-50"
+                            className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50"
                           >
                             <RadioGroupItem value={f.value} className="mt-0.5" />
                             <div className="flex-1">
@@ -216,19 +216,19 @@ export function ExportSidebar({ onClose }: ExportSidebarProps) {
                 <CardContent className="pt-0">
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <input type="checkbox" defaultChecked className="rounded" />
+                      <input type="checkbox" defaultChecked className="" />
                       <Label className="text-sm font-normal cursor-pointer">
                         Include column headers
                       </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
+                      <input type="checkbox" className="" />
                       <Label className="text-sm font-normal cursor-pointer">
                         Export only selected rows
                       </Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
+                      <input type="checkbox" className="" />
                       <Label className="text-sm font-normal cursor-pointer">
                         Include empty cells
                       </Label>
@@ -281,7 +281,7 @@ export function ExportSidebar({ onClose }: ExportSidebarProps) {
                       <span className="text-gray-600">Selected Format:</span>
                       <span className="font-medium">{format.toUpperCase()}</span>
                     </div>
-                    <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                    <div className="mt-3 p-2 bg-gray-50 text-xs text-gray-600">
                       Your data is ready to export. Click the button below to download.
                     </div>
                   </div>

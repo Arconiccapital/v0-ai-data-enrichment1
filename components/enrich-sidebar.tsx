@@ -370,7 +370,7 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                     {outputFormats.map((format) => (
                       <label
                         key={format.value}
-                        className="flex items-start gap-3 cursor-pointer p-2 rounded hover:bg-gray-50"
+                        className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50"
                       >
                         <RadioGroupItem value={format.value} className="mt-0.5" />
                         <div className="flex-1">
@@ -424,7 +424,7 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                 {headers.map((header, idx) => (
                   <label
                     key={idx}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2"
                   >
                     <input
                       type="checkbox"
@@ -436,7 +436,7 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
                           setSelectedContextColumns(selectedContextColumns.filter(i => i !== idx))
                         }
                       }}
-                      className="rounded"
+                      className=""
                     />
                     <span className="text-sm">{header}</span>
                   </label>
@@ -503,7 +503,7 @@ export function EnrichSidebar({ onClose }: EnrichSidebarProps) {
               </RadioGroup>
               
               {/* Show what will be enriched */}
-              <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-600">
+              <div className="mt-3 p-2 bg-gray-50 text-xs text-gray-600">
                 {enrichmentRange === 'first' 
                   ? `Will enrich ${Math.min(firstN, data.length)} row${Math.min(firstN, data.length) !== 1 ? 's' : ''}`
                   : `Will enrich all ${data.length} rows`

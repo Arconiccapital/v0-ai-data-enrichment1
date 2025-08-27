@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { FormatMode, CustomFormat } from "@/lib/enrichment-utils"
+import { TemplateDefinition } from "@/src/types/templates"
 
 interface EnrichmentStatus {
   enriching: boolean
@@ -62,6 +63,7 @@ interface SpreadsheetStore {
   headers: string[]
   data: string[][]
   hasData: boolean
+  currentTemplate?: TemplateDefinition
   enrichmentStatus: Record<number, EnrichmentStatus>
   columnFormats: Record<string, ColumnFormatPreference>
   columnEnrichmentConfigs: Record<number, ColumnEnrichmentConfig>
@@ -74,6 +76,7 @@ interface SpreadsheetStore {
   filterCriteria: FilterCriteria[]
   // Data methods
   setData: (headers: string[], rows: string[][]) => void
+  setDataFromTemplate: (template: TemplateDefinition) => void
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
   addColumn: (header: string) => number
   addColumnWithEnrichment: (header: string, config?: Partial<ColumnEnrichmentConfig>) => void
@@ -128,7 +131,28 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       data: rows,
       hasData: true,
       enrichmentStatus: {},
+      currentTemplate: undefined,
     }),
+
+  setDataFromTemplate: (template) => {
+    // Extract headers from template columns
+    const headers = template.columns.map(col => col.name)
+    
+    // Convert template sample data to array format
+    const data = template.sampleData.map(row => 
+      headers.map(header => String(row[header] ?? ''))
+    )
+
+    set({
+      headers,
+      data,
+      hasData: true,
+      selectedCells: new Set(),
+      cellExplanations: {},
+      currentTemplate: template,
+      enrichmentStatus: {},
+    })
+  },
 
   updateCell: (rowIndex, colIndex, value) =>
     set((state) => {

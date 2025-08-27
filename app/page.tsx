@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { CSVUploader } from "@/components/csv-uploader"
+import { FindDataDialog } from "@/components/find-data-dialog"
 import { SpreadsheetView } from "@/components/spreadsheet-view"
 import { AppNavigation } from "@/components/app-navigation"
 import { WorkflowIndicator } from "@/components/workflow-indicator"
@@ -13,12 +15,15 @@ import { AnalyzeSidebar } from "@/components/analyze-sidebar"
 import { OutputSidebar } from "@/components/output-sidebar"
 import { ExportSidebar } from "@/components/export-sidebar"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
+import { Sparkles, Search } from "lucide-react"
 
 export default function HomePage() {
+  const router = useRouter()
   const { hasData } = useSpreadsheetStore()
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<string | null>(null)
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const [hasOpenedEnrich, setHasOpenedEnrich] = useState(false)
+  const [showFindDataDialog, setShowFindDataDialog] = useState(false)
 
   // Auto-open enrich sidebar when data is first loaded
   useEffect(() => {
@@ -50,11 +55,53 @@ export default function HomePage() {
                 </h1>
               </div>
               <p className="text-lg text-gray-600">
-                Upload your CSV data to get started with AI-powered enrichment and analysis
+                Start with a template or upload your own CSV data
               </p>
             </div>
             
-            <CSVUploader />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  onClick={() => router.push('/templates')}
+                  className="h-32 text-lg"
+                  variant="outline"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Sparkles className="h-8 w-8" />
+                    <span>Choose Template</span>
+                    <span className="text-sm text-gray-500">Pre-built templates</span>
+                  </div>
+                </Button>
+                
+                <Button
+                  onClick={() => setShowFindDataDialog(true)}
+                  className="h-32 text-lg"
+                  variant="outline"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Search className="h-8 w-8" />
+                    <span>Find Data</span>
+                    <span className="text-sm text-gray-500">Search for data</span>
+                  </div>
+                </Button>
+              </div>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or</span>
+                </div>
+              </div>
+              
+              <CSVUploader />
+            </div>
+            
+            <FindDataDialog
+              open={showFindDataDialog}
+              onClose={() => setShowFindDataDialog(false)}
+            />
           </div>
         </div>
       </div>
@@ -107,7 +154,7 @@ export default function HomePage() {
         <SidebarNav />
         
         {/* Content Area */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex">
           <div className="flex-1 min-w-0 flex flex-col">
             <SpreadsheetView activeWorkflowStep={activeWorkflowStep} />
           </div>
