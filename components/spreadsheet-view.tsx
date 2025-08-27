@@ -59,7 +59,8 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     selectedCells,
     toggleCellSelection,
     clearCellSelection,
-    getCellExplanation
+    getCellExplanation,
+    getCellMetadata
   } = useSpreadsheetStore()
   const router = useRouter()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
@@ -561,6 +562,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                           isEnriching={isCellEnriching(rowIndex, colIndex)}
                           isMultiSelected={selectedCells.has(`${rowIndex}-${colIndex}`)}
                           explanation={getCellExplanation(rowIndex, colIndex)}
+                          metadata={getCellMetadata(rowIndex, colIndex)}
                           columnWidth={columnWidths[colIndex] || 200}
                           isColumnConfigured={columnEnrichmentConfigs[colIndex]?.isConfigured}
                           onCellClick={handleCellClick}

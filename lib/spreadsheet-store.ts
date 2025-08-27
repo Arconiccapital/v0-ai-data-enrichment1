@@ -59,6 +59,13 @@ interface FilterCriteria {
 
 type SelectionMode = 'single' | 'multiple' | 'range'
 
+interface CellMetadata {
+  query: string
+  response: string
+  timestamp: string
+  isEnriched: boolean
+}
+
 interface SpreadsheetStore {
   headers: string[]
   data: string[][]
@@ -69,6 +76,7 @@ interface SpreadsheetStore {
   columnEnrichmentConfigs: Record<number, ColumnEnrichmentConfig>
   selectedCells: Set<string> // Format: "row-col"
   cellExplanations: Record<string, string> // Format: "row-col" -> explanation
+  cellMetadata: Map<string, CellMetadata> // Format: "row-col" -> full process info
   // Selection state
   selectedRows: Set<number>
   selectedColumns: Set<number>
@@ -109,6 +117,8 @@ interface SpreadsheetStore {
   setCellExplanation: (rowIndex: number, colIndex: number, explanation: string) => void
   getCellExplanation: (rowIndex: number, colIndex: number) => string | undefined
   setColumnExplanations: (colIndex: number, explanations: string[]) => void
+  // Metadata methods
+  getCellMetadata: (rowIndex: number, colIndex: number) => CellMetadata | undefined
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
@@ -120,6 +130,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   columnEnrichmentConfigs: {},
   selectedCells: new Set(),
   cellExplanations: {},
+  cellMetadata: new Map(),
   selectedRows: new Set(),
   selectedColumns: new Set(),
   selectionMode: 'multiple',
@@ -245,14 +256,29 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         }
 
         const currentValue = data[rowIndex][columnIndex] || ""
-        const enrichedValue = await enrichCellWithContext(rowContext, currentValue, prompt, headers)
+        const result = await enrichCellWithContext(rowContext, currentValue, prompt, headers)
+        const enrichedValue = result.value
 
-        // Update the cell with enriched value
+        // Update the cell with enriched value and metadata
         set((state) => {
           const newData = [...state.data]
           newData[rowIndex] = [...newData[rowIndex]]
           newData[rowIndex][columnIndex] = enrichedValue
-          return { data: newData }
+          
+          const updates: any = { data: newData }
+          if (result.process) {
+            const cellKey = `${rowIndex}-${columnIndex}`
+            const newMetadata = new Map(state.cellMetadata)
+            newMetadata.set(cellKey, {
+              query: result.process.query,
+              response: result.process.response,
+              timestamp: result.process.timestamp,
+              isEnriched: true
+            })
+            updates.cellMetadata = newMetadata
+          }
+          
+          return updates
         })
 
         // Small delay to show progress
@@ -310,14 +336,29 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       }
 
       const primaryValue = data[rowIndex][columnIndex] || ""
-      const enrichedValue = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+      const result = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
 
-      // Update the cell
+      // Update the cell and metadata
       set((state) => {
         const newData = [...state.data]
         newData[rowIndex] = [...newData[rowIndex]]
-        newData[rowIndex][columnIndex] = enrichedValue
-        return { data: newData }
+        newData[rowIndex][columnIndex] = result.value
+        
+        // Store cell metadata if process information is available
+        const updates: any = { data: newData }
+        if (result.process) {
+          const cellKey = `${rowIndex}-${columnIndex}`
+          const newMetadata = new Map(state.cellMetadata)
+          newMetadata.set(cellKey, {
+            query: result.process.query,
+            response: result.process.response,
+            timestamp: result.process.timestamp,
+            isEnriched: true
+          })
+          updates.cellMetadata = newMetadata
+        }
+        
+        return updates
       })
     } catch (error) {
       console.error("Single cell enrichment failed:", error)
@@ -383,14 +424,29 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         }
 
         const primaryValue = data[rowIndex][columnIndex] || ""
-        const enrichedValue = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+        const result = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+        const enrichedValue = result.value
 
-        // Update the cell
+        // Update the cell and metadata
         set((state) => {
           const newData = [...state.data]
           newData[rowIndex] = [...newData[rowIndex]]
           newData[rowIndex][columnIndex] = enrichedValue
-          return { data: newData }
+          
+          const updates: any = { data: newData }
+          if (result.process) {
+            const cellKey = `${rowIndex}-${columnIndex}`
+            const newMetadata = new Map(state.cellMetadata)
+            newMetadata.set(cellKey, {
+              query: result.process.query,
+              response: result.process.response,
+              timestamp: result.process.timestamp,
+              isEnriched: true
+            })
+            updates.cellMetadata = newMetadata
+          }
+          
+          return updates
         })
 
         // Small delay to show progress
@@ -505,14 +561,29 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         // Get primary value from source column if specified
         const primaryValue = sourceColumnIndex >= 0 ? data[rowIndex][sourceColumnIndex] : ""
         
-        const enrichedValue = await enrichCellWithContext(rowContext, primaryValue, prompt, headers, customFormat)
+        const result = await enrichCellWithContext(rowContext, primaryValue, prompt, headers, customFormat)
+        const enrichedValue = result.value
 
-        // Update the new column with enriched value
+        // Update the new column with enriched value and metadata
         set((state) => {
           const newData = [...state.data]
           newData[rowIndex] = [...newData[rowIndex]]
           newData[rowIndex][newColumnIndex] = enrichedValue
-          return { data: newData }
+          
+          const updates: any = { data: newData }
+          if (result.process) {
+            const cellKey = `${rowIndex}-${newColumnIndex}`
+            const newMetadata = new Map(state.cellMetadata)
+            newMetadata.set(cellKey, {
+              query: result.process.query,
+              response: result.process.response,
+              timestamp: result.process.timestamp,
+              isEnriched: true
+            })
+            updates.cellMetadata = newMetadata
+          }
+          
+          return updates
         })
 
         // Small delay to show progress
@@ -847,6 +918,11 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       })
       return { cellExplanations: newExplanations }
     }),
+
+  getCellMetadata: (rowIndex, colIndex) => {
+    const key = `${rowIndex}-${colIndex}`
+    return get().cellMetadata.get(key)
+  },
 }))
 
 async function enrichCell(value: string, prompt: string): Promise<string> {
@@ -892,7 +968,7 @@ async function enrichCellWithContext(
   prompt: string,
   headers: string[],
   customFormat?: CustomFormat
-): Promise<string> {
+): Promise<{ value: string; process?: { query: string; response: string; timestamp: string } }> {
   try {
     // Replace column placeholders in prompt with actual values
     let processedPrompt = prompt
@@ -933,7 +1009,10 @@ async function enrichCellWithContext(
       throw new Error("No enriched value returned from API")
     }
 
-    return data.enrichedValue
+    return { 
+      value: data.enrichedValue,
+      process: data.process 
+    }
   } catch (error) {
     console.error("[v0] Error enriching cell with context:", error)
     throw new Error(`Failed to enrich cell: ${error.message}`)

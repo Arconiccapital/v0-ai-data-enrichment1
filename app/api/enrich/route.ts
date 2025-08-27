@@ -56,6 +56,9 @@ Current value: ${value || 'empty'}
 Find real information for: ${cleanPrompt}
 Return only the specific data requested, nothing else.`
 
+    // Store the search query for audit trail
+    const searchQuery = `Find ${cleanPrompt} for ${value || 'the entity'}${contextStr ? ' with context' : ''}`
+
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -85,9 +88,11 @@ Return only the specific data requested, nothing else.`
     console.log("[v0] Perplexity response received")
 
     let enrichedValue = value // fallback to original value
+    let fullResponse = '' // Store the full response for audit trail
 
     if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-      enrichedValue = data.choices[0].message.content.trim()
+      fullResponse = data.choices[0].message.content
+      enrichedValue = fullResponse.trim()
       
       // Clean up common response patterns
       enrichedValue = enrichedValue
@@ -124,7 +129,13 @@ Return only the specific data requested, nothing else.`
       dataType: expectedType,
       formatMode,
       validated: isValidated,
-      source: 'perplexity'
+      source: 'perplexity',
+      // Add process information for audit trail
+      process: {
+        query: searchQuery,
+        response: fullResponse,
+        timestamp: new Date().toISOString()
+      }
     })
 
   } catch (error: any) {

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { Loader2, Copy, Clipboard, Scissors, Sparkles } from "lucide-react"
+import { Loader2, Copy, Clipboard, Scissors, Sparkles, Info } from "lucide-react"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -19,6 +19,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+interface CellMetadata {
+  query: string
+  response: string
+  timestamp: string
+  isEnriched: boolean
+}
+
 interface SpreadsheetCellProps {
   value: string
   rowIndex: number
@@ -27,6 +34,7 @@ interface SpreadsheetCellProps {
   isEnriching: boolean
   isMultiSelected: boolean
   explanation?: string
+  metadata?: CellMetadata
   columnWidth: number
   isColumnConfigured?: boolean
   onCellClick: (rowIndex: number, colIndex: number) => void
@@ -46,6 +54,7 @@ export function SpreadsheetCell({
   isEnriching,
   isMultiSelected,
   explanation,
+  metadata,
   columnWidth,
   isColumnConfigured = false,
   onCellClick,
@@ -77,24 +86,54 @@ export function SpreadsheetCell({
   const cellContent = (
     <div 
       className={cn(
-        "px-4 py-2 text-sm truncate",
+        "px-4 py-2 text-sm truncate relative",
         isSelected ? "text-gray-900 font-medium" : "text-gray-900",
         !isSelected && "group-hover:bg-gray-50"
       )}
       title={value}
     >
+      {metadata?.isEnriched && (
+        <Info className="absolute top-1 right-1 h-3 w-3 text-blue-500" />
+      )}
       {value}
     </div>
   )
 
-  const cellWithTooltip = explanation ? (
+  const cellWithTooltip = (metadata || explanation) ? (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
           {cellContent}
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p className="text-sm">{explanation}</p>
+        <TooltipContent className="max-w-md p-3 space-y-2">
+          {metadata ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Sparkles className="h-4 w-4 text-blue-500" />
+                <span className="font-semibold text-sm">Enrichment Details</span>
+              </div>
+              
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1">Search Query:</p>
+                  <p className="text-xs bg-gray-50 p-2 rounded">{metadata.query}</p>
+                </div>
+                
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-1">Result:</p>
+                  <p className="text-xs bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">{metadata.response}</p>
+                </div>
+                
+                <div>
+                  <p className="text-xs text-gray-500">
+                    Enriched at: {new Date(metadata.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm">{explanation}</p>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
