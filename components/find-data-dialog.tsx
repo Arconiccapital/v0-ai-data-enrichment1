@@ -63,11 +63,12 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
       
       // Convert to template format and import
       if (result.data && result.data.length > 0) {
-        const dataSource = result.source === 'web-search' ? 'Real web data' : 'Generated data'
-        setProgress(`Found ${result.data.length} items (${dataSource})`)
+        // Show message if fewer results were found
+        const statusMessage = result.message || `Found ${result.data.length} verified results`
+        setProgress(statusMessage)
         
         // Brief delay to show success message
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
         // Extract generation metadata from API response
         const generationMetadata = result.process ? {

@@ -3,6 +3,70 @@ import { NextResponse } from 'next/server'
 // Initialize Perplexity API - ALWAYS use real web search
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || ''
 
+// Detect query type to provide better context
+function detectQueryType(prompt: string): string {
+  const lowerPrompt = prompt.toLowerCase()
+  
+  if (lowerPrompt.includes('who works at') || lowerPrompt.includes('employees of') || lowerPrompt.includes('team at')) {
+    return '[Focus: Find specific people with full names and their titles/positions]'
+  }
+  if (lowerPrompt.includes('companies in') || lowerPrompt.includes('startups') || lowerPrompt.includes('businesses')) {
+    return '[Focus: Find actual company names with brief descriptions]'
+  }
+  if (lowerPrompt.includes('ceo') || lowerPrompt.includes('founder') || lowerPrompt.includes('executive')) {
+    return '[Focus: Find specific person names with their company and title]'
+  }
+  if (lowerPrompt.includes('products') || lowerPrompt.includes('services') || lowerPrompt.includes('tools')) {
+    return '[Focus: Find specific product/service names with companies]'
+  }
+  if (lowerPrompt.includes('real estate') || lowerPrompt.includes('properties') || lowerPrompt.includes('agents')) {
+    return '[Focus: Find specific names with companies/brokerages]'
+  }
+  if (lowerPrompt.includes('investors') || lowerPrompt.includes('vcs') || lowerPrompt.includes('venture')) {
+    return '[Focus: Find specific investor/firm names]'
+  }
+  // Default
+  return '[Focus: Find specific, named entities relevant to this query]'
+}
+
+// Validate and filter results to remove hallucinations
+function validateResults(items: string[]): string[] {
+  return items.filter(item => {
+    // Universal blacklist
+    const blacklist = ['unnamed', 'unspecified', 'unknown', 'various', 'multiple', 'several', 'unidentified']
+    const lowerItem = item.toLowerCase()
+    
+    // Check for blacklisted words
+    if (blacklist.some(word => lowerItem.includes(word))) {
+      console.log(`[Find Data] Filtering out hallucinated item: ${item}`)
+      return false
+    }
+    
+    // Remove items that are just numbers + generic terms
+    if (item.match(/^\d+\s+(employees|people|staff|workers|managers|executives)/i)) {
+      console.log(`[Find Data] Filtering out generic count: ${item}`)
+      return false
+    }
+    
+    // Must have minimum content
+    if (item.trim().length < 3) {
+      return false
+    }
+    
+    // For people, should have at least two words (first and last name)
+    // Unless it's a company or product
+    if (!item.includes('-') && !item.includes(',') && !item.includes('Inc') && !item.includes('LLC')) {
+      const words = item.split(' ').filter(w => w.length > 1)
+      if (words.length < 2) {
+        console.log(`[Find Data] Filtering out single word: ${item}`)
+        return false
+      }
+    }
+    
+    return true
+  })
+}
+
 export async function POST(request: Request) {
   try {
     const { prompt, count = 20, type = 'first-column' } = await request.json()
@@ -22,20 +86,52 @@ export async function POST(request: Request) {
     console.log("[Find Data] Requested count:", count)
     console.log("[Find Data] Searching with Perplexity Sonar...")
     
-    const systemPrompt = `You MUST search the internet to find REAL, EXISTING entities.
-Do NOT generate, hallucinate, or make up any names or data.
-Return ONLY actual people/companies that currently exist based on web search results.
-Format: JSON array of strings with exactly ${count} items.
-For agents/brokers: Include full name and company (e.g., "John Smith - Ray White Sydney")
-For companies: Include the actual company name as it appears online
-CRITICAL: These must be REAL entities you find through web search, not generated examples.`
+    const systemPrompt = `You are a precision web search assistant. Your ONLY job is to find REAL, VERIFIABLE information.
 
-    const userPrompt = `Search the internet RIGHT NOW for: ${prompt}
-Find exactly ${count} REAL, CURRENTLY EXISTING results.
-These must be ACTUAL entities with VERIFIABLE information from web search.
-Use current web data to find real names, real companies, real information.
-Do NOT make up or generate any data - only return what you find through web search.
-Return as JSON array.`
+UNIVERSAL RULES (apply to EVERY search):
+1. ONLY return items you can verify exist through web search
+2. Quality > Quantity: Better to return 3 real items than ${count} with fakes
+3. Each item must be specific and verifiable:
+   - People: Must have full names
+   - Companies: Must have actual company names  
+   - Products: Must have specific product names
+   - Places: Must have actual addresses/locations
+4. If you cannot find enough real data, return ONLY what exists
+5. NEVER create placeholder content
+
+PROHIBITED (never return these):
+- "unnamed" / "unspecified" / "unknown" / "various"
+- Generic descriptions without specific names
+- Numbered lists like "35 employees" or "10 managers"
+- Placeholder text or approximations
+- Made-up examples
+
+OUTPUT RULES:
+- Return a JSON array of strings
+- Each string should be self-contained with all relevant info
+- Stop when you run out of real data
+- It's OK to return fewer items than requested`
+
+    // Detect query type and enhance prompt
+    const queryHint = detectQueryType(prompt)
+    
+    const userPrompt = `Task: ${prompt}
+
+Search the web to find UP TO ${count} real results for this query.
+${queryHint}
+
+IMPORTANT:
+- Interpret the query intelligently based on what's being asked
+- If searching for people: Return "Full Name - Title/Company"
+- If searching for companies: Return "Company Name - Brief descriptor"
+- If searching for products: Return "Product Name - Company/Category"
+- If searching for data points: Return specific values with context
+
+Return ONLY verified results you find through web search.
+If you can only verify ${Math.min(5, Math.floor(count/4))} items, return just those.
+Quality and accuracy are mandatory, quantity is optional.
+
+Format: JSON array of strings, each item complete and specific.`
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -108,28 +204,37 @@ Return as JSON array.`
       }
     }
 
-    // Ensure we have strings
+    // Ensure we have strings and take up to the requested count
     items = items.slice(0, count).map(item => 
       typeof item === 'string' ? item.trim() : JSON.stringify(item)
     ).filter(item => item && item.length > 0)
-
-    if (items.length === 0) {
+    
+    // Apply validation to filter out hallucinations
+    const validatedItems = validateResults(items)
+    
+    console.log(`[Find Data] Raw items: ${items.length}, After validation: ${validatedItems.length}`)
+    
+    if (validatedItems.length === 0) {
       return NextResponse.json({ 
-        error: 'No results found. Please try a different search query.' 
+        error: 'No verified results found. The query may be too specific or data may not be publicly available.' 
       }, { status: 404 })
     }
 
-    console.log(`[Find Data] Found ${items.length} real items from Perplexity search`)
+    console.log(`[Find Data] Found ${validatedItems.length} verified items from Perplexity search`)
     
     // Build search query for audit trail
     const searchQuery = `Search the internet for: ${prompt}`
     
     return NextResponse.json({ 
-      data: items,
-      count: items.length,
+      data: validatedItems,
+      count: validatedItems.length,
       type,
       source: 'perplexity-sonar',
       model: 'sonar',
+      // Add message if we found fewer than requested
+      message: validatedItems.length < count 
+        ? `Found ${validatedItems.length} verified results (requested ${count})` 
+        : null,
       // Add process information for audit trail
       process: {
         prompt: prompt,
@@ -137,8 +242,9 @@ Return as JSON array.`
         response: fullResponse,
         citations: citations,
         timestamp: new Date().toISOString(),
-        itemsFound: items.length,
-        requestedCount: count
+        itemsFound: validatedItems.length,
+        requestedCount: count,
+        filteredOut: items.length - validatedItems.length
       }
     })
 
