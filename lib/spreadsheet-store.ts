@@ -101,6 +101,10 @@ interface SpreadsheetStore {
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
   addColumn: (header: string) => number
   addColumnWithEnrichment: (header: string, config?: Partial<ColumnEnrichmentConfig>) => void
+  insertColumnBefore: (index: number, header: string) => void
+  insertColumnAfter: (index: number, header: string) => void
+  deleteColumn: (index: number) => void
+  renameColumn: (index: number, newName: string) => void
   clearData: () => void
   // Enrichment methods
   enrichColumn: (columnIndex: number, prompt: string, contextColumns?: Set<number>) => Promise<void>
@@ -219,6 +223,106 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         } : state.columnEnrichmentConfigs
       }
       return newState
+    }),
+
+  insertColumnBefore: (index, header) =>
+    set((state) => {
+      const newHeaders = [...state.headers]
+      newHeaders.splice(index, 0, header)
+      
+      const newData = state.data.map(row => {
+        const newRow = [...row]
+        newRow.splice(index, 0, "")
+        return newRow
+      })
+      
+      // Shift enrichment configs for columns after the insertion point
+      const newConfigs: Record<number, ColumnEnrichmentConfig> = {}
+      Object.entries(state.columnEnrichmentConfigs).forEach(([colIndexStr, config]) => {
+        const colIndex = parseInt(colIndexStr)
+        if (colIndex >= index) {
+          newConfigs[colIndex + 1] = { ...config, columnIndex: colIndex + 1 }
+        } else {
+          newConfigs[colIndex] = config
+        }
+      })
+      
+      return {
+        headers: newHeaders,
+        data: newData,
+        columnEnrichmentConfigs: newConfigs
+      }
+    }),
+
+  insertColumnAfter: (index, header) =>
+    set((state) => {
+      const insertIndex = index + 1
+      const newHeaders = [...state.headers]
+      newHeaders.splice(insertIndex, 0, header)
+      
+      const newData = state.data.map(row => {
+        const newRow = [...row]
+        newRow.splice(insertIndex, 0, "")
+        return newRow
+      })
+      
+      // Shift enrichment configs for columns after the insertion point
+      const newConfigs: Record<number, ColumnEnrichmentConfig> = {}
+      Object.entries(state.columnEnrichmentConfigs).forEach(([colIndexStr, config]) => {
+        const colIndex = parseInt(colIndexStr)
+        if (colIndex >= insertIndex) {
+          newConfigs[colIndex + 1] = { ...config, columnIndex: colIndex + 1 }
+        } else {
+          newConfigs[colIndex] = config
+        }
+      })
+      
+      return {
+        headers: newHeaders,
+        data: newData,
+        columnEnrichmentConfigs: newConfigs
+      }
+    }),
+
+  deleteColumn: (index) =>
+    set((state) => {
+      const newHeaders = state.headers.filter((_, i) => i !== index)
+      const newData = state.data.map(row => row.filter((_, i) => i !== index))
+      
+      // Update enrichment configs - remove deleted column and shift indices
+      const newConfigs: Record<number, ColumnEnrichmentConfig> = {}
+      Object.entries(state.columnEnrichmentConfigs).forEach(([colIndexStr, config]) => {
+        const colIndex = parseInt(colIndexStr)
+        if (colIndex < index) {
+          newConfigs[colIndex] = config
+        } else if (colIndex > index) {
+          newConfigs[colIndex - 1] = { ...config, columnIndex: colIndex - 1 }
+        }
+        // Skip the deleted column (colIndex === index)
+      })
+      
+      return {
+        headers: newHeaders,
+        data: newData,
+        columnEnrichmentConfigs: newConfigs
+      }
+    }),
+
+  renameColumn: (index, newName) =>
+    set((state) => {
+      const newHeaders = [...state.headers]
+      newHeaders[index] = newName
+      
+      // Update enrichment config with new column name
+      const newConfigs = { ...state.columnEnrichmentConfigs }
+      if (newConfigs[index]) {
+        newConfigs[index] = { ...newConfigs[index], columnName: newName }
+      }
+      
+      return {
+        headers: newHeaders,
+        columnEnrichmentConfigs: newConfigs
+      }
     }),
 
   clearData: () =>

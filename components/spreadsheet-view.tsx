@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { AddColumnDialog } from "@/components/add-column-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,6 +48,10 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     updateCell, 
     enrichmentStatus, 
     addColumn,
+    insertColumnBefore,
+    insertColumnAfter,
+    deleteColumn,
+    renameColumn,
     selectedRows,
     selectedColumns,
     toggleRowSelection,
@@ -69,7 +74,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false)
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false)
-  const [newColumnName, setNewColumnName] = useState("")
   const [showCellDetails, setShowCellDetails] = useState(false)
   const [showSelectionTools, setShowSelectionTools] = useState(false)
   const [smartSelectionOpen, setSmartSelectionOpen] = useState(false)
@@ -233,7 +237,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   
   // Calculate total table width
   const calculateTableWidth = () => {
-    let totalWidth = 40 + 48 // checkbox (40px) + row number (48px) columns
+    let totalWidth = 40 + 48 + 150 // checkbox (40px) + row number (48px) + add column (150px)
     headers.forEach((_, index) => {
       totalWidth += columnWidths[index] || 200
     })
@@ -404,50 +408,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
         </div>
 
 
-        {/* Add Column Dialog - Keep existing */}
-        <Dialog open={addColumnDialogOpen} onOpenChange={setAddColumnDialogOpen}>
-                <DialogContent className="sm:max-w-[400px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Column</DialogTitle>
-                    <DialogDescription>
-                      Add a new column to your spreadsheet. You can configure AI enrichment after adding.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="column-name">Column Name</Label>
-                      <Input
-                        id="column-name"
-                        value={newColumnName}
-                        onChange={(e) => setNewColumnName(e.target.value)}
-                        placeholder="e.g., Company Website, Contact Email, Industry"
-                        onKeyDown={(e) => e.key === "Enter" && handleAddColumn()}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 p-3 bg-gray-50">
-                      <Info className="h-4 w-4 text-gray-500" />
-                      <p className="text-sm text-gray-600">
-                        After adding the column, right-click its header to configure AI enrichment.
-                      </p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => {
-                      setAddColumnDialogOpen(false)
-                      setNewColumnName("")
-                    }}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleAddColumn} 
-                      disabled={!newColumnName.trim()}
-                    >
-                      Add Column
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-        </Dialog>
 
         <div className="flex-1 bg-gray-50 flex flex-col min-w-0">
           <div className="flex-1 overflow-auto relative">
@@ -527,6 +487,53 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                           <ContextMenuContent>
                             <ContextMenuLabel>{header}</ContextMenuLabel>
                             <ContextMenuSeparator />
+                            
+                            {/* Column Operations */}
+                            <ContextMenuItem onClick={() => {
+                              const newName = prompt('Enter new column name:', header)
+                              if (newName && newName.trim() && newName.trim() !== header) {
+                                renameColumn(index, newName.trim())
+                              }
+                            }}>
+                              <Settings className="h-4 w-4 mr-2" />
+                              Rename Column
+                            </ContextMenuItem>
+                            
+                            <ContextMenuItem onClick={() => {
+                              const newColumnName = prompt('Enter new column name:')
+                              if (newColumnName && newColumnName.trim()) {
+                                insertColumnBefore(index, newColumnName.trim())
+                              }
+                            }}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Insert Column Before
+                            </ContextMenuItem>
+                            
+                            <ContextMenuItem onClick={() => {
+                              const newColumnName = prompt('Enter new column name:')
+                              if (newColumnName && newColumnName.trim()) {
+                                insertColumnAfter(index, newColumnName.trim())
+                              }
+                            }}>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Insert Column After
+                            </ContextMenuItem>
+                            
+                            <ContextMenuItem 
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete the column "${header}"? This action cannot be undone.`)) {
+                                  deleteColumn(index)
+                                }
+                              }}
+                              className="text-red-600"
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Delete Column
+                            </ContextMenuItem>
+                            
+                            <ContextMenuSeparator />
+                            
+                            {/* Enrichment Operations */}
                             <ContextMenuItem onClick={() => handleOpenEnrichmentForColumn(index, 'all')}>
                               <Sparkles className="h-4 w-4 mr-2" />
                               {columnEnrichmentConfigs[index]?.isConfigured ? 'Enrich All Cells' : 'Configure & Enrich'}
@@ -539,7 +546,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                                 </ContextMenuItem>
                                 <ContextMenuSeparator />
                                 <ContextMenuItem onClick={() => handleOpenEnrichmentForColumn(index, 'all')}>
-                                  <Settings className="h-4 w-4 mr-2" />
+                                  <Zap className="h-4 w-4 mr-2" />
                                   Edit Enrichment Config
                                 </ContextMenuItem>
                               </>
@@ -548,6 +555,21 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                         </ContextMenu>
                       </th>
                     ))}
+                    {/* Add Column Button */}
+                    <th 
+                      className="h-12 px-4 text-center border-r border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+                      style={{ width: '150px', minWidth: '150px' }}
+                    >
+                      <button
+                        onClick={() => setAddColumnDialogOpen(true)}
+                        className="w-full h-full flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        <div className="flex items-center justify-center gap-2 px-3 py-1 border-2 border-dashed border-gray-300 rounded hover:border-gray-400 transition-colors">
+                          <Plus className="h-4 w-4" />
+                          <span className="text-sm font-medium">Add Column</span>
+                        </div>
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -587,6 +609,11 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                           onEnrichCell={handleOpenEnrichmentForColumn}
                         />
                       ))}
+                      {/* Empty cell for Add Column alignment */}
+                      <td 
+                        className="border-r border-gray-200 bg-gray-50/50"
+                        style={{ width: '150px', minWidth: '150px' }}
+                      />
                     </tr>
                   ))}
                 </tbody>
@@ -708,6 +735,14 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
       />
       <DataAnalysisDialog open={analysisDialogOpen} onOpenChange={setAnalysisDialogOpen} />
       <SmartSelectionDialog open={smartSelectionOpen} onOpenChange={setSmartSelectionOpen} />
+      <AddColumnDialog 
+        open={addColumnDialogOpen} 
+        onClose={() => setAddColumnDialogOpen(false)}
+        onAdd={(name) => {
+          addColumn(name)
+          setAddColumnDialogOpen(false)
+        }}
+      />
     </div>
   )
 }
