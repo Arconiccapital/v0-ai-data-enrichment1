@@ -109,23 +109,25 @@ export function SidebarNav() {
   ]
 
   return (
-    <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
-      <ScrollArea className="flex-1 px-3 py-4">
+    <div className="w-16 sm:w-48 md:w-56 lg:w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-full transition-all duration-300 flex-shrink-0">
+      <ScrollArea className="flex-1 px-2 sm:px-3 py-4">
         <div className="space-y-6">
           {sections.map((section) => (
             <div key={section.title.toLowerCase()}>
               <button
-                className="flex items-center justify-between w-full px-2 py-1 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center justify-between w-full px-1 sm:px-2 py-1 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 onClick={() => toggleSection(section.title.toLowerCase())}
               >
-                <span className="uppercase tracking-wider text-xs">
+                <span className="uppercase tracking-wider text-[10px] sm:text-xs truncate">
                   {section.title}
                 </span>
-                {expandedSections.has(section.title.toLowerCase()) ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronRight className="h-3 w-3" />
-                )}
+                <span className="hidden sm:block">
+                  {expandedSections.has(section.title.toLowerCase()) ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                </span>
               </button>
               
               {expandedSections.has(section.title.toLowerCase()) && (
@@ -138,14 +140,14 @@ export function SidebarNav() {
                         variant={item.isActive ? "secondary" : "ghost"}
                         size="sm"
                         className={cn(
-                          "w-full justify-start gap-2 h-8",
+                          "w-full justify-start gap-1 sm:gap-2 h-7 sm:h-8 px-1 sm:px-2",
                           item.isActive && "bg-white shadow-sm"
                         )}
                         onClick={item.onClick}
                         disabled={!item.onClick && !item.isActive}
                       >
-                        {Icon && <Icon className="h-4 w-4" />}
-                        <span className="truncate text-sm">{item.label}</span>
+                        {Icon && <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />}
+                        <span className="truncate text-[11px] sm:text-sm hidden sm:block">{item.label}</span>
                       </Button>
                     )
                   })}
@@ -157,14 +159,14 @@ export function SidebarNav() {
       </ScrollArea>
 
       {/* Settings at bottom */}
-      <div className="border-t border-gray-200 p-3">
+      <div className="border-t border-gray-200 p-2 sm:p-3">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-1 sm:gap-2 h-7 sm:h-8 px-1 sm:px-2"
         >
-          <Settings className="h-4 w-4" />
-          <span className="text-sm">Settings</span>
+          <Settings className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="text-[11px] sm:text-sm hidden sm:block">Settings</span>
         </Button>
       </div>
     </div>

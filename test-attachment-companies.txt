@@ -1,0 +1,58 @@
+COMPANY INFORMATION DATABASE
+============================
+
+Apple Inc
+---------
+CEO: Tim Cook
+Industry: Consumer Electronics, Software, Online Services
+Founded: April 1, 1976
+Headquarters: Cupertino, California, USA
+Revenue (2023): $383.3 billion
+Employees: ~164,000
+Key Products: iPhone, iPad, Mac, Apple Watch, AirPods, Apple Services
+Stock Symbol: AAPL (NASDAQ)
+
+Microsoft Corporation
+--------------------
+CEO: Satya Nadella
+Industry: Software, Cloud Computing, Hardware
+Founded: April 4, 1975
+Headquarters: Redmond, Washington, USA
+Revenue (2023): $211.9 billion
+Employees: ~221,000
+Key Products: Windows, Office 365, Azure, Xbox, Surface, LinkedIn
+Stock Symbol: MSFT (NASDAQ)
+
+Amazon.com Inc
+--------------
+CEO: Andy Jassy
+Industry: E-commerce, Cloud Computing, Digital Streaming, AI
+Founded: July 5, 1994
+Headquarters: Seattle, Washington, USA
+Revenue (2023): $574.8 billion
+Employees: ~1,525,000
+Key Services: Amazon.com, AWS, Prime Video, Alexa, Whole Foods
+Stock Symbol: AMZN (NASDAQ)
+
+Google LLC (Alphabet Inc)
+-------------------------
+CEO: Sundar Pichai
+Industry: Internet, Software, Cloud Computing, AI
+Founded: September 4, 1998
+Parent Company: Alphabet Inc
+Headquarters: Mountain View, California, USA
+Revenue (2023): $307.4 billion (Alphabet)
+Employees: ~182,000
+Key Products: Google Search, YouTube, Android, Chrome, Google Cloud, Gmail
+Stock Symbol: GOOGL (NASDAQ)
+
+Tesla Inc
+---------
+CEO: Elon Musk
+Industry: Electric Vehicles, Clean Energy
+Founded: July 1, 2003
+Headquarters: Austin, Texas, USA
+Revenue (2023): $96.8 billion
+Employees: ~127,855
+Key Products: Model S, Model 3, Model X, Model Y, Solar Panels, Energy Storage
+Stock Symbol: TSLA (NASDAQ)

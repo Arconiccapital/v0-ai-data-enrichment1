@@ -36,10 +36,10 @@ export default function HomePage() {
   // Show upload page if no data
   if (!hasData) {
     return (
-      <div className="h-screen bg-white flex flex-col overflow-hidden">
+      <div className="min-h-screen bg-white flex flex-col">
         <AppNavigation />
         
-        <div className="flex-1 flex items-center justify-center p-8">
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
           <div className="w-full max-w-2xl">
             <div className="text-center mb-8">
               <div className="flex flex-col items-center gap-4 mb-6">
@@ -138,7 +138,7 @@ export default function HomePage() {
 
   // Main application with data loaded
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top Navigation */}
       <AppNavigation />
       
@@ -149,12 +149,12 @@ export default function HomePage() {
       />
       
       {/* Main Content with Sidebar */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex relative">
         {/* Left Sidebar */}
         <SidebarNav />
         
         {/* Content Area */}
-        <div className="flex-1 flex">
+        <div className="flex-1 flex min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
             <SpreadsheetView activeWorkflowStep={activeWorkflowStep} />
           </div>

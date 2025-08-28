@@ -357,7 +357,7 @@ Based on the available data in columns: ${headers.slice(0, 5).join(', ')}, we ca
   ]
 
   return (
-    <div className="w-96 flex-shrink-0 h-full bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-full sm:w-80 md:w-96 max-w-[400px] flex-shrink-0 h-full bg-white border-l border-gray-200 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">

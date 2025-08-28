@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Gemini API Key</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+            padding: 12px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Setup Gemini API Key</h1>
+        <p>This tool helps you safely configure your Gemini API key for the Lighthouse AI application.</p>
+        
+        <div class="warning">
+            <strong>⚠️ Security Warning:</strong><br>
+            • Never share your API key publicly<br>
+            • If your key was exposed, regenerate it at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a><br>
+            • This tool runs locally and doesn't send your key anywhere
+        </div>
+
+        <div class="step">
+            <h3>Step 1: Enter Your Gemini API Key</h3>
+            <input 
+                type="password" 
+                id="apiKey" 
+                placeholder="AIzaSy..." 
+                autocomplete="off"
+                spellcheck="false"
+            />
+            <label>
+                <input type="checkbox" id="showKey" onchange="toggleKeyVisibility()">
+                Show API key
+            </label>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Generate .env.local Content</h3>
+            <button onclick="generateEnvContent()">Generate Configuration</button>
+        </div>
+
+        <div id="result" style="display: none;">
+            <div class="step">
+                <h3>Step 3: Copy This Content</h3>
+                <p>Copy the text below and save it to a file named <code>.env.local</code> in your project root:</p>
+                <div class="output" id="envContent"></div>
+                <button onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+            </div>
+
+            <div class="step">
+                <h3>Step 4: Save the File</h3>
+                <p>
+                    1. Open your terminal<br>
+                    2. Navigate to: <code>/Users/alanyang/Downloads/Claude Code/v0-ai-data-enrichment1</code><br>
+                    3. Create the file: <code>nano .env.local</code><br>
+                    4. Paste the content (Cmd+V)<br>
+                    5. Save and exit (Ctrl+X, then Y, then Enter)<br>
+                    6. Restart your dev server: <code>npm run dev</code>
+                </p>
+            </div>
+
+            <div class="success" id="successMsg" style="display: none;">
+                ✅ Configuration copied to clipboard! Now paste it into your .env.local file.
+            </div>
+        </div>
+
+        <div class="warning" style="margin-top: 30px;">
+            <strong>📝 Important Notes:</strong><br>
+            • The file must be named exactly <code>.env.local</code> (not .env.local.txt)<br>
+            • Place it in the project root directory<br>
+            • Restart the dev server after creating the file<br>
+            • The file should never be committed to git
+        </div>
+    </div>
+
+    <script>
+        function toggleKeyVisibility() {
+            const input = document.getElementById('apiKey');
+            const checkbox = document.getElementById('showKey');
+            input.type = checkbox.checked ? 'text' : 'password';
+        }
+
+        function generateEnvContent() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            if (!apiKey) {
+                alert('Please enter your API key first');
+                return;
+            }
+
+            if (!apiKey.startsWith('AIzaSy')) {
+                const proceed = confirm('This doesn\'t look like a valid Gemini API key (should start with AIzaSy). Continue anyway?');
+                if (!proceed) return;
+            }
+
+            const envContent = `# Gemini API Configuration
+# Generated on ${new Date().toLocaleString()}
+GOOGLE_GEMINI_API_KEY=${apiKey}
+AI_PROVIDER=gemini
+
+# Perplexity API (optional fallback)
+# PERPLEXITY_API_KEY=your_perplexity_key_here`;
+
+            document.getElementById('envContent').textContent = envContent;
+            document.getElementById('result').style.display = 'block';
+            
+            // Scroll to result
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyToClipboard() {
+            const content = document.getElementById('envContent').textContent;
+            
+            // Create temporary textarea
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                document.getElementById('successMsg').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('successMsg').style.display = 'none';
+                }, 3000);
+            } catch (err) {
+                alert('Failed to copy. Please select and copy manually.');
+            }
+            
+            document.body.removeChild(textarea);
+        }
+
+        // Allow Enter key to generate
+        document.getElementById('apiKey').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateEnvContent();
+            }
+        });
+    </script>
+</body>
+</html>

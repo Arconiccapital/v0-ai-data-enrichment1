@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo } from "react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
-import { Loader2, Copy, Clipboard, Scissors, Sparkles, Info } from "lucide-react"
+import { Loader2, Copy, Clipboard, Scissors, Sparkles, Info, Paperclip } from "lucide-react"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -38,6 +38,7 @@ interface SpreadsheetCellProps {
   metadata?: CellMetadata
   columnWidth: number
   isColumnConfigured?: boolean
+  attachmentCount?: number
   onCellClick: (rowIndex: number, colIndex: number) => void
   onCellChange: (value: string, rowIndex: number, colIndex: number) => void
   onCopyCell: (value: string) => void
@@ -45,9 +46,10 @@ interface SpreadsheetCellProps {
   onCutCell: (rowIndex: number, colIndex: number) => void
   onToggleSelection: (rowIndex: number, colIndex: number) => void
   onEnrichCell?: (colIndex: number, scope: 'cell' | 'selected', rowIndex?: number) => void
+  onManageAttachments?: (rowIndex: number, colIndex: number) => void
 }
 
-export function SpreadsheetCell({
+export const SpreadsheetCell = memo(function SpreadsheetCell({
   value,
   rowIndex,
   colIndex,
@@ -58,6 +60,7 @@ export function SpreadsheetCell({
   metadata,
   columnWidth,
   isColumnConfigured = false,
+  attachmentCount = 0,
   onCellClick,
   onCellChange,
   onCopyCell,
@@ -65,6 +68,7 @@ export function SpreadsheetCell({
   onCutCell,
   onToggleSelection,
   onEnrichCell,
+  onManageAttachments,
 }: SpreadsheetCellProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
@@ -93,9 +97,17 @@ export function SpreadsheetCell({
       )}
       title={value}
     >
-      {metadata?.isEnriched && (
-        <Info className="absolute top-1 right-1 h-3 w-3 text-blue-500" />
-      )}
+      <div className="absolute top-1 right-1 flex items-center gap-1">
+        {metadata?.isEnriched && (
+          <Info className="h-3 w-3 text-blue-500" />
+        )}
+        {attachmentCount > 0 && (
+          <div className="flex items-center gap-0.5 bg-gray-100 px-1 py-0.5 rounded">
+            <Paperclip className="h-3 w-3 text-gray-600" />
+            <span className="text-[10px] text-gray-600">{attachmentCount}</span>
+          </div>
+        )}
+      </div>
       {value}
     </div>
   )
@@ -193,12 +205,12 @@ export function SpreadsheetCell({
   return (
     <td
       className={cn(
-        "h-12 border-r border-gray-200 cursor-pointer relative group transition-all duration-150",
-        isSelected && "bg-blue-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-white z-20",
+        "border-r border-gray-200 cursor-pointer relative group transition-all duration-150",
+        isSelected && "bg-blue-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-white z-10",
         isEnriching && "bg-blue-50",
         isMultiSelected && "bg-yellow-50"
       )}
-      style={{ width: `${columnWidth}px`, minWidth: '100px' }}
+      style={{ width: `${columnWidth}px`, height: '48px', maxWidth: `${columnWidth}px` }}
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>
@@ -249,6 +261,20 @@ export function SpreadsheetCell({
             <Scissors className="h-4 w-4 mr-2" />
             Cut
           </ContextMenuItem>
+          
+          {/* Attachment management */}
+          {onManageAttachments && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={() => onManageAttachments(rowIndex, colIndex)}>
+                <Paperclip className="h-4 w-4 mr-2" />
+                Manage Attachments
+                {attachmentCount > 0 && (
+                  <span className="ml-auto text-xs text-gray-500">({attachmentCount})</span>
+                )}
+              </ContextMenuItem>
+            </>
+          )}
           <ContextMenuSeparator />
           
           {/* Edit actions */}
@@ -289,4 +315,4 @@ export function SpreadsheetCell({
       </ContextMenu>
     </td>
   )
-}
+})

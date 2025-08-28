@@ -11,16 +11,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Sparkles, Plus, Loader2, Info, X, Download, BarChart3, ArrowRight, Filter, Play, Zap, ChevronDown, FileSpreadsheet, FileJson, FileText, CheckSquare, MousePointer, Settings, LayoutDashboard, Share2, Mail, Copy, Clipboard, Scissors, PanelRight } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Copy, Clipboard, Scissors, Filter, PanelRight, LayoutDashboard, BarChart3, Paperclip, FileText, Download } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { SpreadsheetToolbar } from "./spreadsheet-toolbar"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -35,6 +28,8 @@ import { AIEnrichmentDialog } from "@/components/ai-enrichment-dialog"
 import { DataAnalysisDialog } from "@/components/data-analysis-dialog"
 import { SmartSelectionDialog } from "@/components/smart-selection-dialog"
 import { GenerationInfoBanner } from "@/components/generation-info-banner"
+import { ColumnAttachmentManager } from "@/components/column-attachment-manager"
+import { CellAttachmentManager } from "@/components/cell-attachment-manager"
 import { cn } from "@/lib/utils"
 
 interface SpreadsheetViewProps {
@@ -66,14 +61,22 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     toggleCellSelection,
     clearCellSelection,
     getCellExplanation,
+    getCellAttachments,
     getCellMetadata,
     getGenerationMetadata
   } = useSpreadsheetStore()
+  const { getColumnAttachments } = useSpreadsheetStore()
   const router = useRouter()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false)
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
+  const [isAddingColumn, setIsAddingColumn] = useState(false)
+  const [newColumnName, setNewColumnName] = useState("")
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false)
+  const [attachmentManagerOpen, setAttachmentManagerOpen] = useState(false)
+  const [attachmentColumnIndex, setAttachmentColumnIndex] = useState<number | null>(null)
+  const [cellAttachmentOpen, setCellAttachmentOpen] = useState(false)
+  const [selectedCellForAttachment, setSelectedCellForAttachment] = useState<{row: number, col: number} | null>(null)
   const [showCellDetails, setShowCellDetails] = useState(false)
   const [showSelectionTools, setShowSelectionTools] = useState(false)
   const [smartSelectionOpen, setSmartSelectionOpen] = useState(false)
@@ -155,6 +158,11 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     handleCellChange("", rowIndex, colIndex)
   }
 
+  const handleManageCellAttachments = (rowIndex: number, colIndex: number) => {
+    setSelectedCellForAttachment({ row: rowIndex, col: colIndex })
+    setCellAttachmentOpen(true)
+  }
+
   const isCellEnriching = (rowIndex: number, colIndex: number) => {
     return enrichmentStatus[colIndex]?.enriching && enrichmentStatus[colIndex]?.currentRow === rowIndex
   }
@@ -179,6 +187,11 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     setEnrichmentScope(scope)
     setCurrentEnrichRow(rowIndex)
     setEnrichmentDialogOpen(true)
+  }
+
+  const handleOpenAttachmentManager = (colIndex: number) => {
+    setAttachmentColumnIndex(colIndex)
+    setAttachmentManagerOpen(true)
   }
 
   const handleGenerateOutput = () => {
@@ -247,9 +260,9 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const generationMetadata = getGenerationMetadata()
 
   return (
-    <div className="flex h-full bg-white overflow-auto">
+    <div className="flex h-full bg-white overflow-hidden">
       {/* Main Content */}
-      <div className={cn("flex flex-col min-w-0 min-h-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
+      <div className={cn("flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
         {/* Generation Info Banner */}
         {generationMetadata && showGenerationInfo && (
           <GenerationInfoBanner 
@@ -409,12 +422,11 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
 
 
 
-        <div className="flex-1 bg-gray-50 flex flex-col min-w-0">
-          <div className="flex-1 overflow-auto relative">
-            <table className="table-fixed border-collapse bg-white" style={{ width: `${calculateTableWidth()}px` }}>
-                <thead className="sticky top-0 z-30">
+        <div className="flex-1 bg-gray-50 overflow-auto">
+            <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }}>
+                <thead className="sticky top-0 z-20">
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="w-10 h-12 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-40">
+                    <th className="text-center border-r border-gray-200 bg-white sticky left-0 z-30" style={{ width: '40px', height: '48px', boxSizing: 'border-box' }}>
                       <Checkbox
                         checked={selectedRows.size === data.length && data.length > 0}
                         onCheckedChange={(checked) => {
@@ -426,14 +438,14 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                         }}
                       />
                     </th>
-                    <th className="w-12 h-12 text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-40">
+                    <th className="text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-white sticky left-[41px] z-30" style={{ width: '48px', height: '48px', boxSizing: 'border-box' }}>
                       #
                     </th>
                     {headers.map((header, index) => (
                       <th
                         key={index}
-                        className="h-12 px-4 text-left text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative"
-                        style={{ width: `${columnWidths[index] || 200}px`, minWidth: '100px' }}
+                        className="h-12 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative min-w-[100px]"
+                        style={{ width: `${columnWidths[index] || 200}px` }}
                       >
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
@@ -443,6 +455,12 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                                 onClick={() => handleOpenEnrichmentForColumn(index, 'all')}
                               >
                                 <span className="truncate flex-1">{header}</span>
+                                {getColumnAttachments(index).length > 0 && (
+                                  <Badge variant="secondary" className="h-5 px-1 text-[10px] flex items-center gap-1">
+                                    <Paperclip className="h-2.5 w-2.5" />
+                                    {getColumnAttachments(index).length}
+                                  </Badge>
+                                )}
                                 {columnEnrichmentConfigs[index]?.isConfigured && (
                                   <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" title="Enrichment configured" />
                                 )}
@@ -533,6 +551,14 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                             
                             <ContextMenuSeparator />
                             
+                            {/* Attachment Management */}
+                            <ContextMenuItem onClick={() => handleOpenAttachmentManager(index)}>
+                              <Paperclip className="h-4 w-4 mr-2" />
+                              Manage Attachments {getColumnAttachments(index).length > 0 && `(${getColumnAttachments(index).length})`}
+                            </ContextMenuItem>
+                            
+                            <ContextMenuSeparator />
+                            
                             {/* Enrichment Operations */}
                             <ContextMenuItem onClick={() => handleOpenEnrichmentForColumn(index, 'all')}>
                               <Sparkles className="h-4 w-4 mr-2" />
@@ -560,15 +586,43 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                       className="h-12 px-4 text-center border-r border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
                       style={{ width: '150px', minWidth: '150px' }}
                     >
-                      <button
-                        onClick={() => setAddColumnDialogOpen(true)}
-                        className="w-full h-full flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-                      >
-                        <div className="flex items-center justify-center gap-2 px-3 py-1 border-2 border-dashed border-gray-300 rounded hover:border-gray-400 transition-colors">
-                          <Plus className="h-4 w-4" />
-                          <span className="text-sm font-medium">Add Column</span>
-                        </div>
-                      </button>
+                      {isAddingColumn ? (
+                        <input
+                          type="text"
+                          className="w-full h-8 px-3 text-sm font-semibold text-gray-900 bg-white border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Column name..."
+                          value={newColumnName}
+                          onChange={(e) => setNewColumnName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newColumnName.trim()) {
+                              addColumn(newColumnName.trim())
+                              setNewColumnName("")
+                              setIsAddingColumn(false)
+                            } else if (e.key === 'Escape') {
+                              setNewColumnName("")
+                              setIsAddingColumn(false)
+                            }
+                          }}
+                          onBlur={() => {
+                            if (newColumnName.trim()) {
+                              addColumn(newColumnName.trim())
+                            }
+                            setNewColumnName("")
+                            setIsAddingColumn(false)
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setIsAddingColumn(true)}
+                          className="w-full h-full flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                        >
+                          <div className="flex items-center justify-center gap-2 px-3 py-1 border-2 border-dashed border-gray-300 rounded hover:border-gray-400 transition-colors">
+                            <Plus className="h-4 w-4" />
+                            <span className="text-sm font-medium">Add Column</span>
+                          </div>
+                        </button>
+                      )}
                     </th>
                   </tr>
                 </thead>
@@ -578,13 +632,13 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                       "hover:bg-gray-50 border-b border-gray-100",
                       selectedRows.has(rowIndex) && "bg-gray-100"
                     )}>
-                      <td className="w-10 h-12 text-center border-r border-gray-200 bg-gray-50 sticky left-0 z-10">
+                      <td className="text-center border-r border-gray-200 bg-white sticky left-0 z-10" style={{ width: '40px', height: '48px', boxSizing: 'border-box' }}>
                         <Checkbox
                           checked={selectedRows.has(rowIndex)}
                           onCheckedChange={() => toggleRowSelection(rowIndex)}
                         />
                       </td>
-                      <td className="w-12 h-12 text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-gray-50 sticky left-[40px] z-10">
+                      <td className="text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-white sticky left-[41px] z-10" style={{ width: '48px', height: '48px', boxSizing: 'border-box' }}>
                         {rowIndex + 1}
                       </td>
                       {row.map((cell, colIndex) => (
@@ -600,6 +654,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                           metadata={getCellMetadata(rowIndex, colIndex)}
                           columnWidth={columnWidths[colIndex] || 200}
                           isColumnConfigured={columnEnrichmentConfigs[colIndex]?.isConfigured}
+                          attachmentCount={getCellAttachments(rowIndex, colIndex).length}
                           onCellClick={handleCellClick}
                           onCellChange={handleCellChange}
                           onCopyCell={handleCopyCell}
@@ -607,6 +662,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                           onCutCell={handleCutCell}
                           onToggleSelection={toggleCellSelection}
                           onEnrichCell={handleOpenEnrichmentForColumn}
+                          onManageAttachments={handleManageCellAttachments}
                         />
                       ))}
                       {/* Empty cell for Add Column alignment */}
@@ -618,7 +674,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                   ))}
                 </tbody>
               </table>
-          </div>
         </div>
 
         <div className="border-t border-gray-200 bg-white px-6 py-3">
@@ -743,6 +798,30 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
           setAddColumnDialogOpen(false)
         }}
       />
+      {attachmentColumnIndex !== null && (
+        <ColumnAttachmentManager
+          open={attachmentManagerOpen}
+          onClose={() => {
+            setAttachmentManagerOpen(false)
+            setAttachmentColumnIndex(null)
+          }}
+          columnIndex={attachmentColumnIndex}
+          columnName={headers[attachmentColumnIndex] || ''}
+        />
+      )}
+      {cellAttachmentOpen && selectedCellForAttachment && (
+        <CellAttachmentManager
+          open={cellAttachmentOpen}
+          onClose={() => {
+            setCellAttachmentOpen(false)
+            setSelectedCellForAttachment(null)
+          }}
+          rowIndex={selectedCellForAttachment.row}
+          columnIndex={selectedCellForAttachment.col}
+          cellValue={data[selectedCellForAttachment.row]?.[selectedCellForAttachment.col] || ''}
+          columnName={headers[selectedCellForAttachment.col] || ''}
+        />
+      )}
     </div>
   )
 }

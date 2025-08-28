@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { FormatMode, CustomFormat } from "@/lib/enrichment-utils"
 import { TemplateDefinition } from "@/src/types/templates"
+import { prepareAttachmentContext } from "./context-manager"
 
 interface EnrichmentStatus {
   enriching: boolean
@@ -14,6 +15,17 @@ interface ColumnFormatPreference {
   customFormat?: CustomFormat
 }
 
+interface ColumnAttachment {
+  id: string
+  filename: string
+  fileType: 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'image' | 'text'
+  uploadedAt: string
+  size: number
+  parsedContent?: string
+  filepath?: string  // Internal filepath for deletion
+  url?: string       // Deprecated - no longer using public URLs
+}
+
 interface ColumnEnrichmentConfig {
   columnIndex: number
   columnName: string
@@ -22,6 +34,8 @@ interface ColumnEnrichmentConfig {
   dataType?: string
   customFormat?: CustomFormat
   isConfigured: boolean
+  attachments?: ColumnAttachment[]
+  useAttachmentsAsContext?: boolean
 }
 
 interface ColumnAnalysis {
@@ -90,6 +104,7 @@ interface SpreadsheetStore {
   selectedCells: Set<string> // Format: "row-col"
   cellExplanations: Record<string, string> // Format: "row-col" -> explanation
   cellMetadata: Map<string, CellMetadata> // Format: "row-col" -> full process info
+  cellAttachments: Map<string, ColumnAttachment[]> // Format: "row-col" -> attachments for that cell
   // Selection state
   selectedRows: Set<number>
   selectedColumns: Set<number>
@@ -114,6 +129,15 @@ interface SpreadsheetStore {
   enrichExistingColumn: (columnIndex: number, scope: 'cell' | 'selected' | 'all', selectedRows?: Set<number>, rowIndex?: number) => Promise<void>
   storeColumnEnrichmentConfig: (columnIndex: number, config: Partial<ColumnEnrichmentConfig>) => void
   getColumnEnrichmentConfig: (columnIndex: number) => ColumnEnrichmentConfig | undefined
+  // Column attachment methods (legacy - for column-level context)
+  addColumnAttachment: (columnIndex: number, attachment: ColumnAttachment) => void
+  removeColumnAttachment: (columnIndex: number, attachmentId: string) => void
+  getColumnAttachments: (columnIndex: number) => ColumnAttachment[]
+  toggleAttachmentContext: (columnIndex: number, useAttachments: boolean) => void
+  // Cell attachment methods (new - for cell-specific documents)
+  addCellAttachment: (rowIndex: number, columnIndex: number, attachment: ColumnAttachment) => void
+  removeCellAttachment: (rowIndex: number, columnIndex: number, attachmentId: string) => void
+  getCellAttachments: (rowIndex: number, columnIndex: number) => ColumnAttachment[]
   analyzeData: () => DataAnalysis
   setColumnFormat: (columnName: string, preference: ColumnFormatPreference) => void
   getColumnFormat: (columnName: string) => ColumnFormatPreference | undefined
@@ -149,6 +173,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   selectedCells: new Set(),
   cellExplanations: {},
   cellMetadata: new Map(),
+  cellAttachments: new Map(),
   selectedRows: new Set(),
   selectedColumns: new Set(),
   selectionMode: 'multiple',
@@ -334,7 +359,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     }),
 
   enrichColumn: async (columnIndex, prompt, contextColumns) => {
-    const { data, headers } = get()
+    const { data, headers, columnEnrichmentConfigs, getCellAttachments } = get()
 
     // Set enrichment status
     set((state) => ({
@@ -343,6 +368,8 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         [columnIndex]: { enriching: true, prompt, currentRow: 0 },
       },
     }))
+
+    const columnConfig = columnEnrichmentConfigs[columnIndex]
 
     try {
       // Process each row sequentially
@@ -373,9 +400,20 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
             }
           })
         }
+        
+        // Get attachment context for this specific row
+        let attachmentContext = ""
+        const cellAttachments = getCellAttachments(rowIndex, columnIndex)
+        
+        // Prioritize cell attachments, fall back to column attachments
+        if (cellAttachments.length > 0) {
+          attachmentContext = prepareAttachmentContext(cellAttachments)
+        } else if (columnConfig?.useAttachmentsAsContext && columnConfig.attachments) {
+          attachmentContext = prepareAttachmentContext(columnConfig.attachments)
+        }
 
         const currentValue = data[rowIndex][columnIndex] || ""
-        const result = await enrichCellWithContext(rowContext, currentValue, prompt, headers)
+        const result = await enrichCellWithContext(rowContext, currentValue, prompt, headers, undefined, attachmentContext)
         const enrichedValue = result.value
 
         // Update the cell with enriched value and metadata
@@ -418,13 +456,25 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   },
 
   enrichSingleCell: async (rowIndex, columnIndex, prompt, contextColumns) => {
-    const { data, headers, columnEnrichmentConfigs } = get()
+    const { data, headers, columnEnrichmentConfigs, getCellAttachments } = get()
     
     // Use provided prompt or get from column config
     const enrichmentPrompt = prompt || columnEnrichmentConfigs[columnIndex]?.prompt
     if (!enrichmentPrompt) {
       console.error("No prompt provided for enrichment")
       return
+    }
+
+    // Get both cell and column attachment context
+    let attachmentContext = ""
+    const cellAttachments = getCellAttachments(rowIndex, columnIndex)
+    const columnConfig = columnEnrichmentConfigs[columnIndex]
+    
+    // Prioritize cell attachments, fall back to column attachments
+    if (cellAttachments.length > 0) {
+      attachmentContext = prepareAttachmentContext(cellAttachments)
+    } else if (columnConfig?.useAttachmentsAsContext && columnConfig.attachments) {
+      attachmentContext = prepareAttachmentContext(columnConfig.attachments)
     }
 
     // Set enrichment status
@@ -456,7 +506,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       }
 
       const primaryValue = data[rowIndex][columnIndex] || ""
-      const result = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+      const result = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers, undefined, attachmentContext)
 
       // Update the cell and metadata
       set((state) => {
@@ -504,6 +554,13 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       return
     }
 
+    // Get attachment context if enabled for this column
+    let attachmentContext = ""
+    const config = columnEnrichmentConfigs[columnIndex]
+    if (config?.useAttachmentsAsContext && config.attachments) {
+      attachmentContext = prepareAttachmentContext(config.attachments)
+    }
+
     // Set enrichment status
     set((state) => ({
       enrichmentStatus: {
@@ -545,7 +602,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         }
 
         const primaryValue = data[rowIndex][columnIndex] || ""
-        const result = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers)
+        const result = await enrichCellWithContext(rowContext, primaryValue, enrichmentPrompt, headers, undefined, attachmentContext)
         const enrichedValue = result.value
 
         // Update the cell and metadata
@@ -622,7 +679,6 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
           columnName: state.headers[columnIndex] || "",
           prompt: "",
           formatMode: 'strict' as FormatMode,
-          isConfigured: false,
           ...state.columnEnrichmentConfigs[columnIndex],
           ...config,
           isConfigured: !!config.prompt
@@ -633,6 +689,99 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   getColumnEnrichmentConfig: (columnIndex) => {
     const { columnEnrichmentConfigs } = get()
     return columnEnrichmentConfigs[columnIndex]
+  },
+
+  // Attachment methods implementation
+  addColumnAttachment: (columnIndex, attachment) =>
+    set((state) => {
+      const config = state.columnEnrichmentConfigs[columnIndex] || {
+        columnIndex,
+        columnName: state.headers[columnIndex],
+        prompt: '',
+        formatMode: 'strict' as FormatMode,
+        isConfigured: false,
+        attachments: []
+      }
+      
+      return {
+        columnEnrichmentConfigs: {
+          ...state.columnEnrichmentConfigs,
+          [columnIndex]: {
+            ...config,
+            attachments: [...(config.attachments || []), attachment]
+          }
+        }
+      }
+    }),
+
+  removeColumnAttachment: (columnIndex, attachmentId) =>
+    set((state) => {
+      const config = state.columnEnrichmentConfigs[columnIndex]
+      if (!config || !config.attachments) return state
+      
+      return {
+        columnEnrichmentConfigs: {
+          ...state.columnEnrichmentConfigs,
+          [columnIndex]: {
+            ...config,
+            attachments: config.attachments.filter(a => a.id !== attachmentId)
+          }
+        }
+      }
+    }),
+
+  getColumnAttachments: (columnIndex) => {
+    const { columnEnrichmentConfigs } = get()
+    const config = columnEnrichmentConfigs[columnIndex]
+    return config?.attachments || []
+  },
+
+  toggleAttachmentContext: (columnIndex, useAttachments) =>
+    set((state) => {
+      const config = state.columnEnrichmentConfigs[columnIndex]
+      if (!config) return state
+      
+      return {
+        columnEnrichmentConfigs: {
+          ...state.columnEnrichmentConfigs,
+          [columnIndex]: {
+            ...config,
+            useAttachmentsAsContext: useAttachments
+          }
+        }
+      }
+    }),
+
+  // Cell attachment methods implementation
+  addCellAttachment: (rowIndex, columnIndex, attachment) =>
+    set((state) => {
+      const cellKey = `${rowIndex}-${columnIndex}`
+      const currentAttachments = state.cellAttachments.get(cellKey) || []
+      const newMap = new Map(state.cellAttachments)
+      newMap.set(cellKey, [...currentAttachments, attachment])
+      return { cellAttachments: newMap }
+    }),
+
+  removeCellAttachment: (rowIndex, columnIndex, attachmentId) =>
+    set((state) => {
+      const cellKey = `${rowIndex}-${columnIndex}`
+      const currentAttachments = state.cellAttachments.get(cellKey) || []
+      const filtered = currentAttachments.filter(a => a.id !== attachmentId)
+      const newMap = new Map(state.cellAttachments)
+      
+      if (filtered.length === 0) {
+        newMap.delete(cellKey)
+      } else {
+        newMap.set(cellKey, filtered)
+      }
+      
+      return { cellAttachments: newMap }
+    }),
+
+  getCellAttachments: (rowIndex, columnIndex) => {
+    const { cellAttachments } = get()
+    const cellKey = `${rowIndex}-${columnIndex}`
+    return cellAttachments.get(cellKey) || []
   },
 
   enrichColumnToNew: async (sourceColumnIndex, newColumnName, prompt, formatMode, customFormat, contextColumns) => {
@@ -1094,7 +1243,8 @@ async function enrichCellWithContext(
   primaryValue: string,
   prompt: string,
   headers: string[],
-  customFormat?: CustomFormat
+  customFormat?: CustomFormat,
+  attachmentContext?: string
 ): Promise<{ value: string; process?: { query: string; response: string; citations?: any[]; timestamp: string } }> {
   try {
     // Replace column placeholders in prompt with actual values
@@ -1107,6 +1257,9 @@ async function enrichCellWithContext(
     })
 
     console.log("[v0] Enriching with row context:", rowContext, "and prompt:", processedPrompt)
+    if (attachmentContext) {
+      console.log("[v0] Using attachment context (truncated):", attachmentContext.substring(0, 200) + "...")
+    }
 
     const response = await fetch("/api/enrich", {
       method: "POST",
@@ -1118,6 +1271,7 @@ async function enrichCellWithContext(
         prompt: processedPrompt,
         rowContext,
         customFormat,
+        attachmentContext,
       }),
     })
 

@@ -5,7 +5,7 @@ const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || ''
 
 export async function POST(request: Request) {
   try {
-    const { value, prompt, rowContext, customFormat } = await request.json()
+    const { value, prompt, rowContext, customFormat, attachmentContext } = await request.json()
 
     if (!prompt) {
       return Response.json({ error: "Missing prompt" }, { status: 400 })
@@ -34,9 +34,17 @@ export async function POST(request: Request) {
       .trim()
     
     // Build context for Perplexity
-    const contextStr = rowContext && Object.keys(rowContext).length > 0
-      ? `Context about the entity: ${JSON.stringify(rowContext)}`
-      : ''
+    let contextStr = ''
+    
+    // Add row context if available
+    if (rowContext && Object.keys(rowContext).length > 0) {
+      contextStr += `Context about the entity: ${JSON.stringify(rowContext)}\n`
+    }
+    
+    // Add attachment context if available
+    if (attachmentContext && attachmentContext.length > 0) {
+      contextStr += `\nAdditional context from attached documents:\n${attachmentContext}`
+    }
     
     // Create type-specific instructions
     const typeInstructions = getTypeInstructions(expectedType)
