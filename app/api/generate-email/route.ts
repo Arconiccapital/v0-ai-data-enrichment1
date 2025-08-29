@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
       // Return original emails if no API key
-      console.log('No OpenAI API key configured, returning original emails')
       return NextResponse.json({ emails })
     }
 
@@ -106,7 +105,6 @@ export async function PUT(request: NextRequest) {
     
     if (test) {
       // Send test email (first email only)
-      console.log('Sending test email:', emails[0])
       
       // Mock implementation
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -118,7 +116,6 @@ export async function PUT(request: NextRequest) {
       })
     } else {
       // Send all emails
-      console.log(`Sending ${emails.length} emails...`)
       
       // Mock implementation - in reality, you'd batch send through email service
       await new Promise(resolve => setTimeout(resolve, 2000))

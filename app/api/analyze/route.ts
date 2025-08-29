@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
       // Return mock data if no API key
-      console.log('No OpenAI API key configured, returning mock data')
       const mockResults = rows.map((_: any, index: number) => {
         // Generate mock results based on prompt
         if (prompt.toLowerCase().includes('score')) {

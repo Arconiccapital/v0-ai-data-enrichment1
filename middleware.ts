@@ -24,6 +24,10 @@ export default withAuth(
           if (req.nextUrl.pathname.startsWith("/api/share/view")) {
             return true
           }
+          // Allow dashboard generation without auth (users process their own data)
+          if (req.nextUrl.pathname === "/api/generate-dashboard") {
+            return true
+          }
           // Require auth for other API routes
           return !!token
         }

@@ -1,6 +1,28 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { DashboardTemplate, DashboardWidget } from './dashboard-templates'
 
+// Model configuration from environment
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
+const MAX_TOKENS = parseInt(process.env.ANTHROPIC_MAX_TOKENS || '8000')
+const TEMPERATURE = parseFloat(process.env.ANTHROPIC_TEMPERATURE || '0.7')
+
+// Expert system prompt for all interactions
+const EXPERT_SYSTEM_PROMPT = `You are a Principal Data Scientist at McKinsey with 15 years experience in dashboard design, combining expertise in:
+- Statistical analysis and machine learning
+- Business strategy and KPI frameworks (OKRs, Balanced Scorecard, North Star metrics)
+- Information design following Tufte, Few, and Cairo principles
+- UX principles and WCAG accessibility standards
+- Industry-specific metrics and benchmarks across verticals
+
+Your approach:
+1. Detect data domain automatically (Sales, HR, Finance, Operations, Marketing, etc.)
+2. Apply industry best practices and benchmarks
+3. Follow visual hierarchy and progressive disclosure
+4. Ensure mobile-first responsive design
+5. Structure outputs for immediate implementation with exact schemas
+
+Always respond with valid JSON only, no explanations or markdown formatting.`
+
 // Initialize Anthropic client
 const getAnthropicClient = () => {
   const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY
@@ -34,33 +56,77 @@ export async function analyzeDataWithClaude(data: DataContext): Promise<any> {
   }
 
   try {
-    const prompt = `Analyze this dataset and provide insights for dashboard creation:
+    const prompt = `Perform comprehensive analysis as a senior data analyst and business intelligence expert:
 
-Headers: ${data.headers.join(', ')}
-Sample rows (first 5):
-${data.rows.slice(0, 5).map((row, idx) => 
+=== DATASET OVERVIEW ===
+Columns: ${data.headers.join(', ')}
+Row Count: ${data.rows.length}
+Sample Data (first 10 rows):
+${data.rows.slice(0, 10).map((row, idx) => 
   `Row ${idx + 1}: ${row.map((cell, i) => `${data.headers[i]}: ${cell}`).join(', ')}`
 ).join('\n')}
 
-Total rows: ${data.rows.length}
+=== REQUIRED ANALYSIS ===
 
-Please provide:
-1. Data type classification (sales, financial, customer, operations, etc.)
-2. Key patterns and relationships between columns
-3. Suggested metrics and KPIs to track
-4. Recommended visualizations
-5. Data quality insights
+1. DOMAIN CLASSIFICATION
+   - Primary domain (Sales/HR/Finance/Operations/Marketing/Customer/Product)
+   - Industry vertical detection
+   - Business function identification
+   - Data maturity level (raw/processed/aggregated)
 
-Format your response as structured JSON.`
+2. STATISTICAL PROFILE
+   - Data types per column (numeric/categorical/temporal/text/identifier)
+   - Distributions and ranges
+   - Null/missing value analysis
+   - Outlier detection
+   - Correlations matrix for numeric columns
+
+3. BUSINESS METRICS DISCOVERY
+   - Automatically identified KPIs
+   - Calculated fields needed (ratios, percentages, aggregations)
+   - Time-based metrics (YoY, MoM, trends)
+   - Segmentation opportunities
+   - Benchmarkable metrics
+
+4. DATA QUALITY ASSESSMENT
+   - Completeness score (0-100)
+   - Consistency score (0-100)
+   - Accuracy indicators
+   - Timeliness assessment
+   - Improvement recommendations
+
+5. RELATIONSHIP MAPPING
+   - Primary keys/identifiers
+   - Foreign key relationships
+   - Hierarchical structures
+   - Temporal relationships
+   - Correlation insights
+
+6. ACTIONABLE INSIGHTS
+   - Top 5 key findings
+   - Anomalies detected
+   - Trends and patterns
+   - Predictive opportunities
+   - Risk indicators
+
+7. DASHBOARD STRATEGY
+   - Recommended dashboard type (Executive/Operational/Analytical)
+   - User personas and their needs
+   - Information architecture
+   - Key story to tell with data
+   - Success metrics for dashboard
+
+Return as structured JSON with all sections.`
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1000,
+      model: MODEL,
+      max_tokens: 2000,
+      temperature: TEMPERATURE,
       messages: [{
         role: 'user',
         content: prompt
       }],
-      system: "You are a data analyst expert. Analyze datasets and provide structured insights for dashboard creation. Always respond with valid JSON."
+      system: EXPERT_SYSTEM_PROMPT
     })
 
     const content = response.content[0]
@@ -120,7 +186,7 @@ export async function generateDashboardWithClaude(
         generatedAt: new Date().toISOString(),
         rowCount: data.rows.length,
         template: template.id,
-        model: 'claude-3-5-sonnet'
+        model: MODEL
       }
     }
   } catch (error) {
@@ -137,39 +203,52 @@ async function generateWidgetData(
   section: any,
   customPrompt?: string
 ): Promise<any> {
-  const prompt = `You are creating data for a dashboard widget.
-Dashboard: ${template.name}
+  const prompt = `=== WIDGET GENERATION CONTEXT ===
+Dashboard Type: ${template.name}
 Section: ${section.title}
 Widget: ${widget.title}
 Widget Type: ${widget.type}
+${customPrompt ? `User Intent: ${customPrompt}` : ''}
 
-Available data columns: ${data.headers.join(', ')}
-Sample data (first 3 rows):
-${data.rows.slice(0, 3).map((row, idx) => 
-  row.map((cell, i) => `${data.headers[i]}: ${cell}`).join(', ')
+=== DATA CONTEXT ===
+Columns: ${data.headers.join(', ')}
+Total Rows: ${data.rows.length}
+Data Sample (first 10 rows for better pattern detection):
+${data.rows.slice(0, 10).map((row, idx) => 
+  row.map((cell, i) => `${data.headers[i]}: ${cell}`).join(' | ')
 ).join('\n')}
 
-${customPrompt ? `User requirements: ${customPrompt}` : ''}
+=== WIDGET REQUIREMENTS ===
+Type: ${widget.type}
+Configuration: ${JSON.stringify(widget.config, null, 2)}
 
-Widget configuration:
-${JSON.stringify(widget.config, null, 2)}
+=== GENERATION INSTRUCTIONS ===
+${getEnhancedWidgetInstructions(widget.type)}
 
-Generate realistic data for this ${widget.type} widget based on the actual data patterns.
+=== QUALITY CRITERIA ===
+1. Use ACTUAL data values from the sample, not generic placeholders
+2. Ensure statistical accuracy (sums, averages, percentages must be correct)
+3. Apply business logic (e.g., revenue = quantity × price)
+4. Include comparative metrics (vs previous period, vs target)
+5. Add context indicators (trending up/down, alerts for anomalies)
+6. Ensure accessibility (color contrast, alt text for visual elements)
+7. Optimize for mobile display
 
-For widget type ${widget.type}:
-${getWidgetTypeInstructions(widget.type)}
+=== OUTPUT SCHEMA ===
+${getWidgetSchema(widget.type)}
 
-Return ONLY valid JSON data that matches the widget requirements. No explanations.`
+Generate production-ready widget data following the exact schema above.`
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 800,
+      model: MODEL,
+      max_tokens: 2500,
+      temperature: TEMPERATURE,
       messages: [{
         role: 'user',
         content: prompt
       }],
-      system: "You are a data visualization expert. Generate structured data for dashboard widgets based on real data patterns. Always respond with valid JSON only, no explanations."
+      system: EXPERT_SYSTEM_PROMPT
     })
 
     const content = response.content[0]
@@ -190,6 +269,97 @@ Return ONLY valid JSON data that matches the widget requirements. No explanation
     console.error('Error generating widget data:', error)
     return generateMockWidgetData(widget)
   }
+}
+
+function getEnhancedWidgetInstructions(type: string): string {
+  const instructions: Record<string, string> = {
+    'metric': `
+      - Calculate the EXACT metric value from the data
+      - Include percentage change vs previous period
+      - Add trend indicator (up/down/stable)
+      - Provide context (good/warning/critical threshold)
+      - Include sparkline data for last 7-30 periods
+      - Add comparison to target/benchmark if applicable`,
+    'chart': `
+      - Use real data points, not placeholders
+      - Include at least 7-12 data points for trends
+      - Add comparison series (previous period, target)
+      - Include data labels for key points
+      - Ensure color accessibility (WCAG AA compliant)
+      - Add annotations for significant events`,
+    'table': `
+      - Include 5-10 most relevant rows
+      - Sort by importance/value by default
+      - Add summary row with totals/averages
+      - Include % of total column where relevant
+      - Add visual indicators (badges, colors) for status
+      - Ensure responsive column widths`,
+    'heatmap': `
+      - Use actual data correlations
+      - Include clear axis labels
+      - Use colorblind-friendly palette
+      - Add value labels on cells
+      - Include legend with clear ranges
+      - Highlight significant patterns`,
+    'gauge': `
+      - Calculate actual percentage of target
+      - Include clear zones (critical/warning/good)
+      - Add context labels
+      - Show min/max/current values
+      - Include trend arrow
+      - Add benchmark line if applicable`,
+    'default': `
+      - Use actual data from the sample
+      - Ensure statistical accuracy
+      - Include comparative context
+      - Add visual hierarchy
+      - Optimize for quick scanning
+      - Include drill-down hints`
+  }
+  
+  return instructions[type] || instructions.default
+}
+
+function getWidgetSchema(type: string): string {
+  const schemas: Record<string, string> = {
+    'metric': `{
+      "value": number | string,
+      "label": string,
+      "change": { "value": number, "percentage": number, "trend": "up" | "down" | "stable" },
+      "sparkline": number[],
+      "status": "good" | "warning" | "critical",
+      "target": number (optional),
+      "unit": string (optional)
+    }`,
+    'chart': `{
+      "type": "line" | "bar" | "area" | "scatter",
+      "data": {
+        "labels": string[],
+        "datasets": [{
+          "label": string,
+          "data": number[],
+          "borderColor": string,
+          "backgroundColor": string,
+          "tension": number
+        }]
+      },
+      "options": { "responsive": true, "plugins": {...} }
+    }`,
+    'table': `{
+      "columns": [{ "key": string, "label": string, "type": string, "width": string }],
+      "rows": [{ [key]: any }],
+      "summary": { [key]: any },
+      "sorting": { "column": string, "direction": "asc" | "desc" }
+    }`,
+    'default': `{
+      "type": string,
+      "data": any,
+      "config": object,
+      "metadata": { "lastUpdated": string, "source": string }
+    }`
+  }
+  
+  return schemas[type] || schemas.default
 }
 
 function getWidgetTypeInstructions(type: string): string {
@@ -221,44 +391,118 @@ export async function generateDashboardFromPrompt(
   }
 
   try {
-    const systemPrompt = `You are an expert dashboard designer. Create a complete dashboard specification based on user requirements and available data.
+    // First, analyze the data to understand context
+    const dataAnalysis = await analyzeDataWithClaude(data)
+    
+    const systemPrompt = `${EXPERT_SYSTEM_PROMPT}
 
-The dashboard should include:
-1. Appropriate title and description
-2. Multiple sections with relevant widgets
-3. Each widget should have: type (kpi, chart, scorecard, table, funnel, progress), title, configuration, and sample data
+You are creating an executive-ready dashboard following these principles:
+1. McKinsey Pyramid Principle - Start with key insights, drill down to details
+2. Gestalt Principles - Visual hierarchy, proximity, and similarity
+3. F-Pattern/Z-Pattern reading flow for optimal scanning
+4. Progressive Disclosure - Overview first, details on demand
+5. Mobile-First Responsive Design
 
-Respond with a complete dashboard structure in JSON format that matches this TypeScript interface:
+Dashboard Structure Requirements:
 {
-  title: string
+  title: string (concise, action-oriented)
+  description: string (one-line value proposition)
+  theme: "executive" | "operational" | "analytical" | "monitoring"
   sections: Array<{
     title: string
     description?: string
+    layout: "grid" | "single" | "split"
+    priority: number (1-5, for mobile collapse order)
     widgets: Array<{
-      id: string
-      type: 'kpi' | 'chart' | 'table' | 'scorecard' | 'funnel' | 'progress'
+      id: string (unique identifier)
+      type: 'kpi' | 'chart' | 'table' | 'scorecard' | 'funnel' | 'progress' | 'heatmap' | 'gauge'
       title: string
+      subtitle?: string
       dataKey: string
-      config?: any
-      data?: any
+      size: "small" | "medium" | "large" | "full"
+      config: {
+        visualization?: object
+        thresholds?: object
+        comparisons?: object
+        interactions?: object
+      }
+      data: any (actual computed data from the dataset)
+      insights?: string[] (key takeaways)
+      actions?: string[] (recommended actions)
     }>
+  }>
+  filters?: Array<{
+    type: "date" | "select" | "search"
+    field: string
+    label: string
+    default?: any
+  }>
+  alerts?: Array<{
+    condition: string
+    message: string
+    severity: "info" | "warning" | "critical"
   }>
 }`
 
-    const userPrompt = `Create a dashboard based on this request: "${prompt}"
+    const userPrompt = `=== USER REQUEST ===
+"${prompt}"
 
-Available data columns: ${data.headers.join(', ')}
-Data sample (first 3 rows):
-${data.rows.slice(0, 3).map((row, idx) => 
-  row.map((cell, i) => `${data.headers[i]}: ${cell}`).join(', ')
+=== DATA CONTEXT ===
+Domain: ${dataAnalysis?.domain || 'General'}
+Industry: ${dataAnalysis?.industry || 'Unknown'}
+Key Metrics Detected: ${dataAnalysis?.metrics?.join(', ') || 'Various'}
+
+Columns: ${data.headers.join(', ')}
+Row Count: ${data.rows.length}
+Data Sample (first 15 rows for comprehensive analysis):
+${data.rows.slice(0, 15).map((row, idx) => 
+  row.map((cell, i) => `${data.headers[i]}: ${cell}`).join(' | ')
 ).join('\n')}
-Total rows: ${data.rows.length}
 
-Generate a complete dashboard with relevant sections and widgets based on the user's request and the available data.`
+=== DASHBOARD REQUIREMENTS ===
+
+1. INFORMATION ARCHITECTURE
+   - Determine primary user persona (Executive/Manager/Analyst/Operations)
+   - Structure sections by importance and logical flow
+   - Group related metrics together
+   - Ensure mobile-responsive layout
+
+2. KEY METRICS (Top Section)
+   - Identify 3-5 North Star metrics
+   - Include trend indicators and comparisons
+   - Add sparklines for context
+   - Show progress to goals
+
+3. ANALYTICAL DEPTH (Middle Sections)
+   - Trend analysis with time series
+   - Comparative analysis (segments, periods, competitors)
+   - Correlation and causation insights
+   - Predictive indicators where applicable
+
+4. OPERATIONAL DETAIL (Lower Sections)
+   - Detailed tables with sorting/filtering
+   - Drill-down capabilities
+   - Exception reporting
+   - Action items and recommendations
+
+5. VISUAL EXCELLENCE
+   - Choose appropriate chart types for data
+   - Ensure colorblind accessibility
+   - Maintain consistent visual language
+   - Use annotations for key insights
+
+6. INTERACTIVITY
+   - Global filters for date/segment
+   - Hover details and tooltips
+   - Click-through to details
+   - Export capabilities hint
+
+Generate a production-ready dashboard that tells a compelling data story.`
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      temperature: TEMPERATURE,
       messages: [{
         role: 'user',
         content: userPrompt
@@ -269,23 +513,53 @@ Generate a complete dashboard with relevant sections and widgets based on the us
     const content = response.content[0]
     if (content.type === 'text') {
       try {
-        const cleanedText = content.text
+        
+        // More robust JSON extraction
+        let jsonText = content.text
+        
+        // Try to find JSON object in the response
+        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonText = jsonMatch[0];
+        }
+        
+        // Clean up the text
+        jsonText = jsonText
           .replace(/```json\s*/g, '')
           .replace(/```\s*/g, '')
+          .replace(/^[^{]*/, '') // Remove everything before first {
+          .replace(/[^}]*$/, '') // Remove everything after last }
           .trim()
-        const dashboard = JSON.parse(cleanedText)
+        
+        // Attempt to fix common JSON issues
+        jsonText = jsonText
+          .replace(/,\s*}/, '}') // Remove trailing commas before }
+          .replace(/,\s*]/, ']') // Remove trailing commas before ]
+          .replace(/([^"]),\s*,/g, '$1,') // Remove duplicate commas
+          
+        
+        const dashboard = JSON.parse(jsonText)
+        
+        // Validate required structure
+        if (!dashboard.title || !dashboard.sections) {
+          console.error('Invalid dashboard structure - missing title or sections')
+          throw new Error('Invalid dashboard structure')
+        }
         
         // Add metadata
         dashboard.metadata = {
           generatedAt: new Date().toISOString(),
           rowCount: data.rows.length,
-          model: 'claude-3-5-sonnet',
+          model: MODEL,
           fromPrompt: true
         }
         
         return dashboard
-      } catch (error) {
-        console.error('Failed to parse dashboard:', error)
+      } catch (error: any) {
+        console.error('Failed to parse dashboard JSON:', error.message)
+        console.error('Full response was:', content.text)
+        
+        // Return a better fallback dashboard with actual data insights
         return generateMockDashboardFromPrompt(prompt, data)
       }
     }

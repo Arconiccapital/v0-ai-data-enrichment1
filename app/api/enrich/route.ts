@@ -49,8 +49,6 @@ export async function POST(request: Request) {
     // Create type-specific instructions
     const typeInstructions = getTypeInstructions(expectedType)
     
-    console.log("[v0] Perplexity enrichment for:", cleanPrompt)
-    console.log("[v0] Expected type:", expectedType)
 
     // Use Perplexity for enrichment with web search
     const systemPrompt = `You are a web search assistant finding real information.
@@ -95,7 +93,6 @@ Return only the specific data requested, nothing else.`
     }
 
     const data = await response.json()
-    console.log("[v0] Perplexity response received", JSON.stringify(data, null, 2))
 
     let enrichedValue = value // fallback to original value
     let fullResponse = '' // Store the full response for audit trail

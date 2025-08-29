@@ -38,13 +38,11 @@ function validateResults(items: string[]): string[] {
     
     // Check for blacklisted words
     if (blacklist.some(word => lowerItem.includes(word))) {
-      console.log(`[Find Data] Filtering out hallucinated item: ${item}`)
       return false
     }
     
     // Remove items that are just numbers + generic terms
     if (item.match(/^\d+\s+(employees|people|staff|workers|managers|executives)/i)) {
-      console.log(`[Find Data] Filtering out generic count: ${item}`)
       return false
     }
     
@@ -58,7 +56,6 @@ function validateResults(items: string[]): string[] {
     if (!item.includes('-') && !item.includes(',') && !item.includes('Inc') && !item.includes('LLC')) {
       const words = item.split(' ').filter(w => w.length > 1)
       if (words.length < 2) {
-        console.log(`[Find Data] Filtering out single word: ${item}`)
         return false
       }
     }
@@ -82,9 +79,6 @@ export async function POST(request: Request) {
       }, { status: 500 })
     }
 
-    console.log("[Find Data] Processing prompt:", prompt)
-    console.log("[Find Data] Requested count:", count)
-    console.log("[Find Data] Searching with Perplexity Sonar...")
     
     const systemPrompt = `You are a precision web search assistant. Your ONLY job is to find REAL, VERIFIABLE information.
 
@@ -161,7 +155,6 @@ Format: JSON array of strings, each item complete and specific.`
     }
 
     const data = await response.json()
-    console.log("[Find Data] Perplexity response received")
 
     // Extract items and citations from the response
     let items: string[] = []
@@ -171,12 +164,10 @@ Format: JSON array of strings, each item complete and specific.`
     if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
       const content = data.choices[0].message.content
       fullResponse = content
-      console.log("[Find Data] Raw Perplexity response:", content.substring(0, 500))
       
       // Extract citations if available
       if (data.citations) {
         citations = data.citations
-        console.log("[Find Data] Found", citations.length, "citations")
       }
       
       // Try to parse as JSON first
@@ -199,7 +190,6 @@ Format: JSON array of strings, each item complete and specific.`
         }
       } catch (parseError) {
         // If JSON parsing fails, extract items from text
-        console.log("[Find Data] Parsing response as text")
         items = extractItemsFromText(content, count)
       }
     }
@@ -212,7 +202,6 @@ Format: JSON array of strings, each item complete and specific.`
     // Apply validation to filter out hallucinations
     const validatedItems = validateResults(items)
     
-    console.log(`[Find Data] Raw items: ${items.length}, After validation: ${validatedItems.length}`)
     
     if (validatedItems.length === 0) {
       return NextResponse.json({ 
@@ -220,7 +209,6 @@ Format: JSON array of strings, each item complete and specific.`
       }, { status: 404 })
     }
 
-    console.log(`[Find Data] Found ${validatedItems.length} verified items from Perplexity search`)
     
     // Build search query for audit trail
     const searchQuery = `Search the internet for: ${prompt}`

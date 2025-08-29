@@ -153,13 +153,6 @@ export function AnalysisPanel({ onClose }: AnalysisPanelProps) {
       
       const result = await response.json()
       
-      console.log('Preview API Response:', result)
-      
-      if (result.mock) {
-        console.log('Using mock data (no API key configured)')
-      } else {
-        console.log('Using real OpenAI results for preview')
-      }
       
       // Ensure results are strings
       const stringResults = result.results.map((r: any) => String(r))
@@ -187,7 +180,6 @@ export function AnalysisPanel({ onClose }: AnalysisPanelProps) {
     try {
       // Add new column and get its index
       const newColumnIndex = addColumn(columnName)
-      console.log(`Created new column "${columnName}" at index ${newColumnIndex}`)
       
       // Call the analyze API with all data
       const response = await fetch('/api/analyze', {
@@ -209,19 +201,8 @@ export function AnalysisPanel({ onClose }: AnalysisPanelProps) {
       
       const result = await response.json()
       
-      console.log('API Response:', result)
-      
-      if (result.mock) {
-        console.log('Using mock data (no API key configured)')
-      } else {
-        console.log('Using real OpenAI results')
-      }
-      
       // Apply results to cells
       if (result.results && Array.isArray(result.results)) {
-        console.log(`Applying ${result.results.length} results to column ${newColumnIndex}`)
-        console.log('Current data length:', data.length)
-        console.log('Current headers:', headers)
         
         // Store explanations in the store for tooltips
         if (result.explanations && Array.isArray(result.explanations)) {
@@ -232,17 +213,10 @@ export function AnalysisPanel({ onClose }: AnalysisPanelProps) {
           if (rowIndex < data.length) {
             // Convert value to string if it's not already
             const stringValue = String(value)
-            console.log(`Setting cell [${rowIndex}, ${newColumnIndex}] to: "${stringValue}"`)
             updateCell(rowIndex, newColumnIndex, stringValue)
           }
         })
         
-        // Force a small delay to ensure state updates
-        setTimeout(() => {
-          console.log('Cell updates should be complete')
-        }, 100)
-      } else {
-        console.error('No results array in response:', result)
       }
       
       setIsProcessing(false)

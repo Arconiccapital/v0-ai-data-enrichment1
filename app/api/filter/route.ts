@@ -20,7 +20,6 @@ export async function POST(request: Request) {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
       // Fallback to rule-based filtering if no API key
-      console.log('No OpenAI API key configured, using rule-based filtering')
       return fallbackRuleBasedFilter(prompt, headers, data)
     }
 

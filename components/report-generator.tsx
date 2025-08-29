@@ -95,7 +95,6 @@ export function ReportGenerator({ selectedData }: ReportGeneratorProps) {
   }
 
   const handleExportReport = (format: 'pdf' | 'word' | 'ppt') => {
-    console.log(`Exporting report as ${format}`)
     alert(`Report would be exported as ${format.toUpperCase()}`)
   }
 

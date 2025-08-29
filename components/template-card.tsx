@@ -2,9 +2,7 @@
 
 import React from 'react'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { TemplateDefinition } from '@/src/types/templates'
-import { MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TemplateCardProps {
@@ -23,21 +21,8 @@ export function TemplateCard({ template, onSelect }: TemplateCardProps) {
       onClick={() => onSelect(template)}
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium text-sm">{template.name}</h3>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={(e) => {
-            e.stopPropagation()
-            // TODO: Add dropdown menu for more options
-          }}
-        >
-          <MoreVertical className="h-4 w-4" />
-        </Button>
+      <div className="px-4 py-3 border-b bg-gray-50">
+        <h3 className="font-medium text-sm">{template.name}</h3>
       </div>
 
       {/* Preview Table */}

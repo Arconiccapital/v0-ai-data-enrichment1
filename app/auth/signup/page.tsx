@@ -23,7 +23,6 @@ export default function SignupPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log("Mock signup for demo:", formData)
     router.push("/dashboard")
   }
 

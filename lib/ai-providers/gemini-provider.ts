@@ -112,7 +112,6 @@ Return only the raw JSON object for ONE item.`
         }
       } catch (e) {
         console.error('[Gemini] Failed to parse JSON:', e)
-        console.log('[Gemini] Raw response (first 500 chars):', text.substring(0, 500))
         // Try to extract something useful from the response
         const lines = text.split('\n').filter(line => line.trim())
         if (lines.length > 0) {
@@ -155,7 +154,6 @@ Return only the raw JSON object for ONE item.`
       
       // Check for rate limiting
       if (error.message?.includes('429') || error.message?.includes('quota')) {
-        console.log('[Gemini] Rate limited, waiting before retry...')
         await new Promise(resolve => setTimeout(resolve, 2000))
       }
       

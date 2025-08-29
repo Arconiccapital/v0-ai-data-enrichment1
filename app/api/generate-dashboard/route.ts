@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
     
     if (!hasClaudeKey && !hasOpenAIKey) {
       // Return mock dashboard if no API key
-      console.log('No API key configured, returning mock dashboard')
       return NextResponse.json({
         title: template.name,
         sections: template.sections.map((section: any) => ({

@@ -59,8 +59,12 @@ class Logger {
   }
 
   private reportError(entry: LogEntry) {
-    // TODO: Implement error reporting to external service
-    // e.g., Sentry, LogRocket, etc.
+    // Error reporting would be implemented here in production
+    // For now, errors are logged to console only
+    if (typeof window !== 'undefined') {
+      // Could integrate with services like Sentry, LogRocket, etc.
+      console.error('[Logger]', entry.message, entry.data)
+    }
   }
 
   debug(message: string, data?: any) {

@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
       // Return mock report if no API key
-      console.log('No OpenAI API key configured, returning mock report')
       return NextResponse.json({
         title: template.name,
         sections: template.sections.map((section: any) => ({
