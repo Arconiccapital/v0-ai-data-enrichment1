@@ -14,6 +14,7 @@ import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 
 interface EnrichSidebarProps {
   onClose: () => void
+  onComplete?: () => void
 }
 
 export function EnrichSidebar({ onClose }: EnrichSidebarProps) {

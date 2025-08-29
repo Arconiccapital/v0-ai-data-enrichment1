@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
       // Return mock data if no API key
       console.log('No OpenAI API key configured, returning mock data')
-      const mockResults = rows.map((_, index) => {
+      const mockResults = rows.map((_: any, index: number) => {
         // Generate mock results based on prompt
         if (prompt.toLowerCase().includes('score')) {
           return String(Math.floor(Math.random() * 10) + 1)
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         return `Result ${index + 1}`
       })
       
-      const mockExplanations = mockResults.map((result, index) => {
+      const mockExplanations = mockResults.map((result: any, index: number) => {
         return `Mock data: Assigned ${result} based on row ${index + 1} characteristics.`
       })
       
@@ -58,7 +58,7 @@ Instructions: ${prompt}
 Data Headers: ${headers.join(', ')}
 
 Data Rows:
-${batch.map((row, idx) => `Row ${i + idx + 1}: ${row.join(', ')}`).join('\n')}
+${batch.map((row: any, idx: number) => `Row ${i + idx + 1}: ${row.join(', ')}`).join('\n')}
 
 ${contextColumns ? `Focus on these columns: ${contextColumns.join(', ')}` : ''}
 

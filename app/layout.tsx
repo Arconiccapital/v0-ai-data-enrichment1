@@ -23,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="h-full overflow-hidden">
+    <html lang="en" className={`${inter.variable}`}>
+      <body className="min-h-screen">
         <AuthProvider>
           {children}
           <Toaster position="bottom-right" />

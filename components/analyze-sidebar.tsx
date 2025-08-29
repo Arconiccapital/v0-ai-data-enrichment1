@@ -10,6 +10,7 @@ import { X, BarChart3, Play, TrendingUp, Users, DollarSign, ChevronRight, Chevro
 
 interface AnalyzeSidebarProps {
   onClose: () => void
+  onComplete?: () => void
 }
 
 const analysisTemplates = {

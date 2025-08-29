@@ -1,4 +1,3 @@
-import pdfParse from 'pdf-parse'
 import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
 import sharp from 'sharp'
@@ -11,6 +10,8 @@ export class DocumentParser {
    */
   async parsePDF(buffer: Buffer): Promise<string> {
     try {
+      // Dynamic import to avoid build-time issues
+      const pdfParse = (await import('pdf-parse')).default
       const data = await pdfParse(buffer)
       return data.text.trim()
     } catch (error) {

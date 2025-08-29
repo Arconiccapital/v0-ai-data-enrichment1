@@ -24,6 +24,7 @@ export default function HomePage() {
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const [hasOpenedEnrich, setHasOpenedEnrich] = useState(false)
   const [showFindDataDialog, setShowFindDataDialog] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Auto-open enrich sidebar when data is first loaded
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function HomePage() {
   // Show upload page if no data
   if (!hasData) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col overflow-y-auto">
         <AppNavigation />
         
         <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8">
@@ -138,30 +139,30 @@ export default function HomePage() {
 
   // Main application with data loaded
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Top Navigation */}
       <AppNavigation />
       
       {/* Workflow Indicator */}
       <WorkflowIndicator 
         onStepClick={handleWorkflowStepClick}
-        activeStep={activeWorkflowStep}
+        activeStep={activeWorkflowStep || undefined}
       />
       
       {/* Main Content with Sidebar */}
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex relative overflow-hidden min-h-0">
         {/* Left Sidebar */}
         <SidebarNav />
         
         {/* Content Area */}
-        <div className="flex-1 flex min-w-0">
+        <div className="flex-1 flex min-w-0 overflow-hidden">
           <div className="flex-1 min-w-0 flex flex-col">
             <SpreadsheetView activeWorkflowStep={activeWorkflowStep} />
           </div>
           
           {/* Right Sidebar based on active workflow step */}
           {activeWorkflowStep && (
-            <div className="flex-shrink-0">
+            <div className="absolute lg:relative inset-0 lg:inset-auto z-30 lg:z-auto flex-shrink-0">
               {activeWorkflowStep === 'enrich' && (
                 <EnrichSidebar 
                   onClose={() => setActiveWorkflowStep(null)}

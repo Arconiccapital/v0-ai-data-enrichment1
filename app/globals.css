@@ -46,6 +46,52 @@ body {
   }
 }
 
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+  /* Increase font size for better readability */
+  .spreadsheet-container {
+    font-size: 14px;
+  }
+  
+  /* Minimum touch target size for mobile */
+  button, .clickable, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Adjust table cell padding for mobile */
+  td, th {
+    padding: 8px 12px;
+  }
+  
+  /* Hide less important columns on mobile if needed */
+  .hide-on-mobile {
+    display: none;
+  }
+  
+  /* Ensure proper scrolling on mobile */
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .spreadsheet-container {
+    font-size: 13px;
+  }
+  
+  /* Adjust button sizes for tablet */
+  button {
+    min-height: 36px;
+  }
+}
+
+/* Ensure smooth scrolling on all devices */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
 :root {
   /* Modern black and white palette */
   --background: #ffffff;

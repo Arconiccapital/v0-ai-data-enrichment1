@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     
     // Generate report sections
     const sections = await Promise.all(
-      template.sections.map(async (section) => {
+      template.sections.map(async (section: any) => {
         const sectionPrompt = `
 You are creating a professional business report section titled "${section.title}".
 Report type: ${template.name}

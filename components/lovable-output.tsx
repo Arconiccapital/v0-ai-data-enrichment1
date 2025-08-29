@@ -69,9 +69,9 @@ export function LovableOutput({ onClose, onComplete }: LovableOutputProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white border-l border-gray-200">
+    <div className="w-full lg:w-96 xl:w-[28rem] h-full flex flex-col bg-white border-l border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-black rounded">
             <Sparkles className="h-5 w-5 text-white" />

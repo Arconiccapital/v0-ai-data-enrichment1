@@ -109,8 +109,8 @@ export function SidebarNav() {
   ]
 
   return (
-    <div className="w-16 sm:w-48 md:w-56 lg:w-64 bg-gray-50 border-r border-gray-200 flex flex-col h-full transition-all duration-300 flex-shrink-0">
-      <ScrollArea className="flex-1 px-2 sm:px-3 py-4">
+    <div className="hidden lg:flex w-64 bg-gray-50 border-r border-gray-200 flex-col h-full transition-all duration-300 flex-shrink-0">
+      <ScrollArea className="flex-1 px-3 py-4">
         <div className="space-y-6">
           {sections.map((section) => (
             <div key={section.title.toLowerCase()}>

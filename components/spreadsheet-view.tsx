@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
@@ -47,16 +47,12 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     selectedRows,
     selectedColumns,
     toggleRowSelection,
-    toggleColumnSelection,
     selectAllRows,
     clearSelection,
     getSelectedData,
     columnEnrichmentConfigs,
-    storeColumnEnrichmentConfig,
-    enrichExistingColumn,
     selectedCells,
     toggleCellSelection,
-    clearCellSelection,
     getCellExplanation,
     getCellAttachments,
     getCellMetadata,
@@ -64,7 +60,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   } = useSpreadsheetStore()
   const { getColumnAttachments } = useSpreadsheetStore()
   const router = useRouter()
-  const tableRef = useRef<HTMLTableElement>(null)
   const enhancedClipboard = useEnhancedClipboard()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false)
@@ -77,19 +72,18 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [cellAttachmentOpen, setCellAttachmentOpen] = useState(false)
   const [selectedCellForAttachment, setSelectedCellForAttachment] = useState<{row: number, col: number} | null>(null)
   const [showCellDetails, setShowCellDetails] = useState(false)
-  const [showSelectionTools, setShowSelectionTools] = useState(false)
   const [smartSelectionOpen, setSmartSelectionOpen] = useState(false)
   const [enrichmentColumnIndex, setEnrichmentColumnIndex] = useState<number | undefined>()
   const [enrichmentScope, setEnrichmentScope] = useState<'cell' | 'selected' | 'all'>('all')
   const [currentEnrichRow, setCurrentEnrichRow] = useState<number | undefined>()
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
-  const [resizingColumn, setResizingColumn] = useState<number | null>(null)
+  const [, setResizingColumn] = useState<number | null>(null)
   const [showGenerationInfo, setShowGenerationInfo] = useState(true)
 
   // Keyboard shortcuts and paste handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0
       const modifier = isMac ? e.metaKey : e.ctrlKey
       
       if (modifier) {
@@ -199,20 +193,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     return enrichmentStatus[colIndex]?.enriching && enrichmentStatus[colIndex]?.currentRow === rowIndex
   }
 
-  const handleAddColumn = () => {
-    if (newColumnName.trim()) {
-      addColumn(newColumnName.trim())
-      const newColumnIndex = headers.length // This will be the index of the newly added column
-      setNewColumnName("")
-      setAddColumnDialogOpen(false)
-      
-      // Optionally open enrichment dialog for the new column
-      // Uncomment the following lines if you want to automatically open enrichment dialog
-      // setTimeout(() => {
-      //   handleOpenEnrichmentForColumn(newColumnIndex, 'all')
-      // }, 100)
-    }
-  }
 
   const handleOpenEnrichmentForColumn = (colIndex: number, scope: 'cell' | 'selected' | 'all', rowIndex?: number) => {
     setEnrichmentColumnIndex(colIndex)
@@ -252,15 +232,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     }
   }
 
-  const handleSelectAll = () => {
-    selectAllRows()
-    // Select all columns too
-    headers.forEach((_, index) => {
-      if (!selectedColumns.has(index)) {
-        toggleColumnSelection(index)
-      }
-    })
-  }
 
   const handleExport = () => {
     const csvContent = [
@@ -280,21 +251,13 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const selectedCellValue = selectedCell ? data[selectedCell.row]?.[selectedCell.col] || "" : ""
   const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
   
-  // Calculate total table width
-  const calculateTableWidth = () => {
-    let totalWidth = 40 + 48 + 150 // checkbox (40px) + row number (48px) + add column (150px)
-    headers.forEach((_, index) => {
-      totalWidth += columnWidths[index] || 200
-    })
-    return totalWidth
-  }
 
   const generationMetadata = getGenerationMetadata()
 
   return (
     <div className="flex h-full bg-white overflow-hidden">
       {/* Main Content */}
-      <div className={cn("flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
+      <div className={cn("flex flex-col flex-1 min-w-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
         {/* Generation Info Banner */}
         {generationMetadata && showGenerationInfo && (
           <GenerationInfoBanner 
@@ -418,7 +381,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                     variant="ghost"
                     size="sm"
                     onClick={clearSelection}
-                    className="h-6 text-xs"
+                    className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
                   >
                     <X className="h-3 w-3 mr-1" />
                     Clear
@@ -431,7 +394,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
               variant="outline"
               size="sm"
               onClick={() => setSmartSelectionOpen(true)}
-              className="h-6 text-xs"
+              className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
             >
               <Filter className="h-3 w-3 mr-1" />
               Smart Select
@@ -442,7 +405,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                 variant={showCellDetails ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowCellDetails(!showCellDetails)}
-                className="h-6 text-xs"
+                className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
                 title="Toggle cell details (Cmd/Ctrl + I)"
               >
                 <PanelRight className="h-3 w-3 mr-1" />
@@ -454,8 +417,10 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
 
 
 
-        <div className="flex-1 bg-gray-50 overflow-auto">
-            <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }} tabIndex={0}>
+        <div className="flex-1 bg-gray-50 overflow-hidden flex flex-col min-h-0">
+          <div className="flex-1 overflow-auto relative">
+            <div className="min-w-full overflow-x-auto">
+              <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }} tabIndex={0}>
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-center border-r border-gray-200 bg-white sticky left-0 z-30" style={{ width: '40px', height: '48px', boxSizing: 'border-box' }}>
@@ -719,6 +684,8 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-gray-200 bg-white px-6 py-3">
