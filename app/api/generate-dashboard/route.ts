@@ -1,20 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { DashboardTemplate } from '@/lib/dashboard-templates'
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-})
+import { 
+  generateDashboardWithClaude, 
+  generateDashboardFromPrompt,
+  analyzeDataWithClaude 
+} from '@/lib/claude-dashboard-generator'
 
 export async function POST(request: NextRequest) {
   try {
-    const { template, data, columnMappings, customPrompt } = await request.json()
+    const { template, data, columnMappings, customPrompt, naturalLanguagePrompt } = await request.json()
+
+    // If natural language prompt is provided, generate dashboard from prompt
+    if (naturalLanguagePrompt && !template) {
+      const dashboard = await generateDashboardFromPrompt(naturalLanguagePrompt, {
+        headers: data.headers,
+        rows: data.rows
+      })
+      return NextResponse.json(dashboard)
+    }
 
     // Check if API key is configured
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-openai-api-key-here') {
+    const hasClaudeKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY
+    const hasOpenAIKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your-openai-api-key-here'
+    
+    if (!hasClaudeKey && !hasOpenAIKey) {
       // Return mock dashboard if no API key
-      console.log('No OpenAI API key configured, returning mock dashboard')
+      console.log('No API key configured, returning mock dashboard')
       return NextResponse.json({
         title: template.name,
         sections: template.sections.map((section: any) => ({
@@ -27,15 +38,69 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Prepare data context for AI
-    const dataContext = prepareDataContext(data, columnMappings)
-    
-    // Generate dashboard sections with widget data
-    const sections = await Promise.all(
-      template.sections.map(async (section) => {
-        const widgets = await Promise.all(
-          section.widgets.map(async (widget) => {
-            const widgetPrompt = `
+    // Use Claude API if available, otherwise fall back to mock data
+    if (hasClaudeKey) {
+      const dashboard = await generateDashboardWithClaude(
+        template,
+        {
+          headers: data.headers,
+          rows: data.rows
+        },
+        customPrompt
+      )
+      return NextResponse.json(dashboard)
+    } else if (hasOpenAIKey) {
+      // Fall back to OpenAI if Claude is not available
+      return generateWithOpenAI(template, data, columnMappings, customPrompt)
+    } else {
+      // Return mock dashboard
+      const sections = template.sections.map((section: any) => ({
+        ...section,
+        widgets: section.widgets.map((widget: any) => ({
+          ...widget,
+          data: generateMockWidgetData(widget, data)
+        }))
+      }))
+      
+      return NextResponse.json({
+        title: template.name,
+        sections,
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          rowCount: data.rows.length,
+          template: template.id,
+          mock: true
+        }
+      })
+    }
+  } catch (error: any) {
+    console.error('Dashboard generation error:', error)
+    return NextResponse.json(
+      { error: 'Failed to generate dashboard', message: error.message },
+      { status: 500 }
+    )
+  }
+}
+
+// OpenAI fallback function
+async function generateWithOpenAI(
+  template: any,
+  data: any,
+  columnMappings: Record<string, string>,
+  customPrompt?: string
+) {
+  const OpenAI = (await import('openai')).default
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || '',
+  })
+  
+  const dataContext = prepareDataContext(data, columnMappings)
+  
+  const sections = await Promise.all(
+    template.sections.map(async (section: any) => {
+      const widgets = await Promise.all(
+        section.widgets.map(async (widget: any) => {
+          const widgetPrompt = `
 You are creating data for a dashboard widget.
 Dashboard: ${template.name}
 Section: ${section.title}
@@ -60,74 +125,68 @@ For widget type ${widget.type}:
 
 Format the response as JSON data that fits the widget configuration.`
 
-            try {
-              const completion = await openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                messages: [
-                  {
-                    role: 'system',
-                    content: 'You are a data analyst creating dashboard visualizations. Return only JSON data that matches the widget configuration.'
-                  },
-                  {
-                    role: 'user',
-                    content: widgetPrompt
-                  }
-                ],
-                temperature: 0.3,
-                max_tokens: 400,
-              })
+          try {
+            const completion = await openai.chat.completions.create({
+              model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a data analyst creating dashboard visualizations. Return only JSON data that matches the widget configuration.'
+                },
+                {
+                  role: 'user',
+                  content: widgetPrompt
+                }
+              ],
+              temperature: 0.3,
+              max_tokens: 400,
+            })
 
-              let response = completion.choices[0]?.message?.content || '{}'
-              
-              // Remove markdown code blocks if present
-              response = response.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-              
-              try {
-                const widgetData = JSON.parse(response)
-                return {
-                  ...widget,
-                  data: widgetData
-                }
-              } catch (parseError) {
-                console.error('Failed to parse widget data:', response.substring(0, 200))
-                return {
-                  ...widget,
-                  data: generateMockWidgetData(widget, data)
-                }
+            let response = completion.choices[0]?.message?.content || '{}'
+            
+            // Remove markdown code blocks if present
+            response = response.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+            
+            try {
+              const widgetData = JSON.parse(response)
+              return {
+                ...widget,
+                data: widgetData
               }
-            } catch (error) {
-              console.error('Error generating widget:', widget.title, error)
+            } catch (parseError) {
+              console.error('Failed to parse widget data:', response.substring(0, 200))
               return {
                 ...widget,
                 data: generateMockWidgetData(widget, data)
               }
             }
-          })
-        )
+          } catch (error) {
+            console.error('Error generating widget:', widget.title, error)
+            return {
+              ...widget,
+              data: generateMockWidgetData(widget, data)
+            }
+          }
+        })
+      )
 
-        return {
-          ...section,
-          widgets
-        }
-      })
-    )
-
-    return NextResponse.json({
-      title: template.name,
-      sections,
-      metadata: {
-        generatedAt: new Date().toISOString(),
-        rowCount: data.rows.length,
-        template: template.id
+      return {
+        ...section,
+        widgets
       }
     })
-  } catch (error: any) {
-    console.error('Dashboard generation error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate dashboard', message: error.message },
-      { status: 500 }
-    )
-  }
+  )
+
+  return NextResponse.json({
+    title: template.name,
+    sections,
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      rowCount: data.rows.length,
+      template: template.id,
+      model: 'openai'
+    }
+  })
 }
 
 function prepareDataContext(data: any, columnMappings: Record<string, string>) {

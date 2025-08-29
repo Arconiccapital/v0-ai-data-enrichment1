@@ -120,6 +120,7 @@ interface SpreadsheetStore {
   insertColumnAfter: (index: number, header: string) => void
   deleteColumn: (index: number) => void
   renameColumn: (index: number, newName: string) => void
+  addRow: () => void
   clearData: () => void
   // Enrichment methods
   enrichColumn: (columnIndex: number, prompt: string, contextColumns?: Set<number>) => Promise<void>
@@ -349,6 +350,11 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         columnEnrichmentConfigs: newConfigs
       }
     }),
+  
+  addRow: () =>
+    set((state) => ({
+      data: [...state.data, new Array(state.headers.length).fill('')]
+    })),
 
   clearData: () =>
     set({

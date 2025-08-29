@@ -92,8 +92,9 @@ export const SpreadsheetCell = memo(function SpreadsheetCell({
     <div 
       className={cn(
         "px-4 py-2 text-sm truncate relative",
-        isSelected ? "text-gray-900 font-medium" : "text-gray-900",
-        !isSelected && "group-hover:bg-gray-50"
+        isSelected && "text-gray-900 font-medium",
+        isMultiSelected && "bg-blue-50 border-blue-400",
+        !isSelected && !isMultiSelected && "group-hover:bg-gray-50"
       )}
       title={value}
     >
@@ -207,8 +208,9 @@ export const SpreadsheetCell = memo(function SpreadsheetCell({
       className={cn(
         "border-r border-gray-200 cursor-pointer relative group transition-all duration-150",
         isSelected && "bg-blue-100 ring-2 ring-blue-500 ring-offset-1 ring-offset-white z-10",
-        isEnriching && "bg-blue-50",
-        isMultiSelected && "bg-yellow-50"
+        isMultiSelected && !isSelected && "bg-blue-50/70 ring-1 ring-blue-300 ring-inset",
+        isEnriching && "bg-yellow-50/70",
+        !isSelected && !isMultiSelected && !isEnriching && "hover:bg-gray-50"
       )}
       style={{ width: `${columnWidth}px`, height: '48px', maxWidth: `${columnWidth}px` }}
     >

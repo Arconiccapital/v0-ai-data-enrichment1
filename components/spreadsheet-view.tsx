@@ -1,19 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { AddColumnDialog } from "@/components/add-column-dialog"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Copy, Clipboard, Scissors, Filter, PanelRight, LayoutDashboard, BarChart3, Paperclip, FileText, Download } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, PanelRight, LayoutDashboard, BarChart3, Paperclip, FileText, Download } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
-import { SpreadsheetToolbar } from "./spreadsheet-toolbar"
+import { useEnhancedClipboard } from "@/hooks/useEnhancedClipboard"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -43,6 +39,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     updateCell, 
     enrichmentStatus, 
     addColumn,
+    addRow,
     insertColumnBefore,
     insertColumnAfter,
     deleteColumn,
@@ -67,6 +64,8 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   } = useSpreadsheetStore()
   const { getColumnAttachments } = useSpreadsheetStore()
   const router = useRouter()
+  const tableRef = useRef<HTMLTableElement>(null)
+  const enhancedClipboard = useEnhancedClipboard()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false)
   const [addColumnDialogOpen, setAddColumnDialogOpen] = useState(false)
@@ -87,7 +86,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [resizingColumn, setResizingColumn] = useState<number | null>(null)
   const [showGenerationInfo, setShowGenerationInfo] = useState(true)
 
-  // Keyboard shortcuts for copy/paste and cell details
+  // Keyboard shortcuts and paste handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
@@ -100,25 +99,58 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
           setShowCellDetails(prev => !prev)
         }
         // Copy/paste/cut operations
-        else if (selectedCell) {
-          if (e.key === 'c') {
-            e.preventDefault()
-            const value = data[selectedCell.row][selectedCell.col]
-            handleCopyCell(value)
-          } else if (e.key === 'v') {
-            e.preventDefault()
-            handlePasteCell(selectedCell.row, selectedCell.col)
-          } else if (e.key === 'x') {
-            e.preventDefault()
-            handleCutCell(selectedCell.row, selectedCell.col)
-          }
+        else if (e.key === 'c' && (selectedCells.size > 0 || selectedCell)) {
+          e.preventDefault()
+          enhancedClipboard.copySelection(selectedCell || undefined)
+        } else if (e.key === 'x' && (selectedCells.size > 0 || selectedCell)) {
+          e.preventDefault()
+          enhancedClipboard.cut(selectedCell || undefined)
         }
+        // Select all cells with Cmd/Ctrl + A
+        else if (e.key === 'a') {
+          e.preventDefault()
+          // Select all cells in the table
+          const allCells = new Set<string>()
+          for (let r = 0; r < data.length; r++) {
+            for (let c = 0; c < headers.length; c++) {
+              allCells.add(`${r}-${c}`)
+            }
+          }
+          // This would need a new method in the store to set selectedCells directly
+          selectAllRows()
+        }
+      }
+      
+      // Add row with Enter or Tab in last cell
+      if (selectedCell && selectedCell.row === data.length - 1) {
+        if (e.key === 'Enter' || (e.key === 'Tab' && selectedCell.col === headers.length - 1)) {
+          e.preventDefault()
+          addRow()
+          // Move to first cell of new row
+          handleCellClick(data.length, 0)
+        }
+      }
+    }
+    
+    const handlePaste = (e: ClipboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || 
+          document.activeElement?.tagName === 'TEXTAREA') {
+        return // Don't intercept paste in input fields
+      }
+      
+      if (selectedCell || selectedCells.size > 0) {
+        enhancedClipboard.handlePasteEvent(e, selectedCell || undefined)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedCell, data])
+    document.addEventListener('paste', handlePaste)
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('paste', handlePaste)
+    }
+  }, [selectedCell, selectedCells, data.length, headers.length, enhancedClipboard, addRow])
   
   const hasSelection = selectedRows.size > 0 || selectedColumns.size > 0
   const selectedRowCount = selectedRows.size
@@ -423,7 +455,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
 
 
         <div className="flex-1 bg-gray-50 overflow-auto">
-            <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }}>
+            <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }} tabIndex={0}>
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-center border-r border-gray-200 bg-white sticky left-0 z-30" style={{ width: '40px', height: '48px', boxSizing: 'border-box' }}>
@@ -438,7 +470,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                         }}
                       />
                     </th>
-                    <th className="text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-white sticky left-[41px] z-30" style={{ width: '48px', height: '48px', boxSizing: 'border-box' }}>
+                    <th className="text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-white sticky left-[40px] z-30" style={{ width: '48px', height: '48px', boxSizing: 'border-box' }}>
                       #
                     </th>
                     {headers.map((header, index) => (
@@ -462,7 +494,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                                   </Badge>
                                 )}
                                 {columnEnrichmentConfigs[index]?.isConfigured && (
-                                  <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" title="Enrichment configured" />
+                                  <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" />
                                 )}
                                 {enrichmentStatus[index]?.enriching && (
                                   <Loader2 className="h-4 w-4 animate-spin text-blue-600 flex-shrink-0" />
@@ -638,7 +670,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                           onCheckedChange={() => toggleRowSelection(rowIndex)}
                         />
                       </td>
-                      <td className="text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-white sticky left-[41px] z-10" style={{ width: '48px', height: '48px', boxSizing: 'border-box' }}>
+                      <td className="text-center text-xs font-medium text-gray-600 border-r border-gray-200 bg-white sticky left-[40px] z-10" style={{ width: '48px', height: '48px', boxSizing: 'border-box' }}>
                         {rowIndex + 1}
                       </td>
                       {row.map((cell, colIndex) => (
@@ -672,6 +704,19 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                       />
                     </tr>
                   ))}
+                  {/* Add Row button */}
+                  <tr className="border-t-2 border-gray-300 hover:bg-gray-50 bg-gray-50/50">
+                    <td 
+                      colSpan={headers.length + 3}
+                      className="text-center py-3 cursor-pointer transition-colors"
+                      onClick={() => addRow()}
+                    >
+                      <div className="flex items-center justify-center text-gray-600 hover:text-gray-900">
+                        <Plus className="h-4 w-4 mr-2" />
+                        <span className="text-sm font-medium">Add Row</span>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
         </div>

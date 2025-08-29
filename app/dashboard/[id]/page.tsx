@@ -26,6 +26,7 @@ import {
 // Widget Components
 function KPIWidget({ widget, data }: any) {
   const metrics = widget.config?.metrics || []
+  const widgetData = widget.data || {}
   
   return (
     <Card className="h-full">
@@ -34,24 +35,28 @@ function KPIWidget({ widget, data }: any) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
-          {metrics.map((metric: any, idx: number) => (
-            <div key={idx}>
-              <div className="text-2xl font-bold">
-                {formatValue(Math.floor(Math.random() * 10000), metric.format)}
+          {metrics.map((metric: any, idx: number) => {
+            const value = widgetData[metric.key] || Math.floor(Math.random() * 10000)
+            const trend = Math.random() > 0.5
+            return (
+              <div key={idx}>
+                <div className="text-2xl font-bold">
+                  {formatValue(value, metric.format)}
+                </div>
+                <div className="text-xs text-gray-600">{metric.label}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  {trend ? (
+                    <TrendingUp className="h-3 w-3 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-600" />
+                  )}
+                  <span className="text-xs text-gray-500">
+                    {Math.floor(Math.random() * 30) + 1}%
+                  </span>
+                </div>
               </div>
-              <div className="text-xs text-gray-600">{metric.label}</div>
-              <div className="flex items-center gap-1 mt-1">
-                {Math.random() > 0.5 ? (
-                  <TrendingUp className="h-3 w-3 text-green-600" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-red-600" />
-                )}
-                <span className="text-xs text-gray-500">
-                  {Math.floor(Math.random() * 30) + 1}%
-                </span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </CardContent>
     </Card>
@@ -60,8 +65,10 @@ function KPIWidget({ widget, data }: any) {
 
 function ScoreCardWidget({ widget, data }: any) {
   const criteria = widget.config?.criteria || []
+  const widgetData = widget.data || {}
+  
   const totalScore = criteria.reduce((acc: number, criterion: any) => {
-    const score = Math.floor(Math.random() * criterion.max)
+    const score = parseFloat(widgetData[criterion.name] || Math.floor(Math.random() * criterion.max))
     return acc + (score * criterion.weight)
   }, 0)
   
@@ -74,7 +81,7 @@ function ScoreCardWidget({ widget, data }: any) {
       <CardContent>
         <div className="space-y-3">
           {criteria.map((criterion: any, idx: number) => {
-            const score = Math.floor(Math.random() * criterion.max)
+            const score = parseFloat(widgetData[criterion.name] || Math.floor(Math.random() * criterion.max))
             return (
               <div key={idx}>
                 <div className="flex justify-between text-sm mb-1">
@@ -647,8 +654,37 @@ export default function DashboardViewPage({ params }: { params: Promise<{ id: st
               />
             </div>
           </div>
-        ) : (
-          // Fallback to generic dashboard layout
+        ) : dashboard?.dashboard ? (
+          // Render Claude-generated dashboard
+          <div className="space-y-8">
+            {dashboard.dashboard.sections?.map((section: any, sectionIdx: number) => (
+              <div key={sectionIdx}>
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold">{section.title}</h2>
+                  {section.description && (
+                    <p className="text-sm text-gray-600">{section.description}</p>
+                  )}
+                </div>
+                
+                <div className={`grid gap-4 ${
+                  section.widgets.length === 1 ? 'grid-cols-1' :
+                  section.widgets.length === 2 ? 'grid-cols-1 lg:grid-cols-2' :
+                  section.widgets.length === 3 ? 'grid-cols-1 lg:grid-cols-3' :
+                  'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+                }`}>
+                  {section.widgets.map((widget: any, widgetIdx: number) => (
+                    <div key={widgetIdx} className={
+                      widget.type === 'table' || widget.type === 'chart' ? 'lg:col-span-2' : ''
+                    }>
+                      {renderWidget(widget, widget.data || dashboard.data)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : template ? (
+          // Fallback to generic template layout
           <div className="space-y-8">
             {template.sections.map((section, sectionIdx) => (
               <div key={sectionIdx}>
@@ -675,6 +711,10 @@ export default function DashboardViewPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No dashboard data available</p>
           </div>
         )}
       </div>

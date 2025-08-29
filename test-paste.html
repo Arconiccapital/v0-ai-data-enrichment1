@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Excel Copy/Paste</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { border-collapse: collapse; margin: 20px 0; }
+        td, th { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+        .instructions { background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h2>Test Instructions:</h2>
+        <ol>
+            <li>Select the table below and copy it (Ctrl+C / Cmd+C)</li>
+            <li>Go to http://localhost:3000/dashboard</li>
+            <li>Upload any CSV or generate test data</li>
+            <li>Click on a cell in the spreadsheet</li>
+            <li>Paste (Ctrl+V / Cmd+V)</li>
+            <li>The data should automatically populate and expand the grid if needed</li>
+        </ol>
+    </div>
+
+    <h3>Sample Data to Copy:</h3>
+    <table id="testData">
+        <tr>
+            <td>Product A</td>
+            <td>Electronics</td>
+            <td>$299.99</td>
+            <td>In Stock</td>
+        </tr>
+        <tr>
+            <td>Product B</td>
+            <td>Clothing</td>
+            <td>$49.99</td>
+            <td>Limited</td>
+        </tr>
+        <tr>
+            <td>Product C</td>
+            <td>Home & Garden</td>
+            <td>$159.99</td>
+            <td>Out of Stock</td>
+        </tr>
+        <tr>
+            <td>Product D</td>
+            <td>Sports</td>
+            <td>$89.99</td>
+            <td>In Stock</td>
+        </tr>
+    </table>
+
+    <button onclick="selectTable()">Select Table for Copying</button>
+
+    <script>
+        function selectTable() {
+            const table = document.getElementById('testData');
+            const range = document.createRange();
+            range.selectNode(table);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            alert('Table copied! Now go to the app and paste.');
+        }
+    </script>
+</body>
+</html>
