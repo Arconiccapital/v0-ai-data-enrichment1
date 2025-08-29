@@ -39,9 +39,7 @@ export const config = {
   matcher: [
     // Protect dashboard routes
     "/dashboard/:path*",
-    // Protect API routes (except auth)
-    "/api/:path*",
-    // Don't run middleware on static files
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    // Protect API routes (except auth and public endpoints)
+    "/api/((?!auth|share/view).*)",
   ],
 }

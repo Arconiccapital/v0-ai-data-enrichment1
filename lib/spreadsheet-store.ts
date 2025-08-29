@@ -449,7 +449,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
     } catch (error) {
-      console.error("Enrichment failed:", error)
+      // Enrichment failed
     } finally {
       // Clear enrichment status
       set((state) => ({
@@ -467,7 +467,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     // Use provided prompt or get from column config
     const enrichmentPrompt = prompt || columnEnrichmentConfigs[columnIndex]?.prompt
     if (!enrichmentPrompt) {
-      console.error("No prompt provided for enrichment")
+      // No prompt provided for enrichment
       return
     }
 
@@ -538,7 +538,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         return updates
       })
     } catch (error) {
-      console.error("Single cell enrichment failed:", error)
+      // Single cell enrichment failed
     } finally {
       // Clear enrichment status
       set((state) => ({
@@ -556,7 +556,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     // Use provided prompt or get from column config
     const enrichmentPrompt = prompt || columnEnrichmentConfigs[columnIndex]?.prompt
     if (!enrichmentPrompt) {
-      console.error("No prompt provided for enrichment")
+      // No prompt provided for enrichment
       return
     }
 
@@ -638,7 +638,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
     } catch (error) {
-      console.error("Selected cells enrichment failed:", error)
+      // Selected cells enrichment failed
     } finally {
       // Clear enrichment status
       set((state) => ({
@@ -655,7 +655,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     const config = columnEnrichmentConfigs[columnIndex]
     
     if (!config || !config.prompt) {
-      console.error("Column has no enrichment configuration")
+      // Column has no enrichment configuration
       return
     }
 
@@ -868,7 +868,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
     } catch (error) {
-      console.error("Enrichment failed:", error)
+      // Enrichment failed
     } finally {
       // Clear enrichment status
       set((state) => ({
@@ -1209,7 +1209,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
 
 async function enrichCell(value: string, prompt: string): Promise<string> {
   try {
-    console.log("[v0] Enriching cell with value:", value, "and prompt:", prompt)
+    // Enriching cell with value and prompt
 
     const response = await fetch("/api/enrich", {
       method: "POST",
@@ -1222,16 +1222,16 @@ async function enrichCell(value: string, prompt: string): Promise<string> {
       }),
     })
 
-    console.log("[v0] API response status:", response.status)
+    // API response status
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.log("[v0] API error response:", errorText)
+      // API error response
       throw new Error(`API returned ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
-    console.log("[v0] API response data:", data)
+    // API response data
 
     if (!data.enrichedValue) {
       throw new Error("No enriched value returned from API")
@@ -1239,7 +1239,7 @@ async function enrichCell(value: string, prompt: string): Promise<string> {
 
     return data.enrichedValue
   } catch (error) {
-    console.error("[v0] Error enriching cell:", error)
+    // Error enriching cell
     throw new Error(`Failed to enrich cell: ${error.message}`)
   }
 }
@@ -1262,9 +1262,9 @@ async function enrichCellWithContext(
       }
     })
 
-    console.log("[v0] Enriching with row context:", rowContext, "and prompt:", processedPrompt)
+    // Enriching with row context and prompt
     if (attachmentContext) {
-      console.log("[v0] Using attachment context (truncated):", attachmentContext.substring(0, 200) + "...")
+      // Using attachment context
     }
 
     const response = await fetch("/api/enrich", {
@@ -1281,16 +1281,16 @@ async function enrichCellWithContext(
       }),
     })
 
-    console.log("[v0] API response status:", response.status)
+    // API response status
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.log("[v0] API error response:", errorText)
+      // API error response
       throw new Error(`API returned ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
-    console.log("[v0] API response data:", data)
+    // API response data
 
     if (!data.enrichedValue) {
       throw new Error("No enriched value returned from API")
@@ -1301,7 +1301,7 @@ async function enrichCellWithContext(
       process: data.process 
     }
   } catch (error) {
-    console.error("[v0] Error enriching cell with context:", error)
+    // Error enriching cell with context
     throw new Error(`Failed to enrich cell: ${error.message}`)
   }
 }

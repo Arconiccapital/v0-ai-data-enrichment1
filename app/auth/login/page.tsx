@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log("Mock login for demo:", { email, password })
+    // Mock login for demo
     router.push("/dashboard")
   }
 
@@ -34,8 +34,7 @@ export default function LoginPage() {
             height={40}
             className="h-10 w-auto mb-2"
           />
-            <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
-          </div>
+          <h1 className="text-2xl font-sans font-semibold text-foreground">Lighthouse AI</h1>
         </div>
 
         <Card className="border-border shadow-sm">

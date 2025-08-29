@@ -26,6 +26,7 @@ import {
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { reportTemplateCategories, emailTemplateCategories } from "@/lib/output-templates"
 import { dashboardTemplateCategories } from "@/lib/dashboard-templates"
+import { DashboardPromptBuilder } from "@/components/dashboard-prompt-builder"
 
 interface OutputSidebarProps {
   onClose: () => void
@@ -50,6 +51,7 @@ export function OutputSidebar({ onClose }: OutputSidebarProps) {
   const [editMode, setEditMode] = useState(false)
   const [editedContent, setEditedContent] = useState("")
   const [isCreatingDashboard, setIsCreatingDashboard] = useState(false)
+  const [showAIDashboard, setShowAIDashboard] = useState(false)
 
   // Analyze data when sidebar opens
   useEffect(() => {
@@ -99,6 +101,51 @@ export function OutputSidebar({ onClose }: OutputSidebarProps) {
       console.error('Error analyzing data:', error)
     } finally {
       setIsAnalyzing(false)
+    }
+  }
+
+  const handleAIDashboardGenerate = async (prompt: string) => {
+    setIsCreatingDashboard(true)
+    
+    try {
+      // Call API to generate dashboard with natural language prompt
+      const response = await fetch('/api/generate-dashboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          naturalLanguagePrompt: prompt,
+          data: {
+            headers,
+            rows: data
+          }
+        })
+      })
+
+      const dashboard = await response.json()
+      
+      // Generate a unique dashboard ID
+      const dashboardId = `dashboard_${Date.now()}`
+      
+      // Store dashboard data
+      const dashboardData = {
+        id: dashboardId,
+        name: dashboard.title || 'AI Generated Dashboard',
+        template: 'ai-generated',
+        data: { headers, rows: data },
+        dashboard: dashboard,
+        prompt: prompt,
+        createdAt: new Date().toISOString()
+      }
+      
+      // Store in localStorage for now
+      localStorage.setItem(dashboardId, JSON.stringify(dashboardData))
+      
+      // Navigate to the dashboard page
+      router.push(`/dashboard/${dashboardId}`)
+    } catch (error) {
+      console.error('Error creating AI dashboard:', error)
+    } finally {
+      setIsCreatingDashboard(false)
     }
   }
 
@@ -337,6 +384,19 @@ Based on the available data in columns: ${headers.slice(0, 5).join(', ')}, we ca
 
   const categories = [
     {
+      id: 'ai-dashboard',
+      label: 'AI Dashboard Builder',
+      icon: Sparkles,
+      templates: [],
+      isAI: true
+    },
+    {
+      id: 'dashboards',
+      label: 'Dashboard Templates',
+      icon: LayoutDashboard,
+      templates: dashboardTemplateCategories ? Object.values(dashboardTemplateCategories).flatMap(cat => cat.templates) : []
+    },
+    {
       id: 'reports',
       label: 'Reports',
       icon: FileText,
@@ -347,12 +407,6 @@ Based on the available data in columns: ${headers.slice(0, 5).join(', ')}, we ca
       label: 'Emails',
       icon: Mail,
       templates: emailTemplateCategories ? Object.values(emailTemplateCategories).flatMap(cat => cat.templates) : []
-    },
-    {
-      id: 'dashboards',
-      label: 'Dashboards',
-      icon: LayoutDashboard,
-      templates: dashboardTemplateCategories ? Object.values(dashboardTemplateCategories).flatMap(cat => cat.templates) : []
     }
   ]
 
@@ -447,7 +501,16 @@ Based on the available data in columns: ${headers.slice(0, 5).join(', ')}, we ca
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-2 pt-2">
-                    {category.templates.length > 0 ? (
+                    {category.isAI ? (
+                      <div className="px-2">
+                        <DashboardPromptBuilder
+                          data={{ headers, rows: data }}
+                          onGenerate={handleAIDashboardGenerate}
+                          isGenerating={isCreatingDashboard}
+                          className="w-full"
+                        />
+                      </div>
+                    ) : category.templates.length > 0 ? (
                       category.templates.map((template: any) => (
                         <Card
                           key={template.id}

@@ -288,7 +288,7 @@ export function ShareDialog({
                 <Button
                   onClick={generateShareLink}
                   disabled={isGenerating || (requirePassword && !linkPassword)}
-                  className="w-full"
+                  className="w-full bg-black hover:bg-gray-800 text-white"
                 >
                   {isGenerating ? (
                     "Generating..."
@@ -302,13 +302,13 @@ export function ShareDialog({
               </>
             ) : (
               <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="bg-gray-50 border border-gray-200 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-green-600" />
+                      <Globe className="h-4 w-4 text-gray-600" />
                       <span className="font-medium">Share link active</span>
                     </div>
-                    <Badge variant="secondary">
+                    <Badge variant="outline" className="border-gray-300">
                       {shareLink.permissions.includes("edit") ? "Can Edit" : "View Only"}
                     </Badge>
                   </div>
@@ -322,6 +322,7 @@ export function ShareDialog({
                     <Button
                       size="sm"
                       variant="outline"
+                      className="border-gray-300 hover:bg-gray-50"
                       onClick={() => copyToClipboard(shareLink.url)}
                     >
                       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -349,13 +350,13 @@ export function ShareDialog({
                 </div>
 
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     setShareLink(null)
                     toast.success("Share link revoked")
                   }}
-                  className="w-full"
+                  className="w-full border-gray-300 hover:bg-gray-50"
                 >
                   <Trash className="h-4 w-4 mr-2" />
                   Revoke Link
@@ -383,7 +384,7 @@ export function ShareDialog({
                     <SelectItem value="editor">Editor</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button onClick={inviteByEmail}>
+                <Button onClick={inviteByEmail} className="bg-black hover:bg-gray-800 text-white">
                   <Mail className="h-4 w-4 mr-2" />
                   Invite
                 </Button>
@@ -411,7 +412,7 @@ export function ShareDialog({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="border-gray-300">
                           {user.role}
                         </Badge>
                         <Button
@@ -467,13 +468,13 @@ export function ShareDialog({
               <div className="space-y-2">
                 <Label>Embed Code</Label>
                 <div className="relative">
-                  <pre className="bg-gray-50 p-4 rounded-lg text-xs overflow-x-auto">
+                  <pre className="bg-gray-50 border border-gray-200 p-4 text-xs overflow-x-auto">
                     <code>{generateEmbedCode()}</code>
                   </pre>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="absolute top-2 right-2"
+                    className="absolute top-2 right-2 border-gray-300 hover:bg-gray-50"
                     onClick={() => copyToClipboard(generateEmbedCode())}
                   >
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -481,11 +482,11 @@ export function ShareDialog({
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
-                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+              <div className="bg-gray-50 border border-gray-300 p-3 flex gap-2">
+                <AlertCircle className="h-4 w-4 text-gray-600 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-blue-900">Public Access</p>
-                  <p className="text-blue-700">
+                  <p className="font-medium text-gray-900">Public Access</p>
+                  <p className="text-gray-600">
                     Embedded dashboards are publicly accessible. Sensitive data will be hidden.
                   </p>
                 </div>

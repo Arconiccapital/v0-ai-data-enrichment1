@@ -143,7 +143,7 @@ export function TemplateGallery({
     return (
       <Card
         key={template.id}
-        className={`cursor-pointer transition-all hover:shadow-lg ${
+        className={`cursor-pointer transition-all hover:border-gray-400 border border-gray-200 shadow-none ${
           viewMode === 'list' ? 'flex items-center' : ''
         }`}
       >
@@ -166,25 +166,25 @@ export function TemplateGallery({
                 toggleFavorite(template.id)
               }}
             >
-              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-black text-black' : 'text-gray-400'}`} />
             </Button>
           </div>
         </CardHeader>
         <CardContent className={viewMode === 'list' ? 'flex items-center gap-4' : ''}>
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="outline" className="text-xs border-gray-300">
               {template.category}
             </Badge>
             {isRecent && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs border-gray-300">
                 <Clock className="h-3 w-3 mr-1" />
                 Recent
               </Badge>
             )}
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs border-gray-300">
               {template.sections.length} sections
             </Badge>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs border-gray-300">
               {template.sections.reduce((acc, s) => acc + s.widgets.length, 0)} widgets
             </Badge>
           </div>
@@ -192,6 +192,7 @@ export function TemplateGallery({
             <Button
               size="sm"
               variant="outline"
+              className="border-gray-300 hover:border-gray-400 hover:bg-gray-50"
               onClick={(e) => {
                 e.stopPropagation()
                 setPreviewTemplate(template)
@@ -202,6 +203,7 @@ export function TemplateGallery({
             </Button>
             <Button
               size="sm"
+              className="bg-black hover:bg-gray-800 text-white"
               onClick={(e) => {
                 e.stopPropagation()
                 handleSelectTemplate(template)
@@ -293,9 +295,9 @@ export function TemplateGallery({
                 <TabsContent value="recommended" className="mt-0">
                   {recommendedTemplates.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 mb-4">
+                      <div className="bg-gray-50 border border-gray-200 p-4 mb-4">
                         <h3 className="font-medium flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-purple-600" />
+                          <Sparkles className="h-4 w-4" />
                           Based on your data structure
                         </h3>
                         <p className="text-sm text-gray-600 mt-1">
@@ -374,7 +376,7 @@ export function TemplateGallery({
                       <Card key={widget.id} className="p-3">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="text-sm font-medium">{widget.title}</h4>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs border-gray-300">
                             {widget.type}
                           </Badge>
                         </div>
@@ -389,10 +391,10 @@ export function TemplateGallery({
             </div>
             
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPreviewTemplate(null)}>
+              <Button variant="outline" className="border-gray-300" onClick={() => setPreviewTemplate(null)}>
                 Close
               </Button>
-              <Button onClick={() => {
+              <Button className="bg-black hover:bg-gray-800 text-white" onClick={() => {
                 handleSelectTemplate(previewTemplate)
                 setPreviewTemplate(null)
               }}>

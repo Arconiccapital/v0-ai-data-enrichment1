@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { CSVUploader } from "@/components/csv-uploader"
-import { FindDataDialog } from "@/components/find-data-dialog"
+import { FindDataDialog } from "@/components/dialogs/find-data-dialog"
 import { SpreadsheetView } from "@/components/spreadsheet-view"
 import { AppNavigation } from "@/components/app-navigation"
 import { WorkflowIndicator } from "@/components/workflow-indicator"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { EnrichSidebar } from "@/components/enrich-sidebar"
 import { AnalyzeSidebar } from "@/components/analyze-sidebar"
-import { OutputSidebar } from "@/components/output-sidebar"
+import { LovableOutput } from "@/components/lovable-output"
 import { ExportSidebar } from "@/components/export-sidebar"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { Sparkles, Search } from "lucide-react"
@@ -175,7 +175,7 @@ export default function HomePage() {
                 />
               )}
               {activeWorkflowStep === 'output' && (
-                <OutputSidebar 
+                <LovableOutput 
                   onClose={() => setActiveWorkflowStep(null)}
                   onComplete={progressToNextStep}
                 />

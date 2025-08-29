@@ -72,7 +72,7 @@ export function DashboardPromptBuilder({
       newSuggestions.push({
         label: "Sales Performance Dashboard",
         prompt: "Create a comprehensive sales performance dashboard with revenue trends, pipeline funnel, top performers leaderboard, and deal conversion metrics. Include month-over-month growth charts and forecast projections.",
-        icon: <TrendingUp className="h-4 w-4" />,
+        icon: <TrendingUp className="h-4 w-4 text-gray-600" />,
         category: "sales"
       })
     }
@@ -82,7 +82,7 @@ export function DashboardPromptBuilder({
       newSuggestions.push({
         label: "Customer Analytics Dashboard",
         prompt: "Build a customer analytics dashboard showing customer segmentation, lifetime value analysis, churn predictions, satisfaction scores, and engagement metrics. Include retention cohort analysis and customer journey visualization.",
-        icon: <Users className="h-4 w-4" />,
+        icon: <Users className="h-4 w-4 text-gray-600" />,
         category: "customer"
       })
     }
@@ -92,7 +92,7 @@ export function DashboardPromptBuilder({
       newSuggestions.push({
         label: "Financial Overview Dashboard",
         prompt: "Generate a financial dashboard with P&L summary, expense breakdown by category, budget vs actual comparisons, cash flow projections, and key financial ratios. Show trends and variance analysis.",
-        icon: <DollarSign className="h-4 w-4" />,
+        icon: <DollarSign className="h-4 w-4 text-gray-600" />,
         category: "finance"
       })
     }
@@ -102,7 +102,7 @@ export function DashboardPromptBuilder({
       newSuggestions.push({
         label: "Inventory Management Dashboard",
         prompt: "Create an inventory management dashboard with stock levels, turnover rates, product performance metrics, demand forecasting, and reorder alerts. Include ABC analysis and seasonal trends.",
-        icon: <BarChart className="h-4 w-4" />,
+        icon: <BarChart className="h-4 w-4 text-gray-600" />,
         category: "operations"
       })
     }
@@ -111,21 +111,21 @@ export function DashboardPromptBuilder({
     newSuggestions.push({
       label: "KPI Overview",
       prompt: `Create a KPI dashboard focusing on the most important metrics from these columns: ${data.headers.slice(0, 5).join(', ')}. Show current values, trends, and comparisons.`,
-      icon: <Target className="h-4 w-4" />,
+      icon: <Target className="h-4 w-4 text-gray-600" />,
       category: "general"
     })
 
     newSuggestions.push({
       label: "Data Analysis Dashboard",
       prompt: "Build a comprehensive data analysis dashboard with distribution charts, correlation matrices, outlier detection, and statistical summaries. Include filters and drill-down capabilities.",
-      icon: <Activity className="h-4 w-4" />,
+      icon: <Activity className="h-4 w-4 text-gray-600" />,
       category: "analysis"
     })
 
     newSuggestions.push({
       label: "Executive Summary",
       prompt: "Create an executive-level dashboard with high-level KPIs, trend indicators, performance scorecards, and actionable insights. Focus on strategic metrics and business impact.",
-      icon: <PieChart className="h-4 w-4" />,
+      icon: <PieChart className="h-4 w-4 text-gray-600" />,
       category: "executive"
     })
 
@@ -156,11 +156,11 @@ export function DashboardPromptBuilder({
   return (
     <div className={className}>
       {/* Main Prompt Input Card */}
-      <Card className="border-2 border-gray-200 shadow-lg">
+      <Card className="border border-gray-300">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg">
+              <div className="p-2 bg-black">
                 <MessageSquare className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -170,7 +170,7 @@ export function DashboardPromptBuilder({
                 </CardDescription>
               </div>
             </div>
-            <Badge variant="secondary" className="flex items-center gap-1">
+            <Badge variant="outline" className="flex items-center gap-1 border-gray-300">
               <Sparkles className="h-3 w-3" />
               Claude-Powered
             </Badge>
@@ -181,7 +181,7 @@ export function DashboardPromptBuilder({
           {dataInsights.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {dataInsights.map((insight, idx) => (
-                <Badge key={idx} variant="outline" className="text-xs">
+                <Badge key={idx} variant="outline" className="text-xs border-gray-300">
                   {insight}
                 </Badge>
               ))}
@@ -224,7 +224,7 @@ export function DashboardPromptBuilder({
                   variant="outline"
                   size="sm"
                   onClick={() => setPrompt(example)}
-                  className="text-xs h-7"
+                  className="text-xs h-7 border-gray-300 hover:bg-gray-50"
                 >
                   <Lightbulb className="h-3 w-3 mr-1" />
                   {example}
@@ -237,7 +237,7 @@ export function DashboardPromptBuilder({
           <Button
             onClick={handleGenerate}
             disabled={!prompt.trim() || isGenerating}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+            className="w-full bg-black hover:bg-gray-800 text-white"
             size="lg"
           >
             {isGenerating ? (
@@ -270,12 +270,12 @@ export function DashboardPromptBuilder({
               {suggestions.map((suggestion, idx) => (
                 <Card
                   key={idx}
-                  className="cursor-pointer hover:shadow-md transition-all hover:border-purple-500"
+                  className="cursor-pointer hover:border-gray-400 transition-all border border-gray-200"
                   onClick={() => handleSuggestionClick(suggestion)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-gray-100 rounded-lg">
+                      <div className="p-2 bg-gray-50 border border-gray-200">
                         {suggestion.icon}
                       </div>
                       <div className="flex-1">
@@ -295,7 +295,7 @@ export function DashboardPromptBuilder({
       )}
 
       {/* Tips Card */}
-      <Card className="mt-6 bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+      <Card className="mt-6 bg-gray-50 border-gray-300">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <Sparkles className="h-5 w-5 text-purple-600 mt-0.5" />
