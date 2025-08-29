@@ -4,10 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, PanelRight, LayoutDashboard, BarChart3, Paperclip, FileText, Download } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, LayoutDashboard, BarChart3, Paperclip, FileText, Download } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
 import { useEnhancedClipboard } from "@/hooks/useEnhancedClipboard"
 import {
@@ -71,7 +69,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
   const [attachmentColumnIndex, setAttachmentColumnIndex] = useState<number | null>(null)
   const [cellAttachmentOpen, setCellAttachmentOpen] = useState(false)
   const [selectedCellForAttachment, setSelectedCellForAttachment] = useState<{row: number, col: number} | null>(null)
-  const [showCellDetails, setShowCellDetails] = useState(false)
   const [smartSelectionOpen, setSmartSelectionOpen] = useState(false)
   const [enrichmentColumnIndex, setEnrichmentColumnIndex] = useState<number | undefined>()
   const [enrichmentScope, setEnrichmentScope] = useState<'cell' | 'selected' | 'all'>('all')
@@ -87,13 +84,8 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
       const modifier = isMac ? e.metaKey : e.ctrlKey
       
       if (modifier) {
-        // Toggle cell details with Cmd/Ctrl + I
-        if (e.key === 'i' && selectedCell) {
-          e.preventDefault()
-          setShowCellDetails(prev => !prev)
-        }
         // Copy/paste/cut operations
-        else if (e.key === 'c' && (selectedCells.size > 0 || selectedCell)) {
+        if (e.key === 'c' && (selectedCells.size > 0 || selectedCell)) {
           e.preventDefault()
           enhancedClipboard.copySelection(selectedCell || undefined)
         } else if (e.key === 'x' && (selectedCells.size > 0 || selectedCell)) {
@@ -152,7 +144,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
 
   const handleCellClick = (rowIndex: number, colIndex: number) => {
     setSelectedCell({ row: rowIndex, col: colIndex })
-    // Don't auto-open details panel - let user explicitly open it
   }
 
   const handleCellChange = (value: string, rowIndex: number, colIndex: number) => {
@@ -248,16 +239,13 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     URL.revokeObjectURL(url)
   }
 
-  const selectedCellValue = selectedCell ? data[selectedCell.row]?.[selectedCell.col] || "" : ""
-  const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
-  
-
   const generationMetadata = getGenerationMetadata()
+  const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
 
   return (
     <div className="flex h-full bg-white overflow-hidden">
       {/* Main Content */}
-      <div className={cn("flex flex-col flex-1 min-w-0 transition-all duration-300", showCellDetails ? "flex-1" : "w-full")}>
+      <div className="flex flex-col flex-1 min-w-0 transition-all duration-300 w-full">
         {/* Generation Info Banner */}
         {generationMetadata && showGenerationInfo && (
           <GenerationInfoBanner 
@@ -399,19 +387,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
               <Filter className="h-3 w-3 mr-1" />
               Smart Select
             </Button>
-            
-            {selectedCell && (
-              <Button
-                variant={showCellDetails ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowCellDetails(!showCellDetails)}
-                className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
-                title="Toggle cell details (Cmd/Ctrl + I)"
-              >
-                <PanelRight className="h-3 w-3 mr-1" />
-                Cell Details
-              </Button>
-            )}
           </div>
         </div>
 
@@ -441,7 +416,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                     {headers.map((header, index) => (
                       <th
                         key={index}
-                        className="h-12 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative min-w-[100px]"
+                        className="h-12 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative min-w-[100px] overflow-visible"
                         style={{ width: `${columnWidths[index] || 200}px` }}
                       >
                         <ContextMenu>
@@ -473,7 +448,7 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                               </div>
                               {/* Column resize handle */}
                               <div
-                                className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-gray-300 transition-colors"
+                                className="absolute -right-[1px] top-0 h-full w-[3px] cursor-col-resize hover:bg-blue-500 transition-colors z-10"
                                 onMouseDown={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
@@ -706,91 +681,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
           </div>
         </div>
       </div>
-
-      {showCellDetails && selectedCell && (
-        <div className="w-80 border-l border-gray-200 bg-white flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">Cell Details</h3>
-            <Button variant="ghost" size="sm" onClick={() => setShowCellDetails(false)} className="h-8 w-8 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex-1 p-4 space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Position</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Row:</span>
-                    <span className="font-medium">{selectedCell.row + 1}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Column:</span>
-                    <span className="font-medium">{selectedColumnName}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Content</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Textarea
-                  value={selectedCellValue}
-                  onChange={(e) => handleCellChange(e.target.value, selectedCell.row, selectedCell.col)}
-                  placeholder="Enter cell content..."
-                  className="min-h-[100px] text-sm"
-                  disabled={isCellEnriching(selectedCell.row, selectedCell.col)}
-                />
-                <div className="mt-2 text-xs text-gray-500">{selectedCellValue.length} characters</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start bg-transparent"
-                  onClick={() => {
-                    if (selectedCell) {
-                      handleOpenEnrichmentForColumn(selectedCell.col, 'all')
-                    }
-                  }}
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Enrich this column
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start bg-transparent"
-                  onClick={() => handleCellChange("", selectedCell.row, selectedCell.col)}
-                >
-                  Clear cell
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start bg-transparent"
-                  onClick={handleCreateDashboard}
-                >
-                  <LayoutDashboard className="h-4 w-4 mr-2" />
-                  Create Dashboard
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
 
       <AIEnrichmentDialog 
         open={enrichmentDialogOpen} 
