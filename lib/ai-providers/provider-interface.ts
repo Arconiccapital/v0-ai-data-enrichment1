@@ -11,6 +11,10 @@ export interface SearchResult {
 export interface Citation {
   uri: string
   title: string
+  snippet?: string  // Relevant text snippet from source
+  domain?: string   // Domain name for display
+  date?: string     // Publication date if available
+  credibility?: 'high' | 'medium' | 'low'  // Source credibility
 }
 
 export interface EnrichmentResult {
@@ -18,6 +22,16 @@ export interface EnrichmentResult {
   sources: Citation[]
   fullResponse: string
   searchQueries?: string[]
+  metadata?: {
+    provider: string
+    model: string
+    confidence: number
+    status: string
+    reason?: string
+    usage?: any
+    repaired?: boolean
+    error?: string
+  }
 }
 
 export interface AIProvider {

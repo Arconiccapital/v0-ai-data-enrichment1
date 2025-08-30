@@ -1,7 +1,24 @@
 import { NextResponse } from 'next/server'
+import { validateResponse, extractFromVerboseResponse } from '@/lib/response-validator'
 
 // Initialize Perplexity API - ALWAYS use real web search
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || ''
+
+// Detect data type for format validation
+function detectDataType(prompt: string): string {
+  const lowerPrompt = prompt.toLowerCase()
+  
+  if (lowerPrompt.includes('email')) return 'email'
+  if (lowerPrompt.includes('website') || lowerPrompt.includes('url')) return 'url'
+  if (lowerPrompt.includes('phone') || lowerPrompt.includes('contact number')) return 'phone'
+  if (lowerPrompt.includes('ceo') || lowerPrompt.includes('founder') || lowerPrompt.includes('executive')) return 'ceo'
+  if (lowerPrompt.includes('company') || lowerPrompt.includes('companies') || lowerPrompt.includes('business')) return 'company'
+  if (lowerPrompt.includes('revenue') || lowerPrompt.includes('funding') || lowerPrompt.includes('valuation')) return 'currency'
+  if (lowerPrompt.includes('date') || lowerPrompt.includes('founded') || lowerPrompt.includes('established')) return 'date'
+  if (lowerPrompt.includes('employees') || lowerPrompt.includes('count')) return 'number'
+  
+  return 'text'
+}
 
 // Detect query type to provide better context
 function detectQueryType(prompt: string): string {
@@ -80,24 +97,53 @@ export async function POST(request: Request) {
     }
 
     
+    const dataType = detectDataType(prompt)
+    
+    // Add format requirements based on data type
+    let formatRequirement = ''
+    switch (dataType) {
+      case 'email':
+        formatRequirement = '\nFORMAT: Return emails as "firstname.lastname@domain.com" (lowercase, no extra text)'
+        break
+      case 'url':
+        formatRequirement = '\nFORMAT: Return URLs as "https://www.example.com" (must include https://)'
+        break
+      case 'phone':
+        formatRequirement = '\nFORMAT: Return phones as "+1-XXX-XXX-XXXX" (with country code)'
+        break
+      case 'ceo':
+        formatRequirement = '\nFORMAT: Return names as "Firstname Lastname" (no titles like CEO, Mr., Dr.)'
+        break
+      case 'currency':
+        formatRequirement = '\nFORMAT: Return amounts as "$X,XXX,XXX" (with $ and commas)'
+        break
+      case 'date':
+        formatRequirement = '\nFORMAT: Return dates as "YYYY-MM-DD" (ISO format)'
+        break
+      case 'number':
+        formatRequirement = '\nFORMAT: Return numbers as digits only (e.g., "5000" not "5k employees")'
+        break
+    }
+    
     const systemPrompt = `You are a precision web search assistant. Your ONLY job is to find REAL, VERIFIABLE information.
 
 UNIVERSAL RULES (apply to EVERY search):
 1. ONLY return items you can verify exist through web search
 2. Quality > Quantity: Better to return 3 real items than ${count} with fakes
 3. Each item must be specific and verifiable:
-   - People: Must have full names
+   - People: Must have full names (properly capitalized, no titles)
    - Companies: Must have actual company names  
    - Products: Must have specific product names
    - Places: Must have actual addresses/locations
 4. If you cannot find enough real data, return ONLY what exists
-5. NEVER create placeholder content
+5. NEVER create placeholder content${formatRequirement}
 
 PROHIBITED (never return these):
 - "unnamed" / "unspecified" / "unknown" / "various"
 - Generic descriptions without specific names
 - Numbered lists like "35 employees" or "10 managers"
 - Placeholder text or approximations
+- Extra text like "CEO:" or "Email:" - just the data
 - Made-up examples
 
 OUTPUT RULES:
@@ -199,8 +245,25 @@ Format: JSON array of strings, each item complete and specific.`
       typeof item === 'string' ? item.trim() : JSON.stringify(item)
     ).filter(item => item && item.length > 0)
     
+    // Apply format validation and standardization
+    const formattedItems = items.map(item => {
+      // If item is verbose or has wrong format, try extraction
+      if (dataType !== 'text') {
+        const extracted = extractFromVerboseResponse(item, dataType)
+        if (extracted) {
+          item = extracted
+        }
+      }
+      
+      // Validate and standardize the format
+      const validation = validateResponse(item, dataType)
+      return validation.isValid || validation.corrections.length > 0 
+        ? validation.value 
+        : item
+    })
+    
     // Apply validation to filter out hallucinations
-    const validatedItems = validateResults(items)
+    const validatedItems = validateResults(formattedItems)
     
     
     if (validatedItems.length === 0) {
@@ -219,6 +282,7 @@ Format: JSON array of strings, each item complete and specific.`
       type,
       source: 'perplexity-sonar',
       model: 'sonar',
+      dataType: dataType,
       // Add message if we found fewer than requested
       message: validatedItems.length < count 
         ? `Found ${validatedItems.length} verified results (requested ${count})` 
@@ -232,7 +296,9 @@ Format: JSON array of strings, each item complete and specific.`
         timestamp: new Date().toISOString(),
         itemsFound: validatedItems.length,
         requestedCount: count,
-        filteredOut: items.length - validatedItems.length
+        filteredOut: items.length - validatedItems.length,
+        dataType: dataType,
+        formatApplied: dataType !== 'text'
       }
     })
 

@@ -52,7 +52,7 @@ export function AIEnrichmentDialog({
   
   const [columnName, setColumnName] = useState("")
   const [prompt, setPrompt] = useState("")
-  const [dataType, setDataType] = useState("text")
+  const [dataType, setDataType] = useState("free")
   const [isEnriching, setIsEnriching] = useState(false)
   const [isNewColumn, setIsNewColumn] = useState(true)
   const [enrichmentRange, setEnrichmentRange] = useState<'first' | 'all'>('first')
@@ -75,7 +75,7 @@ export function AIEnrichmentDialog({
       // Load existing config if available but don't pre-fill prompt
       const existingConfig = getColumnEnrichmentConfig(columnIndex)
       if (existingConfig?.dataType) {
-        setDataType(existingConfig.dataType || "auto")
+        setDataType(existingConfig.dataType || "free")
       }
       
       // Set enrichment range based on scope
@@ -127,10 +127,10 @@ export function AIEnrichmentDialog({
           'json': 'text',
           'text': 'text'
         }
-        setDataType(formatMapping[storedFormat] || 'auto')
+        setDataType(formatMapping[storedFormat] || 'free')
         sessionStorage.removeItem('enrichmentFormat')
       } else {
-        setDataType("text")
+        setDataType("free")
       }
       
       if (storedContextColumns) {
@@ -167,25 +167,17 @@ export function AIEnrichmentDialog({
       let formatMode = 'free'
       let actualDataType = dataType
       
-      // Add format instructions if a specific type is selected
-      if (dataType === "text") {
-        // Name format - extract just names
+      // Add format instructions based on selected type
+      if (dataType === "free") {
+        // Free text - no format constraints
+        formatMode = 'free'
+        // No additional instructions needed
+      } else if (dataType === "data_only") {
+        // Data only - just the value, no explanation
         formatMode = 'strict'
-        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the name(s), no additional text, sentences, or explanation. Format: First Last (e.g., John Smith). If multiple names, separate with comma.`
-        fullPrompt = `${fullPrompt}\n[Expected type: name]`
-      } else if (dataType === "company") {
-        formatMode = 'strict'
-        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the company name, no additional text or explanation.`
-        fullPrompt = `${fullPrompt}\n[Expected type: company]`
-      } else if (dataType === "title") {
-        formatMode = 'strict'
-        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the job title, no additional text or explanation.`
-        fullPrompt = `${fullPrompt}\n[Expected type: title]`
-      } else if (dataType === "location") {
-        formatMode = 'strict'
-        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the location (city, state/country), no additional text or explanation.`
-        fullPrompt = `${fullPrompt}\n[Expected type: location]`
-      } else if (dataType !== "auto" && formatTemplates[dataType]) {
+        fullPrompt = `${fullPrompt}\n\nIMPORTANT: Return ONLY the requested data value, no additional text, explanation, or sentences.`
+      } else if (formatTemplates[dataType]) {
+        // Specific format selected
         formatMode = 'strict'
         const formatInstruction = formatTemplates[dataType].instruction
         if (!fullPrompt.includes(formatInstruction)) {
@@ -208,7 +200,7 @@ export function AIEnrichmentDialog({
 
       if (isNewColumn) {
         // Store format preference for new column
-        if (dataType !== "auto") {
+        if (dataType !== "free") {
           setColumnFormat(columnName, {
             formatMode: formatMode as any,
             dataType: actualDataType
@@ -259,7 +251,7 @@ export function AIEnrichmentDialog({
       onOpenChange(false)
       setPrompt("")
       setColumnName("")
-      setDataType("text")
+      setDataType("free")
       setSelectedContextColumns([])
       setShowAdvanced(false)
     } catch (error) {
@@ -313,30 +305,7 @@ export function AIEnrichmentDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Output Format</Label>
-            <Select value={dataType} onValueChange={setDataType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="text">Name</SelectItem>
-                <SelectItem value="email">Email Address</SelectItem>
-                <SelectItem value="url">Website/URL</SelectItem>
-                <SelectItem value="phone">Phone Number</SelectItem>
-                <SelectItem value="company">Company</SelectItem>
-                <SelectItem value="title">Job Title</SelectItem>
-                <SelectItem value="location">Location</SelectItem>
-                <SelectItem value="number">Number</SelectItem>
-                <SelectItem value="currency">Currency/Money</SelectItem>
-                <SelectItem value="percentage">Percentage</SelectItem>
-                <SelectItem value="date">Date</SelectItem>
-                <SelectItem value="auto">Other/Auto-detect</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Advanced Options - Context Columns */}
+          {/* Advanced Options */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
               <Button 
@@ -352,6 +321,30 @@ export function AIEnrichmentDialog({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-3 pt-2">
+              {/* Output Format - Now in Advanced Options */}
+              <div className="space-y-2">
+                <Label className="text-sm">Output Format (Optional)</Label>
+                <Select value={dataType} onValueChange={setDataType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">Free Text</SelectItem>
+                    <SelectItem value="data_only">Data Only</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="url">URL</SelectItem>
+                    <SelectItem value="phone">Phone</SelectItem>
+                    <SelectItem value="currency">Currency</SelectItem>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="number">Number</SelectItem>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Optional formatting for the output. Leave as "Free Text" for natural responses.
+                </p>
+              </div>
+              
               <div className="space-y-2">
                 <Label className="text-sm">Select context columns (optional)</Label>
                 <Select

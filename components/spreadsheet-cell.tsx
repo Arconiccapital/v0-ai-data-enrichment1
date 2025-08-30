@@ -3,6 +3,7 @@
 import { useState, memo } from "react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
+import { EnrichmentDetails } from "@/components/enrichment-details"
 import { Loader2, Copy, Clipboard, Scissors, Sparkles, Info, Paperclip } from "lucide-react"
 import {
   ContextMenu,
@@ -119,84 +120,11 @@ export const SpreadsheetCell = memo(function SpreadsheetCell({
         <TooltipTrigger asChild>
           {cellContent}
         </TooltipTrigger>
-        <TooltipContent className="max-w-lg p-4 space-y-3">
+        <TooltipContent className="max-w-lg p-0">
           {metadata ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 border-b pb-2">
-                <Sparkles className="h-4 w-4 text-blue-500" />
-                <span className="font-semibold text-sm">Enrichment Details</span>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-100">
-                  <p className="text-[11px] text-blue-700 mb-1">
-                    Searched for: <span className="font-medium">{metadata.query.includes('Find') ? metadata.query.split('Find')[1]?.split('for')[0]?.trim() : 'information'}</span>
-                  </p>
-                  {metadata.query.includes('for') && (
-                    <p className="text-[10px] text-blue-600">
-                      Entity: <span className="font-medium">{metadata.query.split('for')[1]?.trim()}</span>
-                    </p>
-                  )}
-                </div>
-                
-                <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Conclusion:</p>
-                  <div className="text-xs bg-green-50 p-2 rounded border border-green-200">
-                    <p className="font-medium text-gray-900">{value}</p>
-                  </div>
-                  {metadata.response !== value && metadata.response.length > 100 && (
-                    <details className="mt-2">
-                      <summary className="text-[10px] text-gray-500 cursor-pointer hover:text-gray-700">View full response</summary>
-                      <p className="text-[10px] text-gray-600 mt-1 p-2 bg-gray-50 rounded">{metadata.response}</p>
-                    </details>
-                  )}
-                </div>
-                
-                {metadata.citations && metadata.citations.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-700 mb-2">Sources:</p>
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                      {metadata.citations.map((citation: any, idx: number) => {
-                        // Handle both string URLs and citation objects
-                        const isUrl = typeof citation === 'string' && citation.startsWith('http')
-                        const url = isUrl ? citation : citation?.url
-                        const title = citation?.title || (isUrl ? new URL(citation).hostname : citation)
-                        
-                        return (
-                          <div key={idx} className="flex items-start gap-2">
-                            <span className="text-blue-500 text-[10px] font-medium mt-0.5">[{idx + 1}]</span>
-                            {url ? (
-                              <a 
-                                href={url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-600 hover:text-blue-800 underline break-all flex-1"
-                                title={url}
-                              >
-                                {title}
-                              </a>
-                            ) : (
-                              <span className="text-xs text-gray-600 flex-1">{title}</span>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="pt-2 border-t flex items-center justify-between">
-                  <p className="text-[10px] text-gray-400">
-                    Enriched: {new Date(metadata.timestamp).toLocaleTimeString()}
-                  </p>
-                  <p className="text-[10px] text-blue-600 font-medium">
-                    Verified with {metadata.citations?.length || 0} sources
-                  </p>
-                </div>
-              </div>
-            </div>
+            <EnrichmentDetails value={value} metadata={metadata} className="p-4" />
           ) : (
-            <p className="text-sm">{explanation}</p>
+            <p className="text-sm p-4">{explanation}</p>
           )}
         </TooltipContent>
       </Tooltip>

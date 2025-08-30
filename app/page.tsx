@@ -14,12 +14,14 @@ import { EnrichSidebar } from "@/components/enrich-sidebar"
 import { AnalyzeSidebar } from "@/components/analyze-sidebar"
 import { LovableOutput } from "@/components/lovable-output"
 import { ExportSidebar } from "@/components/export-sidebar"
+import { TabBar } from "@/components/tab-bar"
+import { TabContent } from "@/components/tab-content"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { Sparkles, Search } from "lucide-react"
 
 export default function HomePage() {
   const router = useRouter()
-  const { hasData } = useSpreadsheetStore()
+  const { hasData, tabs, activeTab, setActiveTab, removeTab } = useSpreadsheetStore()
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<string | null>(null)
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const [hasOpenedEnrich, setHasOpenedEnrich] = useState(false)
@@ -157,7 +159,16 @@ export default function HomePage() {
         {/* Content Area */}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           <div className="flex-1 min-w-0 flex flex-col">
-            <SpreadsheetView activeWorkflowStep={activeWorkflowStep} />
+            {/* Tab Bar */}
+            <TabBar 
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onTabClose={removeTab}
+            />
+            
+            {/* Tab Content */}
+            <TabContent activeWorkflowStep={activeWorkflowStep} />
           </div>
           
           {/* Right Sidebar based on active workflow step */}

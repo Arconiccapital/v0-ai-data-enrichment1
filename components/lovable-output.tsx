@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { DashboardPromptBuilder } from "@/components/dashboard-prompt-builder"
-import { DashboardPreview } from "@/components/dashboard-preview"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { X, Sparkles, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
@@ -15,10 +14,8 @@ interface LovableOutputProps {
 }
 
 export function LovableOutput({ onClose, onComplete }: LovableOutputProps) {
-  const { data, headers } = useSpreadsheetStore()
+  const { data, headers, addTab } = useSpreadsheetStore()
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedDashboard, setGeneratedDashboard] = useState<any>(null)
-  const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastPrompt, setLastPrompt] = useState<string>('')
 
@@ -54,14 +51,32 @@ export function LovableOutput({ onClose, onComplete }: LovableOutputProps) {
         throw new Error('No dashboard data received')
       }
       
-      // Set dashboard regardless of structure to see what we got
-      setGeneratedDashboard(dashboard)
-      setShowPreview(true)
+      
+      // Create a new tab for this dashboard
+      const tabId = `dashboard-${Date.now()}`
+      const usedColumns = headers // Could analyze which columns are actually used
+      
+      addTab({
+        id: tabId,
+        type: 'dashboard',
+        title: dashboard.title || 'Dashboard',
+        data: dashboard,
+        metadata: {
+          sourceColumns: usedColumns.slice(0, 3), // Show first 3 columns as example
+          createdAt: new Date(),
+          prompt: prompt
+        }
+      })
       
       // Show success toast
       toast.success('Dashboard generated successfully!', {
         description: `Created "${dashboard.title || 'AI Dashboard'}" with ${dashboard.sections?.length || 0} sections`
       })
+      
+      // Close the sidebar after successful generation
+      if (onClose) {
+        onClose()
+      }
       
     } catch (error: any) {
       console.error('Dashboard generation error:', error)
@@ -76,16 +91,6 @@ export function LovableOutput({ onClose, onComplete }: LovableOutputProps) {
     }
   }
 
-  const handleRefresh = async () => {
-    if (lastPrompt) {
-      await handleGenerate(lastPrompt)
-    }
-  }
-
-  const handleClosePreview = () => {
-    setShowPreview(false)
-    // Don't clear the dashboard data so user can reopen it
-  }
 
   return (
     <>
@@ -127,24 +132,6 @@ export function LovableOutput({ onClose, onComplete }: LovableOutputProps) {
               </Card>
             )}
 
-            {/* Success Message with Preview Button */}
-            {generatedDashboard && !showPreview && (
-              <Card className="border-green-200 bg-green-50 mb-4">
-                <div className="p-4">
-                  <p className="text-sm font-medium text-green-800 mb-2">
-                    Dashboard Generated Successfully!
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowPreview(true)}
-                    className="w-full"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    View Dashboard
-                  </Button>
-                </div>
-              </Card>
-            )}
 
             <Card className="border-0 shadow-none">
               <DashboardPromptBuilder
@@ -176,18 +163,6 @@ export function LovableOutput({ onClose, onComplete }: LovableOutputProps) {
           </div>
         </div>
       </div>
-
-      {/* Dashboard Preview Overlay */}
-      {showPreview && generatedDashboard && (
-        <>
-          <DashboardPreview
-            dashboard={generatedDashboard}
-            onClose={handleClosePreview}
-            onRefresh={handleRefresh}
-            isLoading={isGenerating}
-          />
-        </>
-      )}
     </>
   )
 }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, LayoutDashboard, BarChart3, Paperclip, FileText, Download } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, Paperclip } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
 import { useEnhancedClipboard } from "@/hooks/useEnhancedClipboard"
 import {
@@ -16,7 +16,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { useRouter } from "next/navigation"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { AIEnrichmentDialog } from "@/components/dialogs/ai-enrichment-dialog"
 import { DataAnalysisDialog } from "@/components/dialogs/data-analysis-dialog"
@@ -30,7 +29,7 @@ interface SpreadsheetViewProps {
   activeWorkflowStep?: string | null
 }
 
-export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
+export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const { 
     headers, 
     data, 
@@ -57,7 +56,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     getGenerationMetadata
   } = useSpreadsheetStore()
   const { getColumnAttachments } = useSpreadsheetStore()
-  const router = useRouter()
   const enhancedClipboard = useEnhancedClipboard()
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null)
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false)
@@ -197,48 +195,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
     setAttachmentManagerOpen(true)
   }
 
-  const handleGenerateOutput = () => {
-    // Store selected data in session storage for the outputs page
-    const selectedData = getSelectedData()
-    if (selectedData.rows.length > 0) {
-      sessionStorage.setItem('selectedData', JSON.stringify(selectedData))
-      router.push('/outputs')
-    }
-  }
-
-  const handleCreateDashboard = () => {
-    // Store selected data and navigate to dashboard creation
-    const selectedData = getSelectedData()
-    if (selectedData.rows.length > 0) {
-      sessionStorage.setItem('dashboardData', JSON.stringify(selectedData))
-      router.push('/dashboard/create')
-    } else if (selectedCell) {
-      // If no rows selected but a cell is selected, use that row
-      const cellData = {
-        headers: headers,
-        rows: [data[selectedCell.row]]
-      }
-      sessionStorage.setItem('dashboardData', JSON.stringify(cellData))
-      router.push('/dashboard/create')
-    }
-  }
-
-
-  const handleExport = () => {
-    const csvContent = [
-      headers.join(","),
-      ...data.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "enriched-data.csv"
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const generationMetadata = getGenerationMetadata()
   const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
 
@@ -254,100 +210,6 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
           />
         )}
         
-        {/* Action Toolbar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3">
-          {activeWorkflowStep ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {/* Import step - only show Add Column */}
-                {activeWorkflowStep === 'import' && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setAddColumnDialogOpen(true)}
-                    data-add-column
-                    className="bg-black text-white hover:bg-gray-800"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Column
-                  </Button>
-                )}
-
-                {/* Enrich step - only show Enrich button */}
-                {activeWorkflowStep === 'enrich' && (
-                  <Button
-                    size="sm"
-                    className="bg-black text-white hover:bg-gray-800"
-                    onClick={() => {
-                      setEnrichmentScope('all')
-                      setEnrichmentColumnIndex(undefined)
-                      setEnrichmentDialogOpen(true)
-                    }}
-                    data-enrich-button
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Enrich Data
-                  </Button>
-                )}
-
-                {/* Analyze step - only show Analyze button */}
-                {activeWorkflowStep === 'analyze' && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setAnalysisDialogOpen(true)}
-                    data-analysis-trigger
-                    className="bg-black text-white hover:bg-gray-800"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Analyze Data
-                  </Button>
-                )}
-
-                {/* Output step - show Report and Dashboard buttons */}
-                {activeWorkflowStep === 'output' && (
-                  <>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleGenerateOutput}
-                      data-output-trigger
-                      className="bg-black text-white hover:bg-gray-800"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Generate Report
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCreateDashboard}
-                      disabled={!hasSelection}
-                      data-dashboard-trigger
-                    >
-                      <LayoutDashboard className="h-4 w-4 mr-2" />
-                      Create Dashboard
-                    </Button>
-                  </>
-                )}
-
-                {/* Export step - only show Export button */}
-                {activeWorkflowStep === 'export' && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleExport}
-                    data-export-trigger
-                    className="bg-black text-white hover:bg-gray-800"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Data
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
         {/* Status Bar */}
         <div className="bg-gray-50 border-b border-gray-200 px-6 py-2">
           <div className="flex items-center justify-between">
@@ -555,8 +417,8 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                     ))}
                     {/* Add Column Button */}
                     <th 
-                      className="h-12 px-4 text-center border-r border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                      style={{ width: '150px', minWidth: '150px' }}
+                      className="h-12 px-4 text-center bg-white hover:bg-gray-50 transition-all cursor-pointer sticky right-0 z-20 shadow-[-2px_0_8px_rgba(0,0,0,0.05)]"
+                      style={{ width: '120px', minWidth: '120px' }}
                     >
                       {isAddingColumn ? (
                         <input
@@ -587,12 +449,10 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                       ) : (
                         <button
                           onClick={() => setIsAddingColumn(true)}
-                          className="w-full h-full flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                          className="w-full h-full flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-700 transition-all group"
                         >
-                          <div className="flex items-center justify-center gap-2 px-3 py-1 border-2 border-dashed border-gray-300 rounded hover:border-gray-400 transition-colors">
-                            <Plus className="h-4 w-4" />
-                            <span className="text-sm font-medium">Add Column</span>
-                          </div>
+                          <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-medium">Column</span>
                         </button>
                       )}
                     </th>
@@ -639,21 +499,22 @@ export function SpreadsheetView({ activeWorkflowStep }: SpreadsheetViewProps) {
                       ))}
                       {/* Empty cell for Add Column alignment */}
                       <td 
-                        className="border-r border-gray-200 bg-gray-50/50"
-                        style={{ width: '150px', minWidth: '150px' }}
+                        className="bg-white sticky right-0 z-10 shadow-[-2px_0_8px_rgba(0,0,0,0.03)]"
+                        style={{ width: '120px', minWidth: '120px' }}
                       />
                     </tr>
                   ))}
-                  {/* Add Row button */}
-                  <tr className="border-t-2 border-gray-300 hover:bg-gray-50 bg-gray-50/50">
+                  {/* Add Row button - positioned at bottom right */}
+                  <tr className="bg-gradient-to-t from-gray-50 to-transparent">
+                    <td colSpan={headers.length + 2} className="h-10"></td>
                     <td 
-                      colSpan={headers.length + 3}
-                      className="text-center py-3 cursor-pointer transition-colors"
+                      className="text-center cursor-pointer bg-white hover:bg-gray-50 transition-all sticky right-0 z-10 shadow-[-2px_0_8px_rgba(0,0,0,0.05)] group"
+                      style={{ width: '120px', minWidth: '120px' }}
                       onClick={() => addRow()}
                     >
-                      <div className="flex items-center justify-center text-gray-600 hover:text-gray-900">
-                        <Plus className="h-4 w-4 mr-2" />
-                        <span className="text-sm font-medium">Add Row</span>
+                      <div className="flex items-center justify-center text-gray-500 hover:text-gray-700 py-2.5">
+                        <Plus className="h-4 w-4 mr-1.5 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-medium">Row</span>
                       </div>
                     </td>
                   </tr>

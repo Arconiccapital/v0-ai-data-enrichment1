@@ -79,6 +79,14 @@ interface CellMetadata {
   citations?: any[]
   timestamp: string
   isEnriched: boolean
+  provider?: string
+  model?: string
+  confidence?: number
+  status?: string
+  verification?: any
+  entity?: string
+  routerType?: string
+  estimatedCost?: number
 }
 
 interface GenerationMetadata {
@@ -92,12 +100,29 @@ interface GenerationMetadata {
   source: string
 }
 
+export interface Tab {
+  id: string
+  type: 'spreadsheet' | 'dashboard' | 'analysis'
+  title: string
+  permanent?: boolean
+  data?: any // Store dashboard or analysis data
+  metadata?: {
+    sourceColumns?: string[]
+    createdAt?: Date
+    prompt?: string
+  }
+}
+
 interface SpreadsheetStore {
   headers: string[]
   data: string[][]
   hasData: boolean
   currentTemplate?: TemplateDefinition
   generationMetadata?: GenerationMetadata // Store generation process info
+  
+  // Tab management
+  tabs: Tab[]
+  activeTab: string
   enrichmentStatus: Record<number, EnrichmentStatus>
   columnFormats: Record<string, ColumnFormatPreference>
   columnEnrichmentConfigs: Record<number, ColumnEnrichmentConfig>
@@ -162,6 +187,13 @@ interface SpreadsheetStore {
   // Metadata methods
   getCellMetadata: (rowIndex: number, colIndex: number) => CellMetadata | undefined
   getGenerationMetadata: () => GenerationMetadata | undefined
+  
+  // Tab management methods
+  addTab: (tab: Tab) => void
+  removeTab: (tabId: string) => void
+  setActiveTab: (tabId: string) => void
+  getTab: (tabId: string) => Tab | undefined
+  updateTab: (tabId: string, updates: Partial<Tab>) => void
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
@@ -179,6 +211,10 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   selectedColumns: new Set(),
   selectionMode: 'multiple',
   filterCriteria: [],
+  
+  // Initialize with data tab
+  tabs: [{ id: 'data', type: 'spreadsheet', title: 'Data', permanent: true }],
+  activeTab: 'data',
 
   setData: (headers, rows) =>
     set({
@@ -437,7 +473,15 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
               response: result.process.response,
               citations: result.process.citations,
               timestamp: result.process.timestamp,
-              isEnriched: true
+              isEnriched: true,
+              provider: result.process.provider,
+              model: result.process.model,
+              confidence: result.process.confidence,
+              status: result.process.status,
+              verification: result.process.verification,
+              entity: result.process.entity,
+              routerType: result.process.routerType,
+              estimatedCost: result.process.estimatedCost
             })
             updates.cellMetadata = newMetadata
           }
@@ -530,7 +574,15 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
             response: result.process.response,
             citations: result.process.citations,
             timestamp: result.process.timestamp,
-            isEnriched: true
+            isEnriched: true,
+            provider: result.process.provider,
+            model: result.process.model,
+            confidence: result.process.confidence,
+            status: result.process.status,
+            verification: result.process.verification,
+            entity: result.process.entity,
+            routerType: result.process.routerType,
+            estimatedCost: result.process.estimatedCost
           })
           updates.cellMetadata = newMetadata
         }
@@ -626,7 +678,15 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
               response: result.process.response,
               citations: result.process.citations,
               timestamp: result.process.timestamp,
-              isEnriched: true
+              isEnriched: true,
+              provider: result.process.provider,
+              model: result.process.model,
+              confidence: result.process.confidence,
+              status: result.process.status,
+              verification: result.process.verification,
+              entity: result.process.entity,
+              routerType: result.process.routerType,
+              estimatedCost: result.process.estimatedCost
             })
             updates.cellMetadata = newMetadata
           }
@@ -856,7 +916,15 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
               response: result.process.response,
               citations: result.process.citations,
               timestamp: result.process.timestamp,
-              isEnriched: true
+              isEnriched: true,
+              provider: result.process.provider,
+              model: result.process.model,
+              confidence: result.process.confidence,
+              status: result.process.status,
+              verification: result.process.verification,
+              entity: result.process.entity,
+              routerType: result.process.routerType,
+              estimatedCost: result.process.estimatedCost
             })
             updates.cellMetadata = newMetadata
           }
@@ -1205,6 +1273,41 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   getGenerationMetadata: () => {
     return get().generationMetadata
   },
+  
+  // Tab management methods
+  addTab: (tab) =>
+    set((state) => ({
+      tabs: [...state.tabs, tab],
+      activeTab: tab.id // Automatically switch to new tab
+    })),
+  
+  removeTab: (tabId) =>
+    set((state) => {
+      const newTabs = state.tabs.filter(t => t.id !== tabId)
+      const newActiveTab = state.activeTab === tabId 
+        ? 'data' // Return to data tab if closing active tab
+        : state.activeTab
+      return {
+        tabs: newTabs,
+        activeTab: newActiveTab
+      }
+    }),
+  
+  setActiveTab: (tabId) =>
+    set({ activeTab: tabId }),
+  
+  getTab: (tabId) => {
+    return get().tabs.find(t => t.id === tabId)
+  },
+  
+  updateTab: (tabId, updates) =>
+    set((state) => ({
+      tabs: state.tabs.map(tab => 
+        tab.id === tabId 
+          ? { ...tab, ...updates }
+          : tab
+      )
+    })),
 }))
 
 async function enrichCell(value: string, prompt: string): Promise<string> {
@@ -1251,7 +1354,20 @@ async function enrichCellWithContext(
   headers: string[],
   customFormat?: CustomFormat,
   attachmentContext?: string
-): Promise<{ value: string; process?: { query: string; response: string; citations?: any[]; timestamp: string } }> {
+): Promise<{ value: string; process?: { 
+  query: string; 
+  response: string; 
+  citations?: any[]; 
+  timestamp: string;
+  provider?: string;
+  model?: string;
+  confidence?: number;
+  status?: string;
+  verification?: any;
+  entity?: string;
+  routerType?: string;
+  estimatedCost?: number;
+} }> {
   try {
     // Replace column placeholders in prompt with actual values
     let processedPrompt = prompt

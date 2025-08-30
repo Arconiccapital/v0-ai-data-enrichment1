@@ -1,7 +1,17 @@
 import { validateAndExtractValue, formatTemplates, applyCustomFormat } from "@/lib/enrichment-utils"
+import { validateResponse } from "@/lib/response-validator"
+import { AIRouter } from "@/lib/ai-router"
+import { LLMRouter } from "@/lib/ai-llm-router"
+import { PerplexityProvider } from "@/lib/ai-providers/perplexity-provider"
+import { OpenAIProvider } from "@/lib/ai-providers/openai-provider"
+import type { AIProvider } from "@/lib/ai-providers/provider-interface"
 
-// Initialize Perplexity API - ALWAYS use real web search
-const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || ''
+// Initialize routers
+const keywordRouter = new AIRouter()
+const llmRouter = new LLMRouter()
+
+// Use LLM router if enabled, otherwise fallback to keyword router
+const USE_LLM_ROUTER = process.env.USE_LLM_ROUTER !== 'false' // Default to true
 
 export async function POST(request: Request) {
   try {
@@ -9,13 +19,6 @@ export async function POST(request: Request) {
 
     if (!prompt) {
       return Response.json({ error: "Missing prompt" }, { status: 400 })
-    }
-
-    // Check if API key is configured
-    if (!PERPLEXITY_API_KEY) {
-      return Response.json({ 
-        error: 'Perplexity API key not configured. Please add PERPLEXITY_API_KEY to your environment variables.' 
-      }, { status: 500 })
     }
     
     // Extract format mode and data type from prompt
@@ -33,124 +36,203 @@ export async function POST(request: Request) {
       .replace(/\[Pattern: [^\]]+\]/, '')
       .trim()
     
-    // Build context for Perplexity
-    let contextStr = ''
+    // Build context object
+    const context: Record<string, any> = {}
     
     // Add row context if available
     if (rowContext && Object.keys(rowContext).length > 0) {
-      contextStr += `Context about the entity: ${JSON.stringify(rowContext)}\n`
+      context.rowData = rowContext
     }
     
     // Add attachment context if available
     if (attachmentContext && attachmentContext.length > 0) {
-      contextStr += `\nAdditional context from attached documents:\n${attachmentContext}`
+      context.attachments = attachmentContext
     }
     
-    // Create type-specific instructions
-    const typeInstructions = getTypeInstructions(expectedType)
+    // Route to appropriate provider using LLM or keyword router
+    let providerSelection: any
     
-
-    // Use Perplexity for enrichment with web search
-    const systemPrompt = `You are a web search assistant finding real information.
-${typeInstructions}
-Search the web for actual, current information about this entity.
-Return ONLY the requested data with no additional text or formatting.
-If you cannot find the information, return "N/A".`
-
-    const userPrompt = `${contextStr}
-Current value: ${value || 'empty'}
-Find real information for: ${cleanPrompt}
-Return only the specific data requested, nothing else.`
-
-    // Store the search query for audit trail
-    const searchQuery = `Find ${cleanPrompt} for ${value || 'the entity'}${contextStr ? ' with context' : ''}`
-
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 150,
-        return_citations: true,
-        return_related_questions: false
-      })
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      console.error("[v0] Perplexity API error:", error)
-      return Response.json({ 
-        error: `Failed to enrich data: Perplexity API error ${response.status}` 
-      }, { status: 500 })
+    if (USE_LLM_ROUTER) {
+      // Use intelligent LLM routing
+      try {
+        const llmDecision = await llmRouter.route({
+          prompt: cleanPrompt,
+          value: value || null,
+          rowData: context.rowData || {},
+          existingColumns: Object.keys(rowContext || {})
+        })
+        
+        console.log(`[Enrichment] LLM Router decision: ${llmDecision.provider} (${llmDecision.reasoning})`)
+        
+        // Convert LLM decision to provider selection format
+        providerSelection = {
+          provider: llmDecision.provider,
+          model: llmDecision.provider === 'perplexity' ? 'sonar' : 
+                 llmDecision.provider === 'openai' ? 'gpt-4o-mini' : 
+                 'claude-3-haiku-20240307',
+          temperature: llmDecision.task_type === 'search' ? 0.1 : 0,
+          maxTokens: llmDecision.task_type === 'generate' ? 500 : 150,
+          estimatedCost: llmDecision.estimated_cost,
+          reason: llmDecision.reasoning,
+          routerType: 'llm',
+          confidence: llmDecision.confidence
+        }
+      } catch (error) {
+        console.error('[Enrichment] LLM Router failed, falling back to keyword router:', error)
+        providerSelection = keywordRouter.route(cleanPrompt, context)
+        providerSelection.routerType = 'keyword-fallback'
+      }
+    } else {
+      // Use keyword-based routing
+      providerSelection = keywordRouter.route(cleanPrompt, context)
+      providerSelection.routerType = 'keyword'
     }
-
-    const data = await response.json()
-
-    let enrichedValue = value // fallback to original value
-    let fullResponse = '' // Store the full response for audit trail
-    let citations = [] // Store citations/sources
-
-    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-      fullResponse = data.choices[0].message.content
-      enrichedValue = fullResponse.trim()
+    
+    console.log(`[Enrichment] Final routing to ${providerSelection.provider}: ${providerSelection.reason}`)
+    
+    // Initialize the selected provider
+    let provider: AIProvider
+    
+    switch (providerSelection.provider) {
+      case 'openai':
+        provider = new OpenAIProvider({ 
+          apiKey: process.env.OPENAI_API_KEY || '',
+          model: providerSelection.model,
+          temperature: providerSelection.temperature,
+          maxTokens: providerSelection.maxTokens
+        })
+        break
       
-      // Extract citations if available
-      if (data.citations) {
-        citations = data.citations
+      case 'perplexity':
+        provider = new PerplexityProvider({
+          apiKey: process.env.PERPLEXITY_API_KEY || '',
+          model: providerSelection.model,
+          temperature: providerSelection.temperature,
+          maxTokens: providerSelection.maxTokens
+        })
+        break
+      
+      case 'claude':
+        // For now, fall back to OpenAI if Claude is selected
+        // TODO: Implement Claude provider
+        console.log('[Enrichment] Claude not implemented, falling back to OpenAI')
+        provider = new OpenAIProvider({
+          apiKey: process.env.OPENAI_API_KEY || '',
+          model: 'gpt-4o-mini'
+        })
+        break
+      
+      default:
+        throw new Error(`Unknown provider: ${providerSelection.provider}`)
+    }
+    
+    // Call the provider
+    try {
+      const result = await provider.enrichValue(
+        value || '',
+        cleanPrompt,
+        context
+      )
+      
+      let enrichedValue = result.value
+      
+      // Apply final validation and standardization
+      if (expectedType && expectedType !== 'text' && expectedType !== 'free') {
+        const finalValidation = validateResponse(enrichedValue, expectedType)
+        if (finalValidation.isValid || finalValidation.corrections.length > 0) {
+          enrichedValue = finalValidation.value
+          console.log(`[Enrichment] Applied ${finalValidation.corrections.length} format corrections for ${expectedType}`)
+        }
       }
       
-      // Clean up common response patterns
-      enrichedValue = enrichedValue
-        .replace(/^["']|["']$/g, '') // Remove quotes
-        .replace(/^\*\*|\*\*$/g, '') // Remove markdown bold
-        .replace(/^-\s*/, '') // Remove list markers
-      
-      // Apply format validation
+      // Apply format validation if specified
       if (formatMode === 'custom' && customFormat) {
         const customValidation = applyCustomFormat(enrichedValue, customFormat)
         if (customValidation.extracted) {
           enrichedValue = customValidation.extracted
         }
-      } else if (formatMode === 'strict') {
+      } else if (formatMode === 'strict' && expectedType !== 'free') {
         const validation = validateAndExtractValue(enrichedValue, expectedType)
         if (validation.extracted) {
           enrichedValue = validation.extracted || validation.value
         }
       }
-    } else {
+      
+      const isValidated = formatMode === 'custom' 
+        ? customFormat && applyCustomFormat(enrichedValue.trim(), customFormat).valid
+        : formatMode === 'strict' && expectedType !== 'free'
+          ? validateAndExtractValue(enrichedValue.trim(), expectedType).valid
+          : true
+      
       return Response.json({ 
-        error: 'No response from Perplexity API' 
-      }, { status: 500 })
-    }
-
-    const isValidated = formatMode === 'custom' 
-      ? customFormat && applyCustomFormat(enrichedValue.trim(), customFormat).valid
-      : formatMode === 'strict' 
-        ? validateAndExtractValue(enrichedValue.trim(), expectedType).valid
-        : true
-
-    return Response.json({ 
-      enrichedValue: enrichedValue.trim(),
-      dataType: expectedType,
-      formatMode,
-      validated: isValidated,
-      source: 'perplexity',
-      // Add process information for audit trail
-      process: {
-        query: searchQuery,
-        response: fullResponse,
-        citations: citations,
-        timestamp: new Date().toISOString()
+        enrichedValue: enrichedValue.trim(),
+        dataType: expectedType,
+        formatMode,
+        validated: isValidated,
+        source: providerSelection.provider,
+        model: providerSelection.model,
+        // Add process information for audit trail
+        process: {
+          query: cleanPrompt,
+          response: result.fullResponse,
+          citations: result.metadata?.citations || result.sources,
+          timestamp: result.metadata?.timestamp || new Date().toISOString(),
+          provider: providerSelection.provider,
+          model: providerSelection.model,
+          estimatedCost: providerSelection.estimatedCost,
+          routingReason: providerSelection.reason,
+          routerType: providerSelection.routerType,
+          routerConfidence: providerSelection.confidence,
+          confidence: result.metadata?.confidence || 1,
+          status: result.metadata?.status || 'success',
+          verification: result.metadata?.verification || {},
+          entity: result.metadata?.entity || value
+        }
+      })
+      
+    } catch (providerError: any) {
+      console.error(`[Enrichment] Provider ${providerSelection.provider} failed:`, providerError)
+      
+      // Try fallback provider if main provider fails
+      if (providerSelection.provider !== 'openai') {
+        console.log('[Enrichment] Attempting fallback to OpenAI')
+        const fallbackProvider = new OpenAIProvider({
+          apiKey: process.env.OPENAI_API_KEY || '',
+          model: 'gpt-4o-mini'
+        })
+        
+        try {
+          const fallbackResult = await fallbackProvider.enrichValue(
+            value || '',
+            cleanPrompt,
+            context
+          )
+          
+          return Response.json({
+            enrichedValue: fallbackResult.value.trim(),
+            dataType: expectedType,
+            formatMode,
+            validated: true,
+            source: 'openai',
+            model: 'gpt-4o-mini',
+            process: {
+              query: cleanPrompt,
+              response: fallbackResult.fullResponse,
+              citations: fallbackResult.sources,
+              timestamp: new Date().toISOString(),
+              provider: 'openai',
+              model: 'gpt-4o-mini',
+              fallback: true,
+              originalError: providerError.message
+            }
+          })
+        } catch (fallbackError) {
+          console.error('[Enrichment] Fallback also failed:', fallbackError)
+        }
       }
-    })
+      
+      throw providerError
+    }
 
   } catch (error: any) {
     console.error("Enrichment API error:", error)
