@@ -16,19 +16,72 @@ interface AnalyzeSidebarProps {
 
 const analysisTemplates = {
   sales: [
-    { name: "Lead Scoring", prompt: "Score leads from 1-10 based on company size and engagement" },
-    { name: "Deal Size Prediction", prompt: "Predict deal size based on company metrics" },
-    { name: "Win Probability", prompt: "Calculate win probability for each opportunity" }
+    { 
+      name: "Win Rate Analysis", 
+      prompt: "Analyze why deals are won or lost, identify patterns in successful deals",
+      description: "Understand what drives sales success"
+    },
+    { 
+      name: "Sales Rep Performance", 
+      prompt: "Rank sales reps by performance, identify top performers and coaching opportunities",
+      description: "Find your top performers and coaching needs"
+    },
+    { 
+      name: "Pipeline Health Check", 
+      prompt: "Assess pipeline quality, identify risks and opportunities to hit targets",
+      description: "Will you hit your sales targets?"
+    }
   ],
   customer: [
-    { name: "Churn Risk", prompt: "Identify customers at risk of churning" },
-    { name: "Segmentation", prompt: "Segment customers by value and behavior" },
-    { name: "Lifetime Value", prompt: "Calculate customer lifetime value" }
+    { 
+      name: "Customer Health Score", 
+      prompt: "Calculate health scores to identify at-risk customers before they churn",
+      description: "Prevent churn before it happens"
+    },
+    { 
+      name: "Best Customer Analysis", 
+      prompt: "Identify your most valuable customers and what makes them successful",
+      description: "Focus on your best customers"
+    },
+    { 
+      name: "Usage Pattern Analysis", 
+      prompt: "Analyze how customers use your product to improve engagement",
+      description: "Understand customer behavior"
+    }
+  ],
+  operations: [
+    { 
+      name: "Process Bottlenecks", 
+      prompt: "Identify where processes slow down and impact efficiency",
+      description: "Find and fix operational delays"
+    },
+    { 
+      name: "Quality Metrics", 
+      prompt: "Analyze quality issues, defect rates, and root causes",
+      description: "Improve product/service quality"
+    },
+    { 
+      name: "Resource Utilization", 
+      prompt: "Assess how efficiently resources are being used",
+      description: "Optimize resource allocation"
+    }
   ],
   financial: [
-    { name: "Revenue Forecast", prompt: "Forecast revenue based on historical data" },
-    { name: "Risk Assessment", prompt: "Assess financial risk level" },
-    { name: "Profitability Analysis", prompt: "Analyze profitability by segment" }
+    { 
+      name: "Unit Economics", 
+      prompt: "Calculate unit economics including CAC, LTV, and payback period",
+      description: "Is your business model profitable?"
+    },
+    { 
+      name: "Burn Rate Analysis", 
+      prompt: "Analyze cash burn rate and runway projections",
+      description: "How long will your cash last?"
+    },
+    { 
+      name: "ROI Analysis", 
+      prompt: "Calculate return on investment for different initiatives",
+      description: "What's working and what's not?"
+    }
   ]
 }
 
@@ -84,19 +137,21 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
     // onClose() // Don't close automatically
   }
 
-  const handleTemplateClick = async (template: { name: string; prompt: string }, category: string) => {
+  const handleTemplateClick = async (template: { name: string; prompt: string; description?: string }, category: string) => {
     // Map template names to analysis types
     const analysisTypeMap: Record<string, string> = {
-      'Lead Scoring': 'lead-scoring',
-      'Deal Size Prediction': 'deal-prediction',
-      'Win Probability': 'win-probability',
-      'Churn Risk': 'churn-risk',
-      'Segmentation': 'segmentation',
-      'Lifetime Value': 'lifetime-value',
-      'Revenue Forecast': 'revenue-forecast',
-      'Risk Assessment': 'risk-assessment',
-      'Profitability Analysis': 'profitability',
-      'DCF Model': 'dcf-model'
+      'Win Rate Analysis': 'win-rate',
+      'Sales Rep Performance': 'rep-performance',
+      'Pipeline Health Check': 'pipeline-health',
+      'Customer Health Score': 'customer-health',
+      'Best Customer Analysis': 'best-customers',
+      'Usage Pattern Analysis': 'usage-patterns',
+      'Process Bottlenecks': 'bottlenecks',
+      'Quality Metrics': 'quality-metrics',
+      'Resource Utilization': 'resource-utilization',
+      'Unit Economics': 'unit-economics',
+      'Burn Rate Analysis': 'burn-rate',
+      'ROI Analysis': 'roi-analysis'
     }
     
     const analysisType = analysisTypeMap[template.name] || 'custom'
@@ -112,6 +167,7 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
   const categoryIcons = {
     sales: TrendingUp,
     customer: Users,
+    operations: BarChart3,
     financial: DollarSign
   }
 
@@ -173,7 +229,11 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
                           className="flex-1"
                         >
                           <Icon className="h-4 w-4 mr-1" />
-                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                          {category === 'sales' ? 'Sales Performance' :
+                           category === 'customer' ? 'Customer Intelligence' :
+                           category === 'operations' ? 'Operational Excellence' :
+                           category === 'financial' ? 'Financial Analysis' :
+                           category.charAt(0).toUpperCase() + category.slice(1)}
                         </Button>
                       )
                     })}
@@ -195,7 +255,7 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
                         </CardHeader>
                         <CardContent className="pb-3">
                           <CardDescription className="text-xs">
-                            {template.prompt}
+                            {template.description || template.prompt}
                           </CardDescription>
                         </CardContent>
                       </Card>
