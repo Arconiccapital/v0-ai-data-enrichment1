@@ -85,7 +85,21 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
   const [, setResizingColumn] = useState<number | null>(null)
   const [showGenerationInfo, setShowGenerationInfo] = useState(true)
+  const [highlightColumns, setHighlightColumns] = useState(false)
+  const [showEnrichHint, setShowEnrichHint] = useState(true)
+  const [hasInteractedWithColumn, setHasInteractedWithColumn] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Listen for enrichment highlight event
+  useEffect(() => {
+    const handleHighlightEnrichment = () => {
+      setHighlightColumns(true)
+      setTimeout(() => setHighlightColumns(false), 3000) // Remove highlight after 3 seconds
+    }
+    
+    window.addEventListener('highlightEnrichment', handleHighlightEnrichment)
+    return () => window.removeEventListener('highlightEnrichment', handleHighlightEnrichment)
+  }, [])
 
   // Keyboard shortcuts and paste handler
   useEffect(() => {
@@ -212,6 +226,8 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
     setEnrichmentScope(scope)
     setCurrentEnrichRow(rowIndex)
     setEnrichmentDialogOpen(true)
+    setHasInteractedWithColumn(true)
+    setShowEnrichHint(false)
   }
 
   const handleOpenAttachmentManager = (colIndex: number) => {
@@ -350,17 +366,29 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                     {headers.map((header, index) => (
                       <th
                         key={index}
-                        className="h-12 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative min-w-[100px] overflow-visible"
+                        className={cn(
+                          "h-12 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-900 border-r border-gray-200 bg-gray-50 group hover:bg-gray-100 transition-colors relative min-w-[100px] overflow-visible",
+                          highlightColumns && "animate-pulse bg-blue-50 border-blue-300"
+                        )}
                         style={{ width: `${columnWidths[index] || 200}px` }}
                       >
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
                             <div className="relative h-full flex items-center">
                               <div 
-                                className="flex items-center gap-2 cursor-pointer flex-1"
+                                className="flex items-center gap-2 cursor-pointer flex-1 relative"
                                 onClick={() => handleOpenEnrichmentForColumn(index, 'all')}
                               >
                                 <span className="truncate flex-1">{header}</span>
+                                {/* Show hint tooltip on first column if user hasn't interacted yet */}
+                                {index === 0 && showEnrichHint && !hasInteractedWithColumn && (
+                                  <div className="absolute -top-10 left-0 z-50 animate-bounce">
+                                    <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                                      Click to enrich with AI ✨
+                                      <div className="absolute -bottom-1 left-4 w-2 h-2 bg-blue-600 transform rotate-45"></div>
+                                    </div>
+                                  </div>
+                                )}
                                 {getColumnAttachments(index).length > 0 && (
                                   <Badge variant="secondary" className="h-5 px-1 text-[10px] flex items-center gap-1">
                                     <Paperclip className="h-2.5 w-2.5" />

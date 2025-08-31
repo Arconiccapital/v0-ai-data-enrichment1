@@ -45,15 +45,9 @@ export function WorkflowIndicator({ onStepClick, activeStep }: WorkflowIndicator
     },
     {
       id: "analyze",
-      label: "Analyze",
+      label: "Generate",
       icon: BarChart3,
-      description: "Generate insights"
-    },
-    {
-      id: "output",
-      label: "Output",
-      icon: FileText,
-      description: "Create reports & dashboards"
+      description: "Create insights & reports"
     },
     {
       id: "export",

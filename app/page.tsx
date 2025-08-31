@@ -10,13 +10,13 @@ import { SpreadsheetView } from "@/components/spreadsheet-view"
 import { AppNavigation } from "@/components/app-navigation"
 import { WorkflowIndicator } from "@/components/workflow-indicator"
 import { SidebarNav } from "@/components/sidebar-nav"
-import { AnalyzeSidebar } from "@/components/analyze-sidebar"
-import { LovableOutput } from "@/components/lovable-output"
+import { GenerateSidebar } from "@/components/generate-sidebar"
 import { ExportSidebar } from "@/components/export-sidebar"
 import { TabBar } from "@/components/tab-bar"
 import { TabContent } from "@/components/tab-content"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { Sparkles, Search } from "lucide-react"
+import { toast } from "sonner"
 
 export default function HomePage() {
   const router = useRouter()
@@ -102,10 +102,21 @@ export default function HomePage() {
   }
 
   const handleWorkflowStepClick = (stepId: string) => {
-    // Special handling for enrich - no sidebar needed
+    // Special handling for enrich - show guidance
     if (stepId === 'enrich') {
-      // Enrichment happens through column headers
-      // Could show a toast or highlight columns here
+      // Show helpful toast with guidance
+      toast.info('Click any column header to enrich data', {
+        description: 'Right-click for more options or click the sparkles icon to configure AI enrichment',
+        duration: 5000,
+        action: {
+          label: 'Got it',
+          onClick: () => {}
+        }
+      })
+      
+      // Trigger column header highlight effect
+      const event = new CustomEvent('highlightEnrichment')
+      window.dispatchEvent(event)
       return
     }
     
@@ -123,7 +134,7 @@ export default function HomePage() {
 
   // Function to progress to the next workflow step
   const progressToNextStep = () => {
-    const workflowSteps = ['enrich', 'analyze', 'output', 'export']
+    const workflowSteps = ['enrich', 'analyze', 'export']
     const currentIndex = workflowSteps.indexOf(activeWorkflowStep || '')
     
     if (currentIndex !== -1 && currentIndex < workflowSteps.length - 1) {
@@ -171,14 +182,8 @@ export default function HomePage() {
           {/* Right Sidebar based on active workflow step */}
           {activeWorkflowStep && (
             <div className="absolute lg:relative inset-0 lg:inset-auto z-30 lg:z-auto flex-shrink-0">
-              {activeWorkflowStep === 'analyze' && (
-                <AnalyzeSidebar 
-                  onClose={() => setActiveWorkflowStep(null)}
-                  onComplete={progressToNextStep}
-                />
-              )}
-              {activeWorkflowStep === 'output' && (
-                <LovableOutput 
+              {(activeWorkflowStep === 'analyze' || activeWorkflowStep === 'output') && (
+                <GenerateSidebar 
                   onClose={() => setActiveWorkflowStep(null)}
                   onComplete={progressToNextStep}
                 />
