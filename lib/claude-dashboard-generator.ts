@@ -386,6 +386,21 @@ export async function generateDashboardFromPrompt(
   prompt: string,
   data: DataContext
 ): Promise<any> {
+  const lowerPrompt = prompt.toLowerCase()
+  
+  // Check if this is an ETF comparison request - return special component
+  if (lowerPrompt.includes('etf') || lowerPrompt.includes('exchange traded fund') || 
+      (lowerPrompt.includes('fund') && lowerPrompt.includes('comparison'))) {
+    return generateETFComparisonDashboard(data)
+  }
+  
+  // Check if this is a VC investment analysis request
+  if (lowerPrompt.includes('vc') || lowerPrompt.includes('venture') || 
+      (lowerPrompt.includes('investment') && lowerPrompt.includes('scoring')) ||
+      lowerPrompt.includes('diligence')) {
+    return generateVCInvestmentDashboard(data)
+  }
+  
   const anthropic = getAnthropicClient()
   if (!anthropic) {
     return generateMockDashboardFromPrompt(prompt, data)
@@ -690,9 +705,15 @@ function generateMockDashboardFromPrompt(prompt: string, data: DataContext) {
   
   // Check if this is a VC investment analysis request
   if (lowerPrompt.includes('vc') || lowerPrompt.includes('venture') || 
-      lowerPrompt.includes('investment') || lowerPrompt.includes('scoring') ||
+      (lowerPrompt.includes('investment') && lowerPrompt.includes('scoring')) ||
       lowerPrompt.includes('diligence')) {
     return generateVCInvestmentDashboard(data)
+  }
+  
+  // Check if this is an ETF comparison request
+  if (lowerPrompt.includes('etf') || lowerPrompt.includes('exchange traded fund') || 
+      (lowerPrompt.includes('fund') && lowerPrompt.includes('comparison'))) {
+    return generateETFComparisonDashboard(data)
   }
   
   // Check for other specific dashboard types
@@ -766,10 +787,26 @@ function generateMockDashboardFromPrompt(prompt: string, data: DataContext) {
   }
 }
 
+function generateETFComparisonDashboard(data: DataContext) {
+  // Return a special type that indicates this should render the ETF component
+  return {
+    type: 'etf-dashboard',
+    title: "ETF Comparison & Analysis Dashboard",
+    description: "Professional ETF analytics with real-time updates",
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      rowCount: data.rows.length,
+      fromPrompt: true,
+      specialComponent: true
+    }
+  }
+}
+
 function generateVCInvestmentDashboard(data: DataContext) {
+  // Return special VC dashboard type to use the dedicated component
   return {
     title: "VC Investment Analysis Dashboard",
-    type: "vc-investment",
+    type: "vc-dashboard",
     sections: [
       {
         title: "Investment Scoring Framework",

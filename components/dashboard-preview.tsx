@@ -791,6 +791,32 @@ export function DashboardPreview({ dashboard, onClose, onRefresh, isLoading }: D
     )
   }
 
+  // Check if this is an ETF dashboard
+  if (dashboard?.type === 'etf-dashboard') {
+    const ETFDashboard = require('./etf-dashboard').default
+    return (
+      <div className="fixed inset-0 z-50 bg-white overflow-auto">
+        <div className="flex items-center justify-between p-4 border-b bg-white sticky top-0 z-10">
+          <Button onClick={onClose} variant="outline" size="sm">
+            <X className="h-4 w-4 mr-2" />
+            Close
+          </Button>
+        </div>
+        <ETFDashboard />
+      </div>
+    )
+  }
+
+  // Check if this is a VC dashboard
+  if (dashboard?.type === 'vc-dashboard') {
+    const VCDashboard = require('./vc-dashboard').default
+    return (
+      <div className="fixed inset-0 z-50 bg-white overflow-auto">
+        <VCDashboard onClose={onClose} />
+      </div>
+    )
+  }
+
   // Check if this is a VC Investment dashboard
   if (dashboard?.type === 'vc-investment') {
     return (

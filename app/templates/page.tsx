@@ -44,7 +44,7 @@ export default function TemplatesPage() {
       // Show popular/featured templates as presets
       return ['company', 'investor', 'linkedin', 'price-comparison', 'real-estate', 
               'recruiting', 'research-papers', 'startup', 'stock-analysis', 
-              'travel-planning', 'twitter-activity', 'twitter-profile'].includes(template.id)
+              'travel-planning', 'twitter-activity', 'twitter-profile', 'etf', 'vc_investment'].includes(template.id)
     }
     return template.category === selectedCategory
   })

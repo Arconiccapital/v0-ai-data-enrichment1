@@ -753,9 +753,10 @@ export const dashboardTemplates: Record<string, DashboardTemplate> = {
         ]
       }
     ]
-  },
+  }
 
-  etf_comparison: {
+  // ETF template removed - using special ETF dashboard component instead
+  /*etf_comparison: {
     id: "etf_comparison",
     name: "ETF Comparison & Analysis",
     description: "Comprehensive ETF comparison dashboard with performance, risk, composition, and cost analysis",
@@ -1063,7 +1064,7 @@ export const dashboardTemplates: Record<string, DashboardTemplate> = {
       }
     ],
     defaultPrompt: "Create a comprehensive ETF comparison dashboard analyzing performance, risk, composition, costs, and relative metrics across multiple ETFs with interactive visualizations and benchmark comparisons"
-  }
+  }*/
 }
 
 // Populate categories with templates

@@ -1,17 +1,8 @@
 import { validateAndExtractValue, formatTemplates, applyCustomFormat } from "@/lib/enrichment-utils"
 import { validateResponse } from "@/lib/response-validator"
-import { AIRouter } from "@/lib/ai-router"
-import { LLMRouter } from "@/lib/ai-llm-router"
 import { PerplexityProvider } from "@/lib/ai-providers/perplexity-provider"
 import { OpenAIProvider } from "@/lib/ai-providers/openai-provider"
 import type { AIProvider } from "@/lib/ai-providers/provider-interface"
-
-// Initialize routers
-const keywordRouter = new AIRouter()
-const llmRouter = new LLMRouter()
-
-// Use LLM router if enabled, otherwise fallback to keyword router
-const USE_LLM_ROUTER = process.env.USE_LLM_ROUTER !== 'false' // Default to true
 
 export async function POST(request: Request) {
   try {
@@ -49,46 +40,20 @@ export async function POST(request: Request) {
       context.attachments = attachmentContext
     }
     
-    // Route to appropriate provider using LLM or keyword router
-    let providerSelection: any
+    // FORCE PERPLEXITY SONAR FOR ALL ENRICHMENT
+    // Skip routing and always use Perplexity Sonar
+    console.log(`[Enrichment] Forcing Perplexity Sonar for all enrichment`)
     
-    if (USE_LLM_ROUTER) {
-      // Use intelligent LLM routing
-      try {
-        const llmDecision = await llmRouter.route({
-          prompt: cleanPrompt,
-          value: value || null,
-          rowData: context.rowData || {},
-          existingColumns: Object.keys(rowContext || {})
-        })
-        
-        console.log(`[Enrichment] LLM Router decision: ${llmDecision.provider} (${llmDecision.reasoning})`)
-        
-        // Convert LLM decision to provider selection format
-        providerSelection = {
-          provider: llmDecision.provider,
-          model: llmDecision.provider === 'perplexity' ? 'sonar' : 
-                 llmDecision.provider === 'openai' ? 'gpt-4o-mini' : 
-                 'claude-3-haiku-20240307',
-          temperature: llmDecision.task_type === 'search' ? 0.1 : 0,
-          maxTokens: llmDecision.task_type === 'generate' ? 500 : 150,
-          estimatedCost: llmDecision.estimated_cost,
-          reason: llmDecision.reasoning,
-          routerType: 'llm',
-          confidence: llmDecision.confidence
-        }
-      } catch (error) {
-        console.error('[Enrichment] LLM Router failed, falling back to keyword router:', error)
-        providerSelection = keywordRouter.route(cleanPrompt, context)
-        providerSelection.routerType = 'keyword-fallback'
-      }
-    } else {
-      // Use keyword-based routing
-      providerSelection = keywordRouter.route(cleanPrompt, context)
-      providerSelection.routerType = 'keyword'
+    const providerSelection = {
+      provider: 'perplexity' as const,
+      model: 'sonar',
+      temperature: 0.1,
+      maxTokens: 200,
+      estimatedCost: 0.001,
+      reason: 'Forced to use Perplexity Sonar for all enrichment',
+      routerType: 'forced',
+      confidence: 1
     }
-    
-    console.log(`[Enrichment] Final routing to ${providerSelection.provider}: ${providerSelection.reason}`)
     
     // Initialize the selected provider
     let provider: AIProvider

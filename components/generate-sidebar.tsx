@@ -37,6 +37,11 @@ const examplePrompts = [
     category: "analysis"
   },
   {
+    icon: <TrendingUp className="h-4 w-4" />,
+    text: "Create a VC investment analysis dashboard with scoring framework",
+    category: "dashboard"
+  },
+  {
     icon: <DollarSign className="h-4 w-4" />,
     text: "Create an ETF comparison dashboard with performance, risk, and cost analysis",
     category: "dashboard"

@@ -32,3 +32,4 @@ export type TemplateId =
   | 'twitter-profile'
   | 'waitlist'
   | 'twitter-activity'
+  | 'etf'
