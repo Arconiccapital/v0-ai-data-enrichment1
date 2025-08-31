@@ -3,7 +3,8 @@ import { DashboardTemplate, DashboardWidget } from './dashboard-templates'
 
 // Model configuration from environment
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
-const MAX_TOKENS = parseInt(process.env.ANTHROPIC_MAX_TOKENS || '8000')
+// Use 4096 max tokens for Haiku model, 8000 for Sonnet
+const MAX_TOKENS = MODEL.includes('haiku') ? 4096 : parseInt(process.env.ANTHROPIC_MAX_TOKENS || '8000')
 const TEMPERATURE = parseFloat(process.env.ANTHROPIC_TEMPERATURE || '0.7')
 
 // Expert system prompt for all interactions
@@ -685,6 +686,29 @@ function generateMockWidgetData(widget: DashboardWidget) {
 }
 
 function generateMockDashboardFromPrompt(prompt: string, data: DataContext) {
+  const lowerPrompt = prompt.toLowerCase()
+  
+  // Check if this is a VC investment analysis request
+  if (lowerPrompt.includes('vc') || lowerPrompt.includes('venture') || 
+      lowerPrompt.includes('investment') || lowerPrompt.includes('scoring') ||
+      lowerPrompt.includes('diligence')) {
+    return generateVCInvestmentDashboard(data)
+  }
+  
+  // Check for other specific dashboard types
+  if (lowerPrompt.includes('sales') || lowerPrompt.includes('revenue')) {
+    return generateSalesDashboard(data)
+  }
+  
+  if (lowerPrompt.includes('customer') || lowerPrompt.includes('user')) {
+    return generateCustomerDashboard(data)
+  }
+  
+  if (lowerPrompt.includes('finance') || lowerPrompt.includes('financial')) {
+    return generateFinancialDashboard(data)
+  }
+  
+  // Default generic dashboard
   return {
     title: "Custom Dashboard",
     sections: [
@@ -736,6 +760,182 @@ function generateMockDashboardFromPrompt(prompt: string, data: DataContext) {
     metadata: {
       generatedAt: new Date().toISOString(),
       rowCount: data.rows.length,
+      fromPrompt: true,
+      mock: true
+    }
+  }
+}
+
+function generateVCInvestmentDashboard(data: DataContext) {
+  return {
+    title: "VC Investment Analysis Dashboard",
+    type: "vc-investment",
+    sections: [
+      {
+        title: "Investment Scoring Framework",
+        description: "Comprehensive VC investment criteria evaluation",
+        layout: "single",
+        widgets: [
+          {
+            id: "vc_scoring_matrix",
+            type: "vc-scoring" as const,
+            title: "VC Investment Scoring Matrix",
+            dataKey: "scoring",
+            config: {
+              framework: "comprehensive",
+              categories: ["MARKET", "TEAM", "PRODUCT", "GTM", "TECH", "BUSINESS & DEAL"]
+            },
+            data: {
+              companyName: data.rows[0]?.[0] || "Target Company",
+              scores: {}
+            }
+          }
+        ]
+      }
+    ],
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      rowCount: data.rows.length,
+      model: 'vc-framework',
+      fromPrompt: true,
+      mock: true
+    }
+  }
+}
+
+function generateSalesDashboard(data: DataContext) {
+  return {
+    title: "Sales Performance Dashboard",
+    sections: [
+      {
+        title: "Sales Overview",
+        description: "Key sales metrics and KPIs",
+        widgets: [
+          {
+            id: "sales_kpis",
+            type: "kpi" as const,
+            title: "Sales Metrics",
+            dataKey: "sales_metrics",
+            config: {
+              metrics: [
+                { label: "Total Revenue", key: "revenue", format: "currency" },
+                { label: "Deals Closed", key: "deals", format: "number" },
+                { label: "Win Rate", key: "win_rate", format: "percentage" },
+                { label: "Avg Deal Size", key: "avg_deal", format: "currency" }
+              ]
+            },
+            data: {
+              revenue: 2500000,
+              deals: 47,
+              win_rate: 32,
+              avg_deal: 53191
+            }
+          },
+          {
+            id: "sales_funnel",
+            type: "funnel" as const,
+            title: "Sales Pipeline",
+            dataKey: "pipeline",
+            config: {
+              stages: ["Leads", "Qualified", "Proposal", "Negotiation", "Closed"]
+            },
+            data: {
+              "Leads": 1000,
+              "Qualified": 450,
+              "Proposal": 200,
+              "Negotiation": 100,
+              "Closed": 47
+            }
+          }
+        ]
+      }
+    ],
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      rowCount: data.rows.length,
+      model: 'sales',
+      fromPrompt: true,
+      mock: true
+    }
+  }
+}
+
+function generateCustomerDashboard(data: DataContext) {
+  return {
+    title: "Customer Analytics Dashboard",
+    sections: [
+      {
+        title: "Customer Overview",
+        description: "Customer metrics and engagement",
+        widgets: [
+          {
+            id: "customer_kpis",
+            type: "kpi" as const,
+            title: "Customer Metrics",
+            dataKey: "customer_metrics",
+            config: {
+              metrics: [
+                { label: "Total Customers", key: "total", format: "number" },
+                { label: "Active Users", key: "active", format: "number" },
+                { label: "NPS Score", key: "nps", format: "number" },
+                { label: "Churn Rate", key: "churn", format: "percentage" }
+              ]
+            },
+            data: {
+              total: 5420,
+              active: 3891,
+              nps: 72,
+              churn: 5.2
+            }
+          }
+        ]
+      }
+    ],
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      rowCount: data.rows.length,
+      model: 'customer',
+      fromPrompt: true,
+      mock: true
+    }
+  }
+}
+
+function generateFinancialDashboard(data: DataContext) {
+  return {
+    title: "Financial Overview Dashboard",
+    sections: [
+      {
+        title: "Financial Summary",
+        description: "P&L and key financial metrics",
+        widgets: [
+          {
+            id: "financial_kpis",
+            type: "kpi" as const,
+            title: "Financial Metrics",
+            dataKey: "financial_metrics",
+            config: {
+              metrics: [
+                { label: "Revenue", key: "revenue", format: "currency" },
+                { label: "Expenses", key: "expenses", format: "currency" },
+                { label: "Net Profit", key: "profit", format: "currency" },
+                { label: "Margin", key: "margin", format: "percentage" }
+              ]
+            },
+            data: {
+              revenue: 5000000,
+              expenses: 3500000,
+              profit: 1500000,
+              margin: 30
+            }
+          }
+        ]
+      }
+    ],
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      rowCount: data.rows.length,
+      model: 'financial',
       fromPrompt: true,
       mock: true
     }

@@ -753,6 +753,316 @@ export const dashboardTemplates: Record<string, DashboardTemplate> = {
         ]
       }
     ]
+  },
+
+  etf_comparison: {
+    id: "etf_comparison",
+    name: "ETF Comparison & Analysis",
+    description: "Comprehensive ETF comparison dashboard with performance, risk, composition, and cost analysis",
+    icon: "📊",
+    category: "finance",
+    sections: [
+      {
+        title: "Overview",
+        description: "High-level ETF metrics and benchmark comparison",
+        widgets: [
+          {
+            id: "etf_summary_cards",
+            type: "kpi",
+            title: "Key ETF Metrics",
+            dataKey: "etf_summary",
+            config: {
+              metrics: [
+                { label: "Expense Ratio", key: "expense_ratio", format: "percentage", icon: "💰" },
+                { label: "AUM", key: "aum", format: "currency", icon: "📈" },
+                { label: "YTD Return", key: "ytd_return", format: "percentage", icon: "🎯" },
+                { label: "Sector Focus", key: "sector_focus", format: "text", icon: "🏢" },
+                { label: "Inception Date", key: "inception_date", format: "date", icon: "📅" },
+                { label: "Fund Provider", key: "provider", format: "text", icon: "🏦" }
+              ]
+            }
+          },
+          {
+            id: "benchmark_comparison",
+            type: "scorecard",
+            title: "ETF vs Benchmark (S&P 500)",
+            dataKey: "benchmark_comp",
+            config: {
+              criteria: [
+                { name: "1Y Return vs Benchmark", weight: 0.25, max: 10, description: "Outperformance" },
+                { name: "3Y Return vs Benchmark", weight: 0.25, max: 10, description: "Sustained outperformance" },
+                { name: "Volatility vs Benchmark", weight: 0.25, max: 10, description: "Lower is better" },
+                { name: "Sharpe Ratio vs Benchmark", weight: 0.25, max: 10, description: "Risk-adjusted returns" }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        title: "Performance Visualization",
+        description: "Interactive performance charts and comparisons",
+        widgets: [
+          {
+            id: "time_series_performance",
+            type: "chart",
+            title: "Historical Performance",
+            dataKey: "performance_history",
+            config: {
+              chartType: "line",
+              xAxis: "date",
+              yAxis: "cumulative_return",
+              series: ["etf", "benchmark", "competitors"],
+              timeRanges: ["1M", "6M", "1Y", "3Y", "5Y", "Max"],
+              annotations: ["major_events", "rebalance_dates"]
+            }
+          },
+          {
+            id: "cumulative_returns",
+            type: "chart",
+            title: "Cumulative Returns Comparison",
+            dataKey: "cumulative_returns",
+            config: {
+              chartType: "area",
+              xAxis: "date",
+              yAxis: "return_percentage",
+              series: ["etf", "competitor_1", "competitor_2", "benchmark"],
+              stacked: false,
+              showLegend: true
+            }
+          },
+          {
+            id: "rolling_metrics",
+            type: "chart",
+            title: "Rolling Volatility & Sharpe Ratio",
+            dataKey: "rolling_metrics",
+            config: {
+              chartType: "dual_axis",
+              xAxis: "date",
+              yAxis1: "volatility",
+              yAxis2: "sharpe_ratio",
+              series1: ["30d_volatility", "90d_volatility"],
+              series2: ["30d_sharpe", "90d_sharpe"],
+              rollingWindow: [30, 60, 90, 180]
+            }
+          }
+        ]
+      },
+      {
+        title: "Risk & Composition",
+        description: "Portfolio composition and risk analysis",
+        widgets: [
+          {
+            id: "sector_allocation",
+            type: "chart",
+            title: "Sector Allocation",
+            dataKey: "sector_weights",
+            config: {
+              chartType: "pie",
+              valueKey: "weight",
+              labelKey: "sector",
+              showPercentages: true,
+              interactive: true,
+              colors: "category20"
+            }
+          },
+          {
+            id: "top_holdings",
+            type: "table",
+            title: "Top Holdings",
+            dataKey: "holdings",
+            config: {
+              columns: [
+                { key: "ticker", label: "Ticker", sortable: true },
+                { key: "company_name", label: "Company", sortable: true },
+                { key: "weight", label: "Weight %", sortable: true, format: "percentage" },
+                { key: "sector", label: "Sector", sortable: true },
+                { key: "performance_contrib", label: "Perf. Contribution", sortable: true, format: "percentage" },
+                { key: "market_cap", label: "Market Cap", sortable: true, format: "currency" }
+              ],
+              pageSize: 15,
+              showSearch: true,
+              exportable: true
+            }
+          },
+          {
+            id: "geographic_exposure",
+            type: "chart",
+            title: "Geographic Exposure",
+            dataKey: "geographic_allocation",
+            config: {
+              chartType: "heatmap",
+              dimension: "country",
+              valueKey: "exposure_percentage",
+              colorScale: "blues",
+              showTooltip: true,
+              interactive: true
+            }
+          }
+        ]
+      },
+      {
+        title: "Cost & Liquidity",
+        description: "Expense analysis and liquidity metrics",
+        widgets: [
+          {
+            id: "expense_comparison",
+            type: "chart",
+            title: "Expense Ratio Comparison",
+            dataKey: "expense_ratios",
+            config: {
+              chartType: "bar",
+              xAxis: "etf_name",
+              yAxis: "expense_ratio",
+              benchmark: "category_average",
+              colors: ["green", "yellow", "red"],
+              thresholds: [0.1, 0.5, 1.0]
+            }
+          },
+          {
+            id: "liquidity_metrics",
+            type: "kpi",
+            title: "Liquidity Metrics",
+            dataKey: "liquidity",
+            config: {
+              metrics: [
+                { label: "Avg Daily Volume", key: "avg_volume", format: "number", suffix: "M shares" },
+                { label: "Bid-Ask Spread", key: "bid_ask_spread", format: "percentage" },
+                { label: "Premium/Discount", key: "premium_discount", format: "percentage" },
+                { label: "Tracking Error", key: "tracking_error", format: "percentage" }
+              ]
+            }
+          },
+          {
+            id: "aum_flow_trend",
+            type: "chart",
+            title: "AUM & Fund Flows",
+            dataKey: "fund_flows",
+            config: {
+              chartType: "combo",
+              xAxis: "date",
+              yAxis1: "aum",
+              yAxis2: "net_flows",
+              chartType1: "area",
+              chartType2: "bar",
+              showInflows: true,
+              showOutflows: true
+            }
+          }
+        ]
+      },
+      {
+        title: "Advanced Metrics",
+        description: "Sophisticated risk and performance analytics",
+        widgets: [
+          {
+            id: "risk_adjusted_performance",
+            type: "scorecard",
+            title: "Risk-Adjusted Performance",
+            dataKey: "risk_metrics",
+            config: {
+              criteria: [
+                { name: "Sharpe Ratio", weight: 0.25, max: 10, description: "Risk-adjusted returns" },
+                { name: "Sortino Ratio", weight: 0.25, max: 10, description: "Downside risk-adjusted" },
+                { name: "Information Ratio", weight: 0.2, max: 10, description: "Active return vs risk" },
+                { name: "Max Drawdown", weight: 0.15, max: 10, description: "Lower is better", inverse: true },
+                { name: "Recovery Time", weight: 0.15, max: 10, description: "Drawdown recovery", inverse: true }
+              ]
+            }
+          },
+          {
+            id: "dividend_analysis",
+            type: "chart",
+            title: "Dividend Yield & Growth",
+            dataKey: "dividends",
+            config: {
+              chartType: "combo",
+              xAxis: "date",
+              yAxis1: "dividend_yield",
+              yAxis2: "dividend_growth_rate",
+              chartType1: "line",
+              chartType2: "bar",
+              showTrend: true,
+              annotations: ["ex_dividend_dates"]
+            }
+          },
+          {
+            id: "tracking_analysis",
+            type: "chart",
+            title: "Tracking Error Analysis",
+            dataKey: "tracking",
+            config: {
+              chartType: "scatter",
+              xAxis: "index_return",
+              yAxis: "etf_return",
+              trendLine: true,
+              r2Display: true,
+              confidenceBands: true,
+              outlierDetection: true
+            }
+          }
+        ]
+      },
+      {
+        title: "Comparison Panel",
+        description: "Side-by-side ETF comparison",
+        widgets: [
+          {
+            id: "etf_comparison_table",
+            type: "table",
+            title: "ETF Comparison Matrix",
+            dataKey: "etf_comparison",
+            config: {
+              columns: [
+                { key: "metric", label: "Metric", fixed: true },
+                { key: "etf_1", label: "ETF 1", editable: true },
+                { key: "etf_2", label: "ETF 2", editable: true },
+                { key: "etf_3", label: "ETF 3", editable: true },
+                { key: "category_avg", label: "Category Avg", highlight: true }
+              ],
+              rows: [
+                "Expense Ratio", "AUM", "YTD Return", "3Y Return", "5Y Return",
+                "Volatility", "Sharpe Ratio", "Max Drawdown", "Dividend Yield",
+                "Holdings Count", "Turnover Rate", "Tracking Error"
+              ],
+              conditionalFormatting: true,
+              exportable: true,
+              filterable: true
+            }
+          },
+          {
+            id: "relative_performance",
+            type: "chart",
+            title: "Relative Performance Matrix",
+            dataKey: "relative_performance",
+            config: {
+              chartType: "heatmap",
+              xAxis: "time_period",
+              yAxis: "etf_name",
+              valueKey: "return",
+              colorScale: "diverging",
+              midpoint: 0,
+              showValues: true
+            }
+          },
+          {
+            id: "correlation_matrix",
+            type: "chart",
+            title: "Correlation Matrix",
+            dataKey: "correlations",
+            config: {
+              chartType: "heatmap",
+              dimension: "etf_pairs",
+              valueKey: "correlation",
+              colorScale: "spectral",
+              range: [-1, 1],
+              showValues: true,
+              interactive: true
+            }
+          }
+        ]
+      }
+    ],
+    defaultPrompt: "Create a comprehensive ETF comparison dashboard analyzing performance, risk, composition, costs, and relative metrics across multiple ETFs with interactive visualizations and benchmark comparisons"
   }
 }
 

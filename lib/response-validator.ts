@@ -11,6 +11,55 @@ export interface ValidationResult {
 }
 
 /**
+ * Cleans JSON-formatted responses to extract just the value
+ */
+export function cleanJsonResponse(value: string): string {
+  if (!value) return value
+  
+  let cleaned = value.trim()
+  
+  // Check if the entire value is a JSON object string
+  if (cleaned.startsWith('{') && cleaned.includes('"value"')) {
+    // Try to extract just the value field
+    const patterns = [
+      // Standard JSON: {"value": "content"}
+      /^\{\s*"value"\s*:\s*"([^"]*)"/,
+      // With escapes: {\"value\": \"content\"}
+      /^\{\s*\\"value\\"\s*:\s*\\"([^\\"]*)\\"/,
+      // Nested JSON: { "value": "{ \"value\": \"content\" }" }
+      /"value"\s*:\s*"([^"]+)"/
+    ]
+    
+    for (const pattern of patterns) {
+      const match = cleaned.match(pattern)
+      if (match && match[1]) {
+        cleaned = match[1]
+        // Unescape if needed
+        cleaned = cleaned.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+        break
+      }
+    }
+    
+    // If still looks like JSON, try parsing
+    if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(cleaned)
+        if (parsed.value) {
+          cleaned = String(parsed.value)
+        }
+      } catch {
+        // Not valid JSON, continue with current value
+      }
+    }
+  }
+  
+  // Remove any remaining JSON artifacts
+  cleaned = cleaned.replace(/^\{"value":\s*"|"\}$/g, '')
+  
+  return cleaned
+}
+
+/**
  * Validates and standardizes email addresses
  */
 function validateEmail(value: string): ValidationResult {
@@ -305,31 +354,34 @@ export function validateResponse(
     }
   }
   
+  // Clean JSON formatting first if present
+  const cleanedValue = cleanJsonResponse(value)
+  
   // Route to specific validator based on type
   switch (expectedType) {
     case 'email':
-      return validateEmail(value)
+      return validateEmail(cleanedValue)
     case 'url':
-      return validateURL(value)
+      return validateURL(cleanedValue)
     case 'phone':
-      return validatePhone(value)
+      return validatePhone(cleanedValue)
     case 'currency':
-      return validateCurrency(value)
+      return validateCurrency(cleanedValue)
     case 'date':
-      return validateDate(value)
+      return validateDate(cleanedValue)
     case 'name':
     case 'ceo':
     case 'founder':
-      return validateName(value)
+      return validateName(cleanedValue)
     case 'number':
-      return validateNumber(value)
+      return validateNumber(cleanedValue)
     default:
       // For text or unknown types, just clean up
       return {
         isValid: true,
-        value: value.trim(),
+        value: cleanedValue.trim(),
         originalValue: value,
-        corrections: [],
+        corrections: cleanedValue !== value ? ['Cleaned JSON formatting'] : [],
         confidence: 0.8
       }
   }

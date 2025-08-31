@@ -522,6 +522,84 @@ export function AnalysisContent({ analysisType, data, metadata, onRefresh }: Ana
         </div>
       )
 
+    case 'quick-insight':
+    case 'analysis':
+      // Handle generic analysis results from /api/analyze
+      if (data?.results && Array.isArray(data.results)) {
+        return (
+          <div className="flex-1 p-6 space-y-6 overflow-auto bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Analysis Results</h2>
+                <p className="text-gray-600 mt-1">{metadata?.prompt || 'AI-powered data analysis'}</p>
+              </div>
+              <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline">
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+
+            {/* Results Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Analysis Output</CardTitle>
+                <CardDescription>
+                  {data.results.length} results generated
+                  {data.mock && <Badge variant="secondary" className="ml-2">Demo Mode</Badge>}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {data.results.map((result: any, idx: number) => (
+                    <div key={idx} className="border-b pb-4 last:border-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-500">Row {idx + 1}:</span>
+                            <span className="text-lg font-semibold">{result}</span>
+                          </div>
+                          {data.explanations && data.explanations[idx] && (
+                            <p className="text-sm text-gray-600 mt-1">{data.explanations[idx]}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Metadata */}
+            {metadata && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Analysis Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    {metadata.sourceColumns && metadata.sourceColumns.length > 0 && (
+                      <div>
+                        <span className="text-gray-600">Source columns: </span>
+                        <span className="font-medium">{metadata.sourceColumns.join(', ')}</span>
+                      </div>
+                    )}
+                    {metadata.createdAt && (
+                      <div>
+                        <span className="text-gray-600">Generated: </span>
+                        <span className="font-medium">
+                          {new Date(metadata.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )
+      }
+      // Fall through to default if no results
+      
     default:
       return (
         <div className="flex-1 flex items-center justify-center">
@@ -533,6 +611,14 @@ export function AnalysisContent({ analysisType, data, metadata, onRefresh }: Ana
               <p className="text-sm text-gray-400 mt-4">
                 Generated from: "{metadata.prompt}"
               </p>
+            )}
+            {data && (
+              <details className="mt-4 text-left">
+                <summary className="cursor-pointer text-sm text-gray-600">Debug Info</summary>
+                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
+                  {JSON.stringify(data, null, 2)}
+                </pre>
+              </details>
             )}
           </Card>
         </div>

@@ -1,13 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
-import { quickInsights, analysisTemplates, outputTemplates } from "@/lib/templates"
-import { X, FileText, LayoutDashboard, Presentation, BarChart3, Zap, Play, Loader2, Wand2, Sparkles } from "lucide-react"
+import { X, Loader2, Wand2, Sparkles, BarChart3, FileText, TrendingUp, Users, DollarSign } from "lucide-react"
 import { toast } from "sonner"
 
 interface GenerateSidebarProps {
@@ -15,22 +14,114 @@ interface GenerateSidebarProps {
   onComplete?: () => void
 }
 
+// Example prompts for quick access
+const examplePrompts = [
+  {
+    icon: <BarChart3 className="h-4 w-4" />,
+    text: "Create a sales performance dashboard with revenue trends and top performers",
+    category: "dashboard"
+  },
+  {
+    icon: <TrendingUp className="h-4 w-4" />,
+    text: "Show me what's interesting in this data",
+    category: "analysis"
+  },
+  {
+    icon: <FileText className="h-4 w-4" />,
+    text: "Generate an executive summary report with key insights",
+    category: "report"
+  },
+  {
+    icon: <Users className="h-4 w-4" />,
+    text: "Analyze customer segments and identify patterns",
+    category: "analysis"
+  },
+  {
+    icon: <DollarSign className="h-4 w-4" />,
+    text: "Create an ETF comparison dashboard with performance, risk, and cost analysis",
+    category: "dashboard"
+  },
+  {
+    icon: <DollarSign className="h-4 w-4" />,
+    text: "Build a financial overview with P&L and cash flow",
+    category: "dashboard"
+  }
+]
+
 export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
   const { data, headers, addTab, setActiveTab } = useSpreadsheetStore()
+  const [prompt, setPrompt] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatingTemplate, setGeneratingTemplate] = useState<string>('')
-  const [selectedCategory, setSelectedCategory] = useState<'quick' | 'analysis' | 'output'>('quick')
+  const [generatingType, setGeneratingType] = useState<string>("")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const generateContent = async (name: string, prompt: string, contentType: string) => {
+  // Focus textarea on mount
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
+
+  // Detect content type from prompt
+  const detectContentType = (promptText: string): 'dashboard' | 'analysis' | 'report' => {
+    const lowerPrompt = promptText.toLowerCase()
+    
+    // Dashboard keywords
+    if (lowerPrompt.includes('dashboard') || 
+        lowerPrompt.includes('visualize') || 
+        lowerPrompt.includes('chart') || 
+        lowerPrompt.includes('kpi') ||
+        lowerPrompt.includes('metrics') ||
+        lowerPrompt.includes('overview') ||
+        lowerPrompt.includes('build') ||
+        lowerPrompt.includes('create a') ||
+        lowerPrompt.includes('generate a')) {
+      return 'dashboard'
+    }
+    
+    // Report keywords
+    if (lowerPrompt.includes('report') || 
+        lowerPrompt.includes('summary') || 
+        lowerPrompt.includes('document') ||
+        lowerPrompt.includes('presentation')) {
+      return 'report'
+    }
+    
+    // Analysis keywords
+    if (lowerPrompt.includes('analyze') || 
+        lowerPrompt.includes('analysis') || 
+        lowerPrompt.includes('insights') ||
+        lowerPrompt.includes('patterns') ||
+        lowerPrompt.includes('trends') ||
+        lowerPrompt.includes('what') ||
+        lowerPrompt.includes('why') ||
+        lowerPrompt.includes('how') ||
+        lowerPrompt.includes('interesting') ||
+        lowerPrompt.includes('find') ||
+        lowerPrompt.includes('identify')) {
+      return 'analysis'
+    }
+    
+    // Default to dashboard for ambiguous prompts
+    return 'dashboard'
+  }
+
+  const generateContent = async () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt")
+      return
+    }
+
+    const contentType = detectContentType(prompt)
+    const displayType = contentType === 'analysis' ? 'Analysis' : 
+                       contentType === 'report' ? 'Report' : 'Dashboard'
+    
     setIsGenerating(true)
-    setGeneratingTemplate(name)
+    setGeneratingType(displayType)
     
     try {
-      // Determine the API endpoint and payload based on content type
-      const isAnalysis = contentType === 'analysis' || contentType === 'quick-insight'
-      const endpoint = isAnalysis ? '/api/analyze' : '/api/generate-dashboard'
+      // Determine the API endpoint based on content type
+      const endpoint = contentType === 'analysis' ? '/api/analyze' : '/api/generate-dashboard'
       
-      const payload = isAnalysis 
+      const payload = contentType === 'analysis' 
         ? { prompt, rows: data, headers }
         : { naturalLanguagePrompt: prompt, data: { headers, rows: data } }
       
@@ -43,7 +134,7 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Generation failed:', response.status, errorText)
-        throw new Error(`Failed to generate ${name}. Server responded with: ${response.status}`)
+        throw new Error(`Failed to generate ${displayType}`)
       }
 
       const result = await response.json()
@@ -54,10 +145,10 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       addTab({
         id: tabId,
         type: contentType === 'analysis' ? 'analysis' : 'dashboard',
-        title: name,
+        title: `AI ${displayType}`,
         data: result,
         metadata: {
-          contentType,
+          analysisType: contentType === 'analysis' ? 'quick-insight' : contentType,
           sourceColumns: headers.slice(0, 3),
           createdAt: new Date(),
           prompt
@@ -66,18 +157,34 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       
       setActiveTab(tabId)
       
-      toast.success(`${name} generated successfully!`, {
-        description: `Your ${contentType} is ready to view`
+      toast.success(`${displayType} generated successfully!`, {
+        description: `Your ${displayType.toLowerCase()} is ready to view`
       })
+      
+      // Clear prompt and close sidebar
+      setPrompt("")
+      onClose()
       
     } catch (error: any) {
       console.error('Generation error:', error)
-      toast.error(`Failed to generate ${name}`, {
-        description: error.message || 'Please try again with different data or template'
+      toast.error(`Failed to generate ${displayType}`, {
+        description: error.message || 'Please try again with a different prompt'
       })
     } finally {
       setIsGenerating(false)
-      setGeneratingTemplate('')
+      setGeneratingType("")
+    }
+  }
+
+  const handleExampleClick = (examplePrompt: string) => {
+    setPrompt(examplePrompt)
+    textareaRef.current?.focus()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      generateContent()
     }
   }
 
@@ -88,9 +195,9 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
         <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="text-center p-8">
             <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Generating {generatingTemplate}</h3>
-            <p className="text-sm text-gray-600">This may take a few moments...</p>
-            <p className="text-xs text-gray-500 mt-4">Analyzing your data and creating insights</p>
+            <h3 className="text-lg font-semibold mb-2">Generating {generatingType}</h3>
+            <p className="text-sm text-gray-600">Analyzing your data...</p>
+            <p className="text-xs text-gray-500 mt-2">This may take a few moments</p>
           </div>
         </div>
       )}
@@ -99,7 +206,7 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <Wand2 className="h-5 w-5 text-indigo-600" />
-          <h2 className="font-semibold">Generate Insights</h2>
+          <h2 className="font-semibold">Generate with AI</h2>
         </div>
         <Button
           variant="ghost"
@@ -113,111 +220,62 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4">
-          <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as any)}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="quick">
-                <Zap className="h-4 w-4 mr-1" />
-                Quick
-              </TabsTrigger>
-              <TabsTrigger value="analysis">
-                <BarChart3 className="h-4 w-4 mr-1" />
-                Analysis
-              </TabsTrigger>
-              <TabsTrigger value="output">
-                <FileText className="h-4 w-4 mr-1" />
-                Output
-              </TabsTrigger>
-            </TabsList>
+        <div className="p-4 space-y-4">
+          {/* Main prompt input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              What would you like to create?
+            </label>
+            <Textarea
+              ref={textareaRef}
+              placeholder="Describe what you want to generate... (e.g., 'Create a sales dashboard with revenue trends' or 'Analyze customer behavior patterns')"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[120px] resize-none"
+              disabled={isGenerating}
+            />
+            <p className="text-xs text-gray-500">
+              Press {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Enter to generate
+            </p>
+          </div>
 
-            {/* Quick Insights Tab */}
-            <TabsContent value="quick" className="space-y-3 mt-4">
-              <p className="text-sm text-gray-600 mb-3">
-                Get instant insights with one click
-              </p>
-              {quickInsights.map((insight) => {
-                const Icon = insight.icon
-                return (
-                  <Card 
-                    key={insight.name}
-                    className={`cursor-pointer transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-                    onClick={() => !isGenerating && generateContent(insight.name, insight.prompt, 'quick-insight')}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 rounded">
-                          <Icon className="h-4 w-4 text-indigo-600" />
-                        </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-sm">{insight.name}</CardTitle>
-                          <CardDescription className="text-xs mt-1">
-                            {insight.description}
-                          </CardDescription>
-                        </div>
-                        <Play className="h-4 w-4 text-gray-400" />
-                      </div>
-                    </CardHeader>
-                  </Card>
-                )
-              })}
-            </TabsContent>
-
-            {/* Analysis Tab */}
-            <TabsContent value="analysis" className="space-y-3 mt-4">
-              <p className="text-sm text-gray-600 mb-3">
-                Deep-dive analysis by business function
-              </p>
-              {Object.entries(analysisTemplates).map(([category, templates]) => (
-                <Card key={category}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs uppercase text-gray-500">
-                      {category}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {templates.map((template) => (
-                      <div
-                        key={template.name}
-                        className={`p-2 rounded cursor-pointer transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-                        onClick={() => !isGenerating && generateContent(template.name, template.prompt, 'analysis')}
-                      >
-                        <p className="text-sm font-medium">{template.name}</p>
-                        <p className="text-xs text-gray-500">{template.description}</p>
-                      </div>
-                    ))}
-                  </CardContent>
+          {/* Example prompts */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">
+              Try these examples:
+            </p>
+            <div className="space-y-2">
+              {examplePrompts.map((example, idx) => (
+                <Card
+                  key={idx}
+                  className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => handleExampleClick(example.text)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-indigo-100 rounded">
+                      {example.icon}
+                    </div>
+                    <p className="text-sm text-gray-700 flex-1">
+                      {example.text}
+                    </p>
+                  </div>
                 </Card>
               ))}
-            </TabsContent>
+            </div>
+          </div>
 
-            {/* Output Tab */}
-            <TabsContent value="output" className="space-y-3 mt-4">
-              <p className="text-sm text-gray-600 mb-3">
-                Professional reports and presentations
-              </p>
-              {Object.entries(outputTemplates).map(([category, templates]) => (
-                <Card key={category}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs uppercase text-gray-500">
-                      {category}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {templates.map((template) => (
-                      <div
-                        key={template.name}
-                        className={`p-2 rounded cursor-pointer transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-                        onClick={() => !isGenerating && generateContent(template.name, template.prompt, category)}
-                      >
-                        <p className="text-sm font-medium">{template.name}</p>
-                        <p className="text-xs text-gray-500">{template.description}</p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-          </Tabs>
+          {/* Data context */}
+          <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+            <p className="text-xs font-medium text-gray-600">Your data:</p>
+            <p className="text-xs text-gray-500">
+              {data.length} rows × {headers.length} columns
+            </p>
+            <p className="text-xs text-gray-500">
+              Columns: {headers.slice(0, 3).join(', ')}
+              {headers.length > 3 && `, +${headers.length - 3} more`}
+            </p>
+          </div>
         </div>
       </ScrollArea>
 
@@ -225,7 +283,8 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       <div className="p-4 border-t border-gray-200">
         <Button 
           className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
-          disabled={isGenerating}
+          disabled={isGenerating || !prompt.trim()}
+          onClick={generateContent}
         >
           {isGenerating ? (
             <>
@@ -235,7 +294,7 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
           ) : (
             <>
               <Sparkles className="h-4 w-4 mr-2" />
-              Click a template to generate
+              Generate
             </>
           )}
         </Button>

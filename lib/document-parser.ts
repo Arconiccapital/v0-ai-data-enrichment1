@@ -1,6 +1,5 @@
 import mammoth from 'mammoth'
 import * as XLSX from 'xlsx'
-import sharp from 'sharp'
 
 export type SupportedFileType = 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'image' | 'text'
 
@@ -77,10 +76,9 @@ export class DocumentParser {
    */
   async parseImage(buffer: Buffer): Promise<string> {
     try {
-      // For now, just return metadata
+      // For now, just return a placeholder
       // In production, you would use tesseract.js for OCR
-      const metadata = await sharp(buffer).metadata()
-      return `Image: ${metadata.width}x${metadata.height} ${metadata.format}`
+      return 'Image file - OCR not implemented'
     } catch (error) {
       console.error('Error parsing image:', error)
       return ''
