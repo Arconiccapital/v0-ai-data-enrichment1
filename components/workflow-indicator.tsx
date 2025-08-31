@@ -44,7 +44,7 @@ export function WorkflowIndicator({ onStepClick, activeStep }: WorkflowIndicator
       description: "Add AI-powered columns"
     },
     {
-      id: "analyze",
+      id: "generate",
       label: "Generate",
       icon: BarChart3,
       description: "Create insights & reports"

@@ -134,7 +134,7 @@ export default function HomePage() {
 
   // Function to progress to the next workflow step
   const progressToNextStep = () => {
-    const workflowSteps = ['enrich', 'analyze', 'export']
+    const workflowSteps = ['enrich', 'generate', 'export']
     const currentIndex = workflowSteps.indexOf(activeWorkflowStep || '')
     
     if (currentIndex !== -1 && currentIndex < workflowSteps.length - 1) {
@@ -182,7 +182,7 @@ export default function HomePage() {
           {/* Right Sidebar based on active workflow step */}
           {activeWorkflowStep && (
             <div className="absolute lg:relative inset-0 lg:inset-auto z-30 lg:z-auto flex-shrink-0">
-              {(activeWorkflowStep === 'analyze' || activeWorkflowStep === 'output') && (
+              {activeWorkflowStep === 'generate' && (
                 <GenerateSidebar 
                   onClose={() => setActiveWorkflowStep(null)}
                   onComplete={progressToNextStep}
