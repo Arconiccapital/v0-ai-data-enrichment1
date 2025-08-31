@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
@@ -53,7 +53,11 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
     getCellExplanation,
     getCellAttachments,
     getCellMetadata,
-    getGenerationMetadata
+    getGenerationMetadata,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   } = useSpreadsheetStore()
   const { getColumnAttachments } = useSpreadsheetStore()
   const enhancedClipboard = useEnhancedClipboard()
@@ -74,6 +78,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>({})
   const [, setResizingColumn] = useState<number | null>(null)
   const [showGenerationInfo, setShowGenerationInfo] = useState(true)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Keyboard shortcuts and paste handler
   useEffect(() => {
@@ -82,8 +87,20 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
       const modifier = isMac ? e.metaKey : e.ctrlKey
       
       if (modifier) {
+        // Undo/Redo operations
+        if (e.key === 'z' && e.shiftKey) {
+          e.preventDefault()
+          if (canRedo()) {
+            redo()
+          }
+        } else if (e.key === 'z') {
+          e.preventDefault()
+          if (canUndo()) {
+            undo()
+          }
+        }
         // Copy/paste/cut operations
-        if (e.key === 'c' && (selectedCells.size > 0 || selectedCell)) {
+        else if (e.key === 'c' && (selectedCells.size > 0 || selectedCell)) {
           e.preventDefault()
           enhancedClipboard.copySelection(selectedCell || undefined)
         } else if (e.key === 'x' && (selectedCells.size > 0 || selectedCell)) {
@@ -134,7 +151,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
       window.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('paste', handlePaste)
     }
-  }, [selectedCell, selectedCells, data.length, headers.length, enhancedClipboard, addRow])
+  }, [selectedCell, selectedCells, data.length, headers.length, enhancedClipboard, addRow, undo, redo, canUndo, canRedo])
   
   const hasSelection = selectedRows.size > 0 || selectedColumns.size > 0
   const selectedRowCount = selectedRows.size
@@ -198,6 +215,37 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const generationMetadata = getGenerationMetadata()
   const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
 
+  // Function to scroll to a specific column
+  const scrollToColumn = (columnIndex: number) => {
+    // Use a timeout to ensure DOM has updated with the new column
+    setTimeout(() => {
+      // Find the th element for the new column
+      const tableHeaders = document.querySelectorAll('thead th')
+      // Account for checkbox (index 0) and row number (index 1) columns
+      const targetHeader = tableHeaders[columnIndex + 2] as HTMLElement
+      
+      if (targetHeader && scrollContainerRef.current) {
+        // Get positions
+        const containerRect = scrollContainerRef.current.getBoundingClientRect()
+        const headerRect = targetHeader.getBoundingClientRect()
+        
+        // Calculate how much to scroll
+        const isOutOfViewRight = headerRect.right > containerRect.right - 180 // Account for Add Column button
+        const isOutOfViewLeft = headerRect.left < containerRect.left + 88 // Account for fixed columns
+        
+        if (isOutOfViewRight) {
+          // Scroll right to show the column
+          const scrollAmount = headerRect.right - containerRect.right + 200 // Extra padding
+          scrollContainerRef.current.scrollLeft += scrollAmount
+        } else if (isOutOfViewLeft) {
+          // Scroll left to show the column
+          const scrollAmount = containerRect.left - headerRect.left + 100
+          scrollContainerRef.current.scrollLeft -= scrollAmount
+        }
+      }
+    }, 200) // Increased timeout to ensure DOM update
+  }
+
   return (
     <div className="flex h-full bg-white overflow-hidden">
       {/* Main Content */}
@@ -255,7 +303,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
 
 
         <div className="flex-1 bg-gray-50 overflow-hidden flex flex-col min-h-0">
-          <div className="flex-1 overflow-auto relative">
+          <div className="flex-1 overflow-auto relative" ref={scrollContainerRef}>
             <div className="min-w-full overflow-x-auto">
               <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }} tabIndex={0}>
                 <thead className="sticky top-0 z-20">
@@ -355,6 +403,8 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                               const newColumnName = prompt('Enter new column name:')
                               if (newColumnName && newColumnName.trim()) {
                                 insertColumnBefore(index, newColumnName.trim())
+                                // Scroll to the newly inserted column (at current index)
+                                scrollToColumn(index)
                               }
                             }}>
                               <Plus className="h-4 w-4 mr-2" />
@@ -365,6 +415,8 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                               const newColumnName = prompt('Enter new column name:')
                               if (newColumnName && newColumnName.trim()) {
                                 insertColumnAfter(index, newColumnName.trim())
+                                // Scroll to the newly inserted column (at index + 1)
+                                scrollToColumn(index + 1)
                               }
                             }}>
                               <Plus className="h-4 w-4 mr-2" />
@@ -418,7 +470,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                     {/* Add Column Button */}
                     <th 
                       className="h-12 px-4 text-center bg-white hover:bg-gray-50 transition-all cursor-pointer sticky right-0 z-20 shadow-[-2px_0_8px_rgba(0,0,0,0.05)]"
-                      style={{ width: '120px', minWidth: '120px' }}
+                      style={{ width: '180px', minWidth: '180px' }}
                     >
                       {isAddingColumn ? (
                         <input
@@ -429,9 +481,11 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                           onChange={(e) => setNewColumnName(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && newColumnName.trim()) {
-                              addColumn(newColumnName.trim())
+                              const newIndex = addColumn(newColumnName.trim())
                               setNewColumnName("")
                               setIsAddingColumn(false)
+                              // Scroll to the newly added column
+                              scrollToColumn(newIndex)
                             } else if (e.key === 'Escape') {
                               setNewColumnName("")
                               setIsAddingColumn(false)
@@ -439,7 +493,9 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                           }}
                           onBlur={() => {
                             if (newColumnName.trim()) {
-                              addColumn(newColumnName.trim())
+                              const newIndex = addColumn(newColumnName.trim())
+                              // Scroll to the newly added column
+                              scrollToColumn(newIndex)
                             }
                             setNewColumnName("")
                             setIsAddingColumn(false)
@@ -500,7 +556,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                       {/* Empty cell for Add Column alignment */}
                       <td 
                         className="bg-white sticky right-0 z-10 shadow-[-2px_0_8px_rgba(0,0,0,0.03)]"
-                        style={{ width: '120px', minWidth: '120px' }}
+                        style={{ width: '180px', minWidth: '180px' }}
                       />
                     </tr>
                   ))}
@@ -509,7 +565,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                     <td colSpan={headers.length + 2} className="h-10"></td>
                     <td 
                       className="text-center cursor-pointer bg-white hover:bg-gray-50 transition-all sticky right-0 z-10 shadow-[-2px_0_8px_rgba(0,0,0,0.05)] group"
-                      style={{ width: '120px', minWidth: '120px' }}
+                      style={{ width: '180px', minWidth: '180px' }}
                       onClick={() => addRow()}
                     >
                       <div className="flex items-center justify-center text-gray-500 hover:text-gray-700 py-2.5">
@@ -557,8 +613,10 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
         open={addColumnDialogOpen} 
         onClose={() => setAddColumnDialogOpen(false)}
         onAdd={(name) => {
-          addColumn(name)
+          const newIndex = addColumn(name)
           setAddColumnDialogOpen(false)
+          // Scroll to the newly added column
+          scrollToColumn(newIndex)
         }}
       />
       {attachmentColumnIndex !== null && (

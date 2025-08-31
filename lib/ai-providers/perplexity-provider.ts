@@ -8,6 +8,9 @@ interface PerplexityResponse {
     }
   }>
   citations?: any[]
+  sources?: any[]
+  web_results?: any[]
+  references?: any[]
   usage?: {
     prompt_tokens: number
     completion_tokens: number
@@ -170,6 +173,20 @@ NEVER DO THIS:
 
       const data: PerplexityResponse = await response.json()
       
+      // Debug log to see the actual response structure
+      console.log('[Perplexity] Raw API response structure:', {
+        hasChoices: !!data.choices,
+        hasCitations: !!data.citations,
+        hasSources: !!data.sources,
+        hasWebResults: !!data.web_results,
+        hasReferences: !!data.references,
+        keys: Object.keys(data)
+      })
+      
+      if (data.citations) {
+        console.log('[Perplexity] Citations found:', data.citations.length, 'citations')
+      }
+      
       if (!data.choices?.[0]?.message?.content) {
         throw new Error('No response from Perplexity')
       }
@@ -192,35 +209,76 @@ NEVER DO THIS:
         }
       }
 
-      // Extract citations with enhanced metadata
+      // Extract citations with enhanced metadata - check multiple possible fields
       const citations: Citation[] = []
-      if (data.citations) {
-        data.citations.forEach((citation: any, idx: number) => {
-          if (citation.uri || citation.url) {
-            const url = citation.uri || citation.url
-            const domain = new URL(url).hostname.replace('www.', '')
-            
-            // Determine credibility based on domain
-            let credibility: 'high' | 'medium' | 'low' = 'medium'
-            if (domain.includes('.gov') || domain.includes('.edu') || 
-                domain.includes('wikipedia.org') || domain.includes('reuters.com') ||
-                domain.includes('bloomberg.com') || domain.includes('forbes.com')) {
-              credibility = 'high'
-            } else if (domain.includes('.org')) {
-              credibility = 'medium'
+      const citationSources = data.citations || data.sources || data.web_results || data.references || []
+      
+      console.log('[Perplexity] Checking citation sources:', {
+        fromCitations: data.citations?.length || 0,
+        fromSources: data.sources?.length || 0,
+        fromWebResults: data.web_results?.length || 0,
+        fromReferences: data.references?.length || 0,
+        totalFound: citationSources.length
+      })
+      
+      if (citationSources && citationSources.length > 0) {
+        citationSources.forEach((citation: any, idx: number) => {
+          // Handle different formats - sometimes it's just a URL string
+          const url = typeof citation === 'string' ? citation : (citation.uri || citation.url || citation.link)
+          
+          if (url) {
+            try {
+              const domain = new URL(url).hostname.replace('www.', '')
+              
+              // Determine credibility based on domain
+              let credibility: 'high' | 'medium' | 'low' = 'medium'
+              if (domain.includes('.gov') || domain.includes('.edu') || 
+                  domain.includes('wikipedia.org') || domain.includes('reuters.com') ||
+                  domain.includes('bloomberg.com') || domain.includes('forbes.com')) {
+                credibility = 'high'
+              } else if (domain.includes('.org')) {
+                credibility = 'medium'
+              }
+              
+              citations.push({
+                uri: url,
+                title: typeof citation === 'object' ? (citation.title || domain) : domain,
+                snippet: typeof citation === 'object' ? (citation.snippet || citation.text || citation.content || '') : '',
+                domain: domain,
+                date: typeof citation === 'object' ? (citation.publishedDate || citation.date) : undefined,
+                credibility: credibility
+              })
+            } catch (e) {
+              console.warn('[Perplexity] Invalid URL in citation:', url)
             }
-            
-            citations.push({
-              uri: url,
-              title: citation.title || domain,
-              snippet: citation.snippet || citation.text || '',
-              domain: domain,
-              date: citation.publishedDate || citation.date,
-              credibility: credibility
-            })
           }
         })
       }
+      
+      // Fallback: Extract URLs from the response content if no citations found
+      if (citations.length === 0 && responseContent) {
+        console.log('[Perplexity] No citations found, extracting URLs from response')
+        const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g
+        const urls = responseContent.match(urlRegex)
+        if (urls) {
+          urls.forEach(url => {
+            try {
+              const domain = new URL(url).hostname.replace('www.', '')
+              citations.push({
+                uri: url,
+                title: domain,
+                snippet: '',
+                domain: domain,
+                credibility: 'medium'
+              })
+            } catch (e) {
+              // Invalid URL, skip
+            }
+          })
+        }
+      }
+      
+      console.log('[Perplexity] Final citations extracted:', citations.length)
 
       // Extract sources from the response if mentioned
       const sources = parsedResponse.sources || citations.map(c => c.uri)
@@ -245,9 +303,14 @@ NEVER DO THIS:
         ? (parsedResponse.confidence || 0.8) 
         : Math.min(parsedResponse.confidence || 0.5, validation.confidence)
 
+      // Ensure citations are passed properly
+      const finalCitations = citations.length > 0 ? citations : (parsedResponse.citations || [])
+      
+      console.log('[Perplexity] Returning result with citations:', finalCitations.length)
+      
       return {
         value: finalValue,
-        sources: citations,
+        sources: finalCitations,
         fullResponse: responseContent,
         searchQueries: [prompt],
         metadata: {
@@ -260,7 +323,7 @@ NEVER DO THIS:
             format_valid: validation.isValid,
             corrections: validation.corrections
           },
-          citations: citations,
+          citations: finalCitations,
           query: prompt,
           entity: value,
           timestamp: new Date().toISOString(),

@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, X, AlertCircle, ExternalLink, Globe, Calendar, Shield, Sparkles } from "lucide-react"
+import { Check, X, AlertCircle, ExternalLink, Globe, Calendar, Shield, Sparkles, Copy, Link2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
@@ -69,41 +69,42 @@ export function EnrichmentDetails({ value, metadata, className }: EnrichmentDeta
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <Sparkles className="h-4 w-4 text-blue-500" />
-        <span className="font-semibold text-sm">Enrichment Details</span>
-        <Badge variant="outline" className="ml-auto text-xs">
-          {provider.toUpperCase()}
-        </Badge>
-      </div>
-
-      {/* Search Context */}
-      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-        <p className="text-xs text-blue-700 mb-1">
-          <span className="font-medium">Searched for:</span>{' '}
-          {metadata.query || 'information'}
-        </p>
-        {metadata.entity && (
-          <p className="text-xs text-blue-600">
-            <span className="font-medium">Entity:</span> {metadata.entity}
-          </p>
-        )}
-      </div>
-
-      {/* Result Value */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-gray-700">Result:</p>
-        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-          <p className="font-medium text-sm text-gray-900">{value}</p>
+    <div className={`max-h-[600px] overflow-y-auto ${className}`}>
+      <div className="space-y-5 pr-2">
+        {/* Header */}
+        <div className="flex items-center gap-2 border-b pb-2">
+          <Sparkles className="h-4 w-4 text-blue-500" />
+          <span className="font-semibold text-sm">Enrichment Details</span>
+          <Badge variant="outline" className="ml-auto text-xs">
+            {provider.toUpperCase()}
+          </Badge>
         </div>
-      </div>
 
-      {/* Verification Status */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-gray-700">Verification:</p>
+        {/* Search Context */}
+        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+          <p className="text-sm text-blue-700 mb-1">
+            <span className="font-medium">Searched for:</span>{' '}
+            {metadata.query || 'information'}
+          </p>
+          {metadata.entity && (
+            <p className="text-sm text-blue-600">
+              <span className="font-medium">Entity:</span> {metadata.entity}
+            </p>
+          )}
+        </div>
+
+        {/* Result Value */}
         <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-700">Result:</p>
+          <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+            <p className="font-medium text-sm text-gray-900">{value}</p>
+          </div>
+        </div>
+
+        {/* Verification Status */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-700">Verification:</p>
+          <div className="space-y-2">
           {/* Entity Verification */}
           {verification.entity_matched && (
             <div className="flex items-center gap-2 text-xs">
@@ -168,22 +169,25 @@ export function EnrichmentDetails({ value, metadata, className }: EnrichmentDeta
       </div>
 
       {/* Sources */}
-      {sources.length > 0 && (
+      {sources.length > 0 ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-gray-700">Sources:</p>
+            <div className="flex items-center gap-2">
+              <Globe className="h-3.5 w-3.5 text-blue-500" />
+              <p className="text-xs font-semibold text-gray-700">Verification Sources</p>
+            </div>
             <span className="text-xs text-gray-500">
-              {hasVerifiedSources ? `${sources.length} sources` : 'No sources'}
+              {sources.length} source{sources.length !== 1 ? 's' : ''} found
             </span>
           </div>
           
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-80 overflow-y-auto border rounded-lg p-2 bg-gray-50">
             {sources.map((source: any, idx: number) => {
               const formattedSource = formatSource(source)
               const credibility = getSourceCredibility(formattedSource)
               
               return (
-                <Card key={idx} className="p-2.5 hover:bg-gray-50 transition-colors">
+                <Card key={idx} className="p-3 hover:bg-white hover:shadow-md transition-all border bg-white">
                   <div className="flex items-start gap-2">
                     {/* Source Icon */}
                     <div className="mt-0.5">
@@ -200,23 +204,38 @@ export function EnrichmentDetails({ value, metadata, className }: EnrichmentDeta
                     
                     {/* Source Content */}
                     <div className="flex-1 min-w-0">
+                      {/* Clickable Title */}
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium text-gray-900 truncate">
+                        <a
+                          href={formattedSource.uri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline truncate flex items-center gap-1 cursor-pointer"
+                        >
+                          <Link2 className="h-3 w-3 flex-shrink-0" />
                           {formattedSource.title || formattedSource.domain}
-                        </span>
+                        </a>
                         {credibility === 'high' && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 flex-shrink-0">
                             Verified
                           </Badge>
                         )}
                       </div>
                       
+                      {/* URL Display */}
+                      <div className="mt-1">
+                        <span className="text-[11px] text-gray-500 break-all line-clamp-2" title={formattedSource.uri}>
+                          {formattedSource.uri}
+                        </span>
+                      </div>
+                      
                       {formattedSource.snippet && (
-                        <p className="text-[11px] text-gray-600 mt-0.5 line-clamp-2">
+                        <p className="text-[11px] text-gray-600 mt-1 line-clamp-2">
                           "{formattedSource.snippet}"
                         </p>
                       )}
                       
+                      {/* Metadata */}
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] text-gray-400">
                           {formattedSource.domain}
@@ -232,20 +251,52 @@ export function EnrichmentDetails({ value, metadata, className }: EnrichmentDeta
                       </div>
                     </div>
                     
-                    {/* View Source Link */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => window.open(formattedSource.uri, '_blank')}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </Button>
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-1">
+                      {/* Copy URL Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-gray-100"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(formattedSource.uri)
+                            // You could add a toast notification here
+                          } catch (err) {
+                            console.error('Failed to copy URL:', err)
+                          }
+                        }}
+                        title="Copy URL"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      
+                      {/* Open in New Tab Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-gray-100"
+                        onClick={() => window.open(formattedSource.uri, '_blank')}
+                        title="Open in new tab"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               )
             })}
           </div>
+        </div>
+      ) : (
+        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
+            <p className="text-xs text-gray-500">No verification sources available</p>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            This enrichment was generated without web sources. Consider re-enriching with web search enabled for verification.
+          </p>
         </div>
       )}
 
@@ -281,6 +332,7 @@ export function EnrichmentDetails({ value, metadata, className }: EnrichmentDeta
           </pre>
         </details>
       )}
+      </div>
     </div>
   )
 }

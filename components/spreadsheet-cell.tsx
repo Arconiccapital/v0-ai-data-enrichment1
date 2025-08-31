@@ -120,7 +120,7 @@ export const SpreadsheetCell = memo(function SpreadsheetCell({
         <TooltipTrigger asChild>
           {cellContent}
         </TooltipTrigger>
-        <TooltipContent className="max-w-lg p-0">
+        <TooltipContent className="max-w-2xl p-0 max-h-[700px] overflow-hidden">
           {metadata ? (
             <EnrichmentDetails value={value} metadata={metadata} className="p-4" />
           ) : (

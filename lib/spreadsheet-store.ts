@@ -2,6 +2,7 @@ import { create } from "zustand"
 import { FormatMode, CustomFormat } from "@/lib/enrichment-utils"
 import { TemplateDefinition } from "@/src/types/templates"
 import { prepareAttachmentContext } from "./context-manager"
+import { useHistoryStore } from "@/lib/stores/history-store"
 
 interface EnrichmentStatus {
   enriching: boolean
@@ -194,6 +195,11 @@ interface SpreadsheetStore {
   setActiveTab: (tabId: string) => void
   getTab: (tabId: string) => Tab | undefined
   updateTab: (tabId: string, updates: Partial<Tab>) => void
+  // Undo/Redo
+  undo: () => void
+  redo: () => void
+  canUndo: () => boolean
+  canRedo: () => boolean
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
@@ -246,17 +252,49 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     })
   },
 
-  updateCell: (rowIndex, colIndex, value) =>
+  updateCell: (rowIndex, colIndex, value) => {
+    const state = get()
+    const oldValue = state.data[rowIndex]?.[colIndex] || ''
+    
+    // Track in history
+    useHistoryStore.getState().pushHistory({
+      type: 'cell_update',
+      timestamp: Date.now(),
+      data: {
+        rowIndex,
+        colIndex,
+        oldValue,
+        newValue: value,
+        header: state.headers[colIndex]
+      },
+      description: `Updated cell at row ${rowIndex + 1}, column "${state.headers[colIndex]}"`
+    })
+    
     set((state) => {
       const newData = [...state.data]
       newData[rowIndex] = [...newData[rowIndex]]
       newData[rowIndex][colIndex] = value
       return { data: newData }
-    }),
+    })
+  },
 
   addColumn: (header) => {
     const state = get()
     const newColumnIndex = state.headers.length
+    
+    // Track in history
+    useHistoryStore.getState().pushHistory({
+      type: 'column_add',
+      timestamp: Date.now(),
+      data: {
+        columnIndex: newColumnIndex,
+        header,
+        previousHeaders: [...state.headers],
+        previousData: state.data.map(row => [...row])
+      },
+      description: `Added column "${header}"`
+    })
+    
     set({
       headers: [...state.headers, header],
       data: state.data.map((row) => [...row, ""]),
@@ -1308,6 +1346,116 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
           : tab
       )
     })),
+
+  // Undo/Redo Implementation
+  undo: () => {
+    const historyStore = useHistoryStore.getState()
+    const entry = historyStore.undo()
+    
+    if (!entry) return
+    
+    const state = get()
+    
+    switch (entry.type) {
+      case 'cell_update':
+        // Restore previous cell value
+        const { rowIndex, colIndex, oldValue } = entry.data
+        set((state) => {
+          const newData = [...state.data]
+          newData[rowIndex] = [...newData[rowIndex]]
+          newData[rowIndex][colIndex] = oldValue
+          return { data: newData }
+        })
+        break
+        
+      case 'column_add':
+        // Remove the added column
+        const { columnIndex } = entry.data
+        set((state) => ({
+          headers: state.headers.filter((_, i) => i !== columnIndex),
+          data: state.data.map(row => row.filter((_, i) => i !== columnIndex))
+        }))
+        break
+        
+      case 'column_delete':
+        // Restore deleted column
+        const { previousHeaders, previousData } = entry.data
+        set({
+          headers: previousHeaders,
+          data: previousData
+        })
+        break
+        
+      case 'row_add':
+        // Remove the added row
+        set((state) => ({
+          data: state.data.slice(0, -1)
+        }))
+        break
+        
+      case 'bulk_paste':
+        // Restore previous data
+        const { previousData: prevData } = entry.data
+        set({ data: prevData })
+        break
+    }
+  },
+  
+  redo: () => {
+    const historyStore = useHistoryStore.getState()
+    const entry = historyStore.redo()
+    
+    if (!entry) return
+    
+    const state = get()
+    
+    switch (entry.type) {
+      case 'cell_update':
+        // Apply the cell update again
+        const { rowIndex, colIndex, newValue } = entry.data
+        set((state) => {
+          const newData = [...state.data]
+          newData[rowIndex] = [...newData[rowIndex]]
+          newData[rowIndex][colIndex] = newValue
+          return { data: newData }
+        })
+        break
+        
+      case 'column_add':
+        // Re-add the column
+        const { header } = entry.data
+        set((state) => ({
+          headers: [...state.headers, header],
+          data: state.data.map(row => [...row, ""])
+        }))
+        break
+        
+      case 'column_delete':
+        // Re-delete the column
+        const { columnIndex } = entry.data
+        set((state) => ({
+          headers: state.headers.filter((_, i) => i !== columnIndex),
+          data: state.data.map(row => row.filter((_, i) => i !== columnIndex))
+        }))
+        break
+        
+      case 'row_add':
+        // Re-add the row
+        set((state) => ({
+          data: [...state.data, new Array(state.headers.length).fill("")]
+        }))
+        break
+        
+      case 'bulk_paste':
+        // Re-apply the paste
+        const { newData } = entry.data
+        set({ data: newData })
+        break
+    }
+  },
+  
+  canUndo: () => useHistoryStore.getState().canUndo(),
+  canRedo: () => useHistoryStore.getState().canRedo(),
 }))
 
 async function enrichCell(value: string, prompt: string): Promise<string> {

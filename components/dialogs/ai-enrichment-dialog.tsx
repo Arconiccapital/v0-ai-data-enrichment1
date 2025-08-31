@@ -161,6 +161,8 @@ export function AIEnrichmentDialog({
     if (isNewColumn && !columnName) return
 
     setIsEnriching(true)
+    onOpenChange(false) // Close dialog immediately when enriching starts
+    
     try {
       // Determine format mode and prepare prompt
       let fullPrompt = prompt
@@ -248,7 +250,7 @@ export function AIEnrichmentDialog({
         }
       }
       
-      onOpenChange(false)
+      // Reset form state after enrichment
       setPrompt("")
       setColumnName("")
       setDataType("free")

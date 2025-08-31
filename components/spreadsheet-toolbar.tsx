@@ -17,7 +17,9 @@ import {
   LayoutDashboard, 
   Share2, 
   Mail, 
-  PanelRight 
+  PanelRight,
+  Undo,
+  Redo
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -46,6 +48,10 @@ interface SpreadsheetToolbarProps {
   onToggleCellDetails: () => void
   onGenerateEmail?: () => void
   onShare?: () => void
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
 }
 
 export function SpreadsheetToolbar({
@@ -65,12 +71,45 @@ export function SpreadsheetToolbar({
   onCreateDashboard,
   onToggleCellDetails,
   onGenerateEmail,
-  onShare
+  onShare,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false
 }: SpreadsheetToolbarProps) {
   return (
     <div className="px-6 py-4 bg-white border-b border-gray-200">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/* Undo/Redo Buttons */}
+          {onUndo && (
+            <Button
+              onClick={onUndo}
+              disabled={!canUndo}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo className="h-4 w-4" />
+            </Button>
+          )}
+          {onRedo && (
+            <Button
+              onClick={onRedo}
+              disabled={!canRedo}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <Redo className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {/* Separator */}
+          {(onUndo || onRedo) && <div className="h-6 w-px bg-gray-300" />}
+          
           {/* Analysis Button */}
           <Button 
             onClick={onAnalyze}
