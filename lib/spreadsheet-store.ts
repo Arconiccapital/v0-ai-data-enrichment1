@@ -111,6 +111,7 @@ export interface Tab {
     sourceColumns?: string[]
     createdAt?: Date
     prompt?: string
+    analysisType?: string // For analysis tabs
   }
 }
 

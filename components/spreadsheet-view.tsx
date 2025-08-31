@@ -16,6 +16,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { ColumnEnrichmentTooltip } from "@/components/column-enrichment-tooltip"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { AIEnrichmentDialog } from "@/components/dialogs/ai-enrichment-dialog"
 import { DataAnalysisDialog } from "@/components/dialogs/data-analysis-dialog"
@@ -229,18 +236,35 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
         const containerRect = scrollContainerRef.current.getBoundingClientRect()
         const headerRect = targetHeader.getBoundingClientRect()
         
-        // Calculate how much to scroll
-        const isOutOfViewRight = headerRect.right > containerRect.right - 180 // Account for Add Column button
-        const isOutOfViewLeft = headerRect.left < containerRect.left + 88 // Account for fixed columns
+        // Important: We want to keep the Add Column button visible (180px sticky on right)
+        // So we need to ensure there's always 180px of space on the right for it
+        const addColumnButtonWidth = 180
+        const fixedColumnsWidth = 88 // Width of checkbox and row number columns
+        
+        // Calculate the visible area excluding the Add Column button
+        const visibleRightEdge = containerRect.right - addColumnButtonWidth
+        
+        // Check if column is out of view
+        const isOutOfViewRight = headerRect.left > visibleRightEdge - 100 // Need some space to see the column
+        const isOutOfViewLeft = headerRect.left < containerRect.left + fixedColumnsWidth
         
         if (isOutOfViewRight) {
-          // Scroll right to show the column
-          const scrollAmount = headerRect.right - containerRect.right + 200 // Extra padding
-          scrollContainerRef.current.scrollLeft += scrollAmount
+          // Scroll right to show the column, but not so far that we lose the Add Column button
+          // Position the new column to be visible just before the Add Column button
+          const targetScrollLeft = headerRect.left - containerRect.left - (containerRect.width - addColumnButtonWidth - 200)
+          scrollContainerRef.current.scrollLeft = Math.max(0, targetScrollLeft)
         } else if (isOutOfViewLeft) {
           // Scroll left to show the column
-          const scrollAmount = containerRect.left - headerRect.left + 100
-          scrollContainerRef.current.scrollLeft -= scrollAmount
+          const scrollAmount = containerRect.left - headerRect.left + fixedColumnsWidth + 20
+          scrollContainerRef.current.scrollLeft = Math.max(0, scrollContainerRef.current.scrollLeft - scrollAmount)
+        }
+        
+        // Special case: if this is likely a new column at the end,
+        // scroll to show it but keep Add Column button visible
+        if (columnIndex === headers.length - 1) {
+          // This is the last column, position it nicely visible
+          const optimalScrollLeft = headerRect.left - containerRect.left - (containerRect.width - addColumnButtonWidth - 250)
+          scrollContainerRef.current.scrollLeft = Math.max(0, optimalScrollLeft)
         }
       }
     }, 200) // Increased timeout to ensure DOM update
@@ -344,7 +368,34 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                                   </Badge>
                                 )}
                                 {columnEnrichmentConfigs[index]?.isConfigured && (
-                                  <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" />
+                                  <>
+                                    <TooltipProvider delayDuration={300}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info 
+                                            className="h-3 w-3 text-blue-500 flex-shrink-0 cursor-help" 
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                        </TooltipTrigger>
+                                        <TooltipContent className="p-0 max-w-none">
+                                          <ColumnEnrichmentTooltip
+                                            config={columnEnrichmentConfigs[index]}
+                                            columnName={header}
+                                            totalRows={data.length}
+                                            enrichedRows={data.filter(row => row[index] && row[index] !== "").length}
+                                            onReconfigure={() => handleOpenEnrichmentForColumn(index, 'all')}
+                                            onRunAgain={() => {
+                                              const config = columnEnrichmentConfigs[index]
+                                              if (config) {
+                                                enrichColumn(index, config.prompt)
+                                              }
+                                            }}
+                                          />
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <Zap className="h-3 w-3 text-yellow-600 flex-shrink-0" />
+                                  </>
                                 )}
                                 {enrichmentStatus[index]?.enriching && (
                                   <Loader2 className="h-4 w-4 animate-spin text-blue-600 flex-shrink-0" />

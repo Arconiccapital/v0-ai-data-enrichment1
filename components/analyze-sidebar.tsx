@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { X, BarChart3, Play, TrendingUp, Users, DollarSign, ChevronRight, ChevronDown } from "lucide-react"
+import { X, BarChart3, Play, TrendingUp, Users, DollarSign, ChevronRight, ChevronDown, Loader2 } from "lucide-react"
+import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 
 interface AnalyzeSidebarProps {
   onClose: () => void
@@ -32,10 +33,12 @@ const analysisTemplates = {
 }
 
 export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
+  const { addTab, setActiveTab } = useSpreadsheetStore()
   const [selectedCategory, setSelectedCategory] = useState<keyof typeof analysisTemplates>("sales")
   const [customPrompt, setCustomPrompt] = useState("")
+  const [isGenerating, setIsGenerating] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    templates: false,
+    templates: true,
     custom: false
   })
 
@@ -46,16 +49,64 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
     }))
   }
 
-  const handleAnalyze = () => {
-    // Trigger analysis dialog in the spreadsheet view
-    const analyzeButton = document.querySelector('[data-analysis-trigger]') as HTMLButtonElement
-    if (analyzeButton) {
-      analyzeButton.click()
+  const generateAnalysis = async (templateName: string, prompt: string, analysisType: string) => {
+    setIsGenerating(true)
+    
+    // Simulate analysis generation
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // Create a new tab for the analysis
+    const tabId = `analysis-${Date.now()}`
+    const newTab = {
+      id: tabId,
+      type: 'analysis' as const,
+      title: templateName,
+      metadata: {
+        analysisType,
+        prompt,
+        createdAt: new Date(),
+        sourceColumns: [] // Would be populated based on actual data columns used
+      },
+      data: {
+        // This would contain actual analysis results
+        type: analysisType,
+        results: {}
+      }
     }
-    // Store the analysis prompt for the dialog to use if needed
-    if (customPrompt) {
-      sessionStorage.setItem('analysisPrompt', customPrompt)
+    
+    // Add the tab and switch to it
+    addTab(newTab)
+    setActiveTab(tabId)
+    
+    setIsGenerating(false)
+    
+    // Keep sidebar open for more generation
+    // onClose() // Don't close automatically
+  }
+
+  const handleTemplateClick = async (template: { name: string; prompt: string }, category: string) => {
+    // Map template names to analysis types
+    const analysisTypeMap: Record<string, string> = {
+      'Lead Scoring': 'lead-scoring',
+      'Deal Size Prediction': 'deal-prediction',
+      'Win Probability': 'win-probability',
+      'Churn Risk': 'churn-risk',
+      'Segmentation': 'segmentation',
+      'Lifetime Value': 'lifetime-value',
+      'Revenue Forecast': 'revenue-forecast',
+      'Risk Assessment': 'risk-assessment',
+      'Profitability Analysis': 'profitability',
+      'DCF Model': 'dcf-model'
     }
+    
+    const analysisType = analysisTypeMap[template.name] || 'custom'
+    await generateAnalysis(template.name, template.prompt, analysisType)
+  }
+
+  const handleCustomAnalyze = async () => {
+    if (!customPrompt.trim()) return
+    await generateAnalysis('Custom Analysis', customPrompt, 'custom')
+    setCustomPrompt('')
   }
 
   const categoryIcons = {
@@ -134,10 +185,13 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
                       <Card 
                         key={idx}
                         className="cursor-pointer hover:bg-gray-50 transition-colors"
-                        onClick={() => setCustomPrompt(template.prompt)}
+                        onClick={() => handleTemplateClick(template, selectedCategory)}
                       >
                         <CardHeader className="pb-2 pt-3">
-                          <CardTitle className="text-xs">{template.name}</CardTitle>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-xs">{template.name}</CardTitle>
+                            <Play className="h-3 w-3 text-gray-400" />
+                          </div>
                         </CardHeader>
                         <CardContent className="pb-3">
                           <CardDescription className="text-xs">
@@ -199,9 +253,9 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
               <CardTitle className="text-xs text-blue-900">Quick Tips</CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-blue-800 space-y-1">
-              <p>• Click any template to use it as a starting point</p>
-              <p>• Customize the prompt to match your specific needs</p>
-              <p>• Analysis will be applied to all selected rows</p>
+              <p>• Click any template to generate that analysis</p>
+              <p>• Each analysis opens in a new tab</p>
+              <p>• Switch between analyses using the tab bar</p>
             </CardContent>
           </Card>
         </div>
@@ -211,11 +265,20 @@ export function AnalyzeSidebar({ onClose }: AnalyzeSidebarProps) {
       <div className="p-4 border-t border-gray-200">
         <Button 
           className="w-full bg-blue-600 text-white hover:bg-blue-700"
-          onClick={handleAnalyze}
-          disabled={!customPrompt.trim()}
+          onClick={handleCustomAnalyze}
+          disabled={!customPrompt.trim() || isGenerating}
         >
-          <Play className="h-4 w-4 mr-2" />
-          Run Analysis
+          {isGenerating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 mr-2" />
+              Run Custom Analysis
+            </>
+          )}
         </Button>
       </div>
     </div>

@@ -2,10 +2,11 @@
 
 import { SpreadsheetView } from "./spreadsheet-view"
 import { DashboardPreview } from "./dashboard-preview"
+import { AnalysisContent } from "./analysis-content"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileSpreadsheet, LayoutDashboard, Calculator, Info } from "lucide-react"
+import { FileSpreadsheet, LayoutDashboard, Info } from "lucide-react"
 
 interface TabContentProps {
   activeWorkflowStep?: string | null
@@ -83,11 +84,11 @@ export function TabContent({ activeWorkflowStep }: TabContentProps) {
       )
       
     case 'analysis':
-      // Show analysis model (DCF, etc.)
+      // Show analysis content
       return (
         <div className="flex-1 flex flex-col">
           {/* Data source indicator bar */}
-          {currentTab.metadata?.sourceColumns && (
+          {currentTab.metadata?.sourceColumns && currentTab.metadata.sourceColumns.length > 0 && (
             <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 text-gray-500" />
@@ -105,17 +106,16 @@ export function TabContent({ activeWorkflowStep }: TabContentProps) {
             </div>
           )}
           
-          {/* Analysis content placeholder */}
-          <div className="flex-1 flex items-center justify-center">
-            <Card className="p-8 text-center">
-              <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">{currentTab.title}</h3>
-              <p className="text-gray-500">Analysis model coming soon</p>
-              <p className="text-sm text-gray-400 mt-2">
-                DCF models, financial analysis, and more
-              </p>
-            </Card>
-          </div>
+          {/* Analysis content */}
+          <AnalysisContent
+            analysisType={currentTab.metadata?.analysisType || currentTab.data?.type || 'unknown'}
+            data={currentTab.data}
+            metadata={currentTab.metadata}
+            onRefresh={() => {
+              // Could regenerate analysis here
+              console.log('Refreshing analysis:', currentTab.title)
+            }}
+          />
         </div>
       )
       

@@ -10,7 +10,6 @@ import { SpreadsheetView } from "@/components/spreadsheet-view"
 import { AppNavigation } from "@/components/app-navigation"
 import { WorkflowIndicator } from "@/components/workflow-indicator"
 import { SidebarNav } from "@/components/sidebar-nav"
-import { EnrichSidebar } from "@/components/enrich-sidebar"
 import { AnalyzeSidebar } from "@/components/analyze-sidebar"
 import { LovableOutput } from "@/components/lovable-output"
 import { ExportSidebar } from "@/components/export-sidebar"
@@ -24,17 +23,8 @@ export default function HomePage() {
   const { hasData, tabs, activeTab, setActiveTab, removeTab } = useSpreadsheetStore()
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<string | null>(null)
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
-  const [hasOpenedEnrich, setHasOpenedEnrich] = useState(false)
   const [showFindDataDialog, setShowFindDataDialog] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  // Auto-open enrich sidebar when data is first loaded
-  useEffect(() => {
-    if (hasData && !hasOpenedEnrich) {
-      setActiveWorkflowStep('enrich')
-      setHasOpenedEnrich(true)
-    }
-  }, [hasData, hasOpenedEnrich])
 
   // Show upload page if no data
   if (!hasData) {
@@ -112,6 +102,13 @@ export default function HomePage() {
   }
 
   const handleWorkflowStepClick = (stepId: string) => {
+    // Special handling for enrich - no sidebar needed
+    if (stepId === 'enrich') {
+      // Enrichment happens through column headers
+      // Could show a toast or highlight columns here
+      return
+    }
+    
     // If clicking the same step, close it
     if (activeWorkflowStep === stepId) {
       setActiveWorkflowStep(null)
@@ -174,12 +171,6 @@ export default function HomePage() {
           {/* Right Sidebar based on active workflow step */}
           {activeWorkflowStep && (
             <div className="absolute lg:relative inset-0 lg:inset-auto z-30 lg:z-auto flex-shrink-0">
-              {activeWorkflowStep === 'enrich' && (
-                <EnrichSidebar 
-                  onClose={() => setActiveWorkflowStep(null)}
-                  onComplete={progressToNextStep}
-                />
-              )}
               {activeWorkflowStep === 'analyze' && (
                 <AnalyzeSidebar 
                   onClose={() => setActiveWorkflowStep(null)}
