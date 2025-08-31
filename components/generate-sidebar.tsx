@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { quickInsights, analysisTemplates, outputTemplates } from "@/lib/templates"
-import { X, FileText, LayoutDashboard, Presentation, BarChart3, Zap, Play, Loader2, Wand2 } from "lucide-react"
+import { X, FileText, LayoutDashboard, Presentation, BarChart3, Zap, Play, Loader2, Wand2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 interface GenerateSidebarProps {
@@ -18,27 +18,32 @@ interface GenerateSidebarProps {
 export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
   const { data, headers, addTab, setActiveTab } = useSpreadsheetStore()
   const [isGenerating, setIsGenerating] = useState(false)
+  const [generatingTemplate, setGeneratingTemplate] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState<'quick' | 'analysis' | 'output'>('quick')
 
   const generateContent = async (name: string, prompt: string, contentType: string) => {
     setIsGenerating(true)
+    setGeneratingTemplate(name)
     
     try {
-      // Determine the API endpoint based on content type
-      const endpoint = contentType === 'analysis' ? '/api/analyze' : '/api/generate-dashboard'
+      // Determine the API endpoint and payload based on content type
+      const isAnalysis = contentType === 'analysis' || contentType === 'quick-insight'
+      const endpoint = isAnalysis ? '/api/analyze' : '/api/generate-dashboard'
+      
+      const payload = isAnalysis 
+        ? { prompt, rows: data, headers }
+        : { naturalLanguagePrompt: prompt, data: { headers, rows: data } }
       
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          outputType: contentType,
-          data: { headers, rows: data }
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to generate ${contentType}`)
+        const errorText = await response.text()
+        console.error('Generation failed:', response.status, errorText)
+        throw new Error(`Failed to generate ${name}. Server responded with: ${response.status}`)
       }
 
       const result = await response.json()
@@ -66,16 +71,30 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
       })
       
     } catch (error: any) {
-      toast.error(`Failed to generate ${contentType}`, {
-        description: error.message || 'Please try again'
+      console.error('Generation error:', error)
+      toast.error(`Failed to generate ${name}`, {
+        description: error.message || 'Please try again with different data or template'
       })
     } finally {
       setIsGenerating(false)
+      setGeneratingTemplate('')
     }
   }
 
   return (
-    <div className="w-full sm:w-96 md:w-[450px] max-w-[450px] flex-shrink-0 h-full bg-white border-l border-gray-200 flex flex-col">
+    <div className="w-full sm:w-96 md:w-[450px] max-w-[450px] flex-shrink-0 h-full bg-white border-l border-gray-200 flex flex-col relative">
+      {/* Loading Overlay */}
+      {isGenerating && (
+        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center p-8">
+            <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Generating {generatingTemplate}</h3>
+            <p className="text-sm text-gray-600">This may take a few moments...</p>
+            <p className="text-xs text-gray-500 mt-4">Analyzing your data and creating insights</p>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
@@ -87,6 +106,7 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
           size="sm"
           onClick={onClose}
           className="h-8 w-8 p-0"
+          disabled={isGenerating}
         >
           <X className="h-4 w-4" />
         </Button>
@@ -120,8 +140,8 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
                 return (
                   <Card 
                     key={insight.name}
-                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => generateContent(insight.name, insight.prompt, 'quick-insight')}
+                    className={`cursor-pointer transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                    onClick={() => !isGenerating && generateContent(insight.name, insight.prompt, 'quick-insight')}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-3">
@@ -158,8 +178,8 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
                     {templates.map((template) => (
                       <div
                         key={template.name}
-                        className="p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                        onClick={() => generateContent(template.name, template.prompt, 'analysis')}
+                        className={`p-2 rounded cursor-pointer transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                        onClick={() => !isGenerating && generateContent(template.name, template.prompt, 'analysis')}
                       >
                         <p className="text-sm font-medium">{template.name}</p>
                         <p className="text-xs text-gray-500">{template.description}</p>
@@ -186,8 +206,8 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
                     {templates.map((template) => (
                       <div
                         key={template.name}
-                        className="p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
-                        onClick={() => generateContent(template.name, template.prompt, category)}
+                        className={`p-2 rounded cursor-pointer transition-colors ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
+                        onClick={() => !isGenerating && generateContent(template.name, template.prompt, category)}
                       >
                         <p className="text-sm font-medium">{template.name}</p>
                         <p className="text-xs text-gray-500">{template.description}</p>
