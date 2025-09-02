@@ -148,25 +148,124 @@ export const marketingTemplates: OutputTemplate[] = [
     name: 'Social Media Post',
     category: 'marketing',
     icon: '📱',
-    description: 'Engaging content for LinkedIn, Twitter, Instagram',
-    timeEstimate: '2 min',
-    popularity: 8,
+    description: 'Platform-optimized social content with engagement strategies',
+    timeEstimate: '2-5 min',
+    popularity: 10,
     dataRequirements: {
       required: [
-        { name: 'topic', type: 'text', description: 'What to post about' }
+        { name: 'content_goal', type: 'text', description: 'Primary objective: Awareness/Engagement/Conversion/Education/Entertainment' },
+        { name: 'target_platform', type: 'text', description: 'LinkedIn/Twitter/Instagram/Facebook/TikTok/YouTube/Pinterest/Reddit' },
+        { name: 'post_format', type: 'text', description: 'Single post/Thread/Carousel/Story/Reel/Live/Poll/Article' }
       ],
       optional: [
-        { name: 'data_points', type: 'text', description: 'Facts or statistics' },
-        { name: 'call_to_action', type: 'text', description: 'Desired action' }
+        // Core Content Fields
+        { name: 'key_message', type: 'text', description: 'Main point to communicate (hook/headline)' },
+        { name: 'supporting_points', type: 'text', description: 'Bullet points or key takeaways' },
+        { name: 'storytelling_angle', type: 'text', description: 'Personal story/Customer story/Data story/News angle' },
+        
+        // Audience & Targeting
+        { name: 'audience_segment', type: 'text', description: 'Primary audience: Executives/Developers/Marketers/Students/General' },
+        { name: 'audience_pain_points', type: 'text', description: 'Problems your audience faces' },
+        { name: 'audience_stage', type: 'text', description: 'Awareness/Consideration/Decision/Retention' },
+        { name: 'geo_targeting', type: 'text', description: 'Geographic focus: Global/Country/City/Region' },
+        { name: 'language', type: 'text', description: 'Primary language and any translations needed' },
+        
+        // Brand & Voice
+        { name: 'brand_voice', type: 'text', description: 'Professional/Casual/Humorous/Inspirational/Educational/Urgent' },
+        { name: 'brand_values', type: 'text', description: 'Core values to reflect in content' },
+        { name: 'brand_personality', type: 'text', description: 'Expert/Friend/Mentor/Challenger/Entertainer' },
+        { name: 'content_pillars', type: 'text', description: 'Which content pillar this fits: Thought Leadership/Product/Culture/Customer Success' },
+        
+        // Data & Proof Points
+        { name: 'statistics', type: 'text', description: 'Specific numbers, percentages, or data points' },
+        { name: 'social_proof', type: 'text', description: 'Customer quotes/Case studies/Awards/Certifications' },
+        { name: 'authority_markers', type: 'text', description: 'Credentials/Experience/Partnerships that build trust' },
+        
+        // Campaign & Series
+        { name: 'campaign_name', type: 'text', description: 'Part of which campaign or initiative' },
+        { name: 'content_series', type: 'text', description: 'Series name and episode number if applicable' },
+        { name: 'campaign_hashtag', type: 'text', description: 'Branded campaign hashtag' },
+        { name: 'cross_platform_strategy', type: 'text', description: 'How this connects to other platforms' },
+        
+        // Visual Content
+        { name: 'visual_type', type: 'text', description: 'Photo/Graphic/Video/GIF/Infographic/Screenshot/Meme' },
+        { name: 'visual_style', type: 'text', description: 'Minimalist/Bold/Photographic/Illustrated/Data-viz/User-generated' },
+        { name: 'visual_elements', type: 'text', description: 'Colors/Fonts/Logo placement/Templates to use' },
+        { name: 'video_length', type: 'text', description: 'For video: 15s/30s/60s/2min/long-form' },
+        { name: 'alt_text', type: 'text', description: 'Accessibility description for images' },
+        
+        // Engagement Elements
+        { name: 'call_to_action', type: 'text', description: 'Primary CTA: Learn more/Sign up/Download/Share/Comment/Vote' },
+        { name: 'engagement_hooks', type: 'text', description: 'Questions to ask/Polls to run/Challenges to pose' },
+        { name: 'first_comment', type: 'text', description: 'Planned first comment to boost engagement' },
+        { name: 'response_strategy', type: 'text', description: 'How to handle comments: Thank/Answer/Redirect/Ignore' },
+        
+        // Hashtag Strategy
+        { name: 'hashtag_mix', type: 'text', description: 'Branded/Trending/Niche/Community hashtags to use' },
+        { name: 'hashtag_research', type: 'text', description: 'Popular hashtags in your space with volume' },
+        
+        // Mentions & Partnerships
+        { name: 'mentions', type: 'text', description: '@mentions of people/brands/partners' },
+        { name: 'influencer_collaboration', type: 'text', description: 'Influencer involvement or UGC elements' },
+        { name: 'employee_advocacy', type: 'text', description: 'Internal team members to involve' }
       ],
-      enhanced: []
+      enhanced: [
+        // Timing & Scheduling
+        { name: 'optimal_time', type: 'date', description: 'Best time to post based on audience data' },
+        { name: 'time_zone', type: 'text', description: 'Primary time zone for scheduling' },
+        { name: 'posting_frequency', type: 'text', description: 'How this fits into posting cadence' },
+        { name: 'expiration_date', type: 'date', description: 'When content becomes outdated' },
+        
+        // Performance Benchmarks
+        { name: 'performance_benchmarks', type: 'text', description: 'Expected likes/shares/comments based on history' },
+        { name: 'success_metrics', type: 'text', description: 'KPIs: Reach/Engagement rate/Click-through/Conversions' },
+        { name: 'a_b_test_variant', type: 'text', description: 'Different versions to test: Headlines/Images/CTAs' },
+        
+        // Compliance & Legal
+        { name: 'compliance_checks', type: 'text', description: 'Legal/regulatory requirements (FTC disclosures, GDPR)' },
+        { name: 'sensitive_topics', type: 'text', description: 'Topics to avoid or handle carefully' },
+        { name: 'approval_required', type: 'boolean', description: 'Needs legal/executive review' },
+        { name: 'disclosure_required', type: 'text', description: 'Sponsored/Partnership/Affiliate disclosures needed' },
+        
+        // Competitive Context
+        { name: 'competitor_activity', type: 'text', description: 'What competitors are saying about this topic' },
+        { name: 'differentiation', type: 'text', description: 'How to stand out from similar content' },
+        { name: 'industry_trends', type: 'text', description: 'Current industry conversations to tap into' },
+        
+        // Repurposing & Atomization
+        { name: 'content_source', type: 'text', description: 'Original content this is derived from (blog/video/podcast)' },
+        { name: 'repurpose_plan', type: 'text', description: 'How to break down or expand for other formats' },
+        { name: 'content_variations', type: 'text', description: 'Different angles for different platforms' },
+        
+        // Advanced Platform Features
+        { name: 'platform_features', type: 'text', description: 'Platform-specific: LinkedIn polls/Twitter Spaces/IG Shopping tags' },
+        { name: 'thread_structure', type: 'text', description: 'For threads: Hook/Problem/Solution/CTA breakdown' },
+        { name: 'carousel_slides', type: 'text', description: 'For carousels: Slide-by-slide content plan' },
+        { name: 'story_sequence', type: 'text', description: 'For stories: Frame-by-frame storyboard' },
+        
+        // Budget & Promotion
+        { name: 'boost_budget', type: 'currency', description: 'Paid promotion budget if any' },
+        { name: 'target_audience_paid', type: 'text', description: 'Paid targeting parameters' },
+        { name: 'promotion_duration', type: 'text', description: 'How long to run paid promotion' }
+      ]
     },
     outputConfig: {
       type: 'social',
-      template: 'social_post'
+      template: 'social_post_advanced'
     },
-    examples: ['Product announcement', 'Company milestone', 'Industry insight'],
-    samplePrompt: 'Create LinkedIn post announcing our Series A funding'
+    examples: [
+      'Series A funding announcement for LinkedIn with employee advocacy',
+      'Educational Twitter thread on industry trends with data viz',
+      'Instagram carousel showcasing customer transformation story',
+      'TikTok trend participation with brand twist',
+      'LinkedIn article establishing thought leadership',
+      'Facebook Live Q&A session announcement',
+      'Reddit AMA preparation and promotion',
+      'Pinterest infographic for evergreen content',
+      'YouTube Shorts from podcast highlights',
+      'Cross-platform product launch campaign'
+    ],
+    samplePrompt: 'Create LinkedIn post announcing $25M Series A funding led by Sequoia Capital, targeting B2B SaaS executives, with employee advocacy and first comment strategy'
   },
   {
     id: 'email_campaign',
@@ -200,26 +299,104 @@ export const marketingTemplates: OutputTemplate[] = [
     name: 'Content Calendar',
     category: 'marketing',
     icon: '📅',
-    description: 'Social media scheduling and content planning',
-    timeEstimate: '10 min',
-    popularity: 6,
+    description: 'Comprehensive social media planning and scheduling system',
+    timeEstimate: '15-30 min',
+    popularity: 8,
     dataRequirements: {
       required: [
-        { name: 'content_topic', type: 'text', description: 'Content themes' },
-        { name: 'publish_date', type: 'date', description: 'Schedule dates' }
+        { name: 'planning_period', type: 'date', description: 'Date range: Week/Month/Quarter/Year' },
+        { name: 'posting_frequency', type: 'text', description: 'Posts per day/week per platform' },
+        { name: 'primary_platforms', type: 'text', description: 'Core platforms to focus on' }
       ],
       optional: [
-        { name: 'platform', type: 'text', description: 'Social platforms' },
-        { name: 'content_type', type: 'text', description: 'Post format' }
+        // Content Planning
+        { name: 'content_themes', type: 'text', description: 'Monthly/weekly themes or topics' },
+        { name: 'content_pillars', type: 'text', description: 'Core content categories (e.g., 40% educational, 30% promotional, 20% engagement, 10% culture)' },
+        { name: 'content_mix', type: 'text', description: 'Video/Image/Text/Link ratio' },
+        { name: 'evergreen_content', type: 'text', description: 'Reusable content for filling gaps' },
+        
+        // Campaign Integration
+        { name: 'campaigns', type: 'text', description: 'Major campaigns during this period' },
+        { name: 'product_launches', type: 'date', description: 'Product release dates to plan around' },
+        { name: 'events', type: 'date', description: 'Company events, webinars, conferences' },
+        { name: 'holidays', type: 'date', description: 'Relevant holidays and observances' },
+        { name: 'industry_events', type: 'date', description: 'Industry conferences, awareness days' },
+        
+        // Platform-Specific Planning
+        { name: 'linkedin_schedule', type: 'text', description: 'LinkedIn posting times and frequency' },
+        { name: 'twitter_schedule', type: 'text', description: 'Twitter posting times and thread days' },
+        { name: 'instagram_schedule', type: 'text', description: 'Instagram feed/stories/reels schedule' },
+        { name: 'facebook_schedule', type: 'text', description: 'Facebook posts and group activity' },
+        { name: 'tiktok_schedule', type: 'text', description: 'TikTok posting and trend participation' },
+        { name: 'youtube_schedule', type: 'text', description: 'YouTube video/shorts publishing' },
+        
+        // Content Details
+        { name: 'post_copy', type: 'text', description: 'Pre-written post text for each slot' },
+        { name: 'hashtag_sets', type: 'text', description: 'Hashtag groups for different post types' },
+        { name: 'visual_assets', type: 'text', description: 'Images/videos needed for each post' },
+        { name: 'link_destinations', type: 'url', description: 'URLs for traffic driving posts' },
+        { name: 'cta_rotation', type: 'text', description: 'Different CTAs to test throughout period' },
+        
+        // Team Collaboration
+        { name: 'content_owner', type: 'text', description: 'Who creates each piece' },
+        { name: 'approval_needed', type: 'text', description: 'Which posts need review' },
+        { name: 'design_requests', type: 'text', description: 'Visual assets needed from design team' },
+        { name: 'subject_matter_experts', type: 'text', description: 'SMEs needed for content creation' },
+        
+        // Engagement Planning
+        { name: 'community_management', type: 'text', description: 'Response time goals and coverage' },
+        { name: 'user_generated_content', type: 'text', description: 'UGC campaigns and reposting schedule' },
+        { name: 'influencer_posts', type: 'text', description: 'Influencer collaboration timeline' },
+        { name: 'employee_advocacy', type: 'text', description: 'Internal sharing requests' },
+        
+        // Content Series & Recurring
+        { name: 'weekly_series', type: 'text', description: 'Recurring weekly content (e.g., #MondayMotivation)' },
+        { name: 'monthly_features', type: 'text', description: 'Monthly recurring posts (e.g., employee spotlight)' },
+        { name: 'content_franchises', type: 'text', description: 'Ongoing series with episode numbers' }
       ],
-      enhanced: []
+      enhanced: [
+        // Performance Tracking
+        { name: 'kpi_targets', type: 'text', description: 'Goals for reach, engagement, conversions' },
+        { name: 'benchmark_data', type: 'number', description: 'Historical performance to beat' },
+        { name: 'competitor_monitoring', type: 'text', description: 'Competitor posts to watch and respond to' },
+        { name: 'trend_monitoring', type: 'text', description: 'Trending topics to capitalize on' },
+        
+        // Budget & Resources
+        { name: 'content_budget', type: 'currency', description: 'Budget for content creation' },
+        { name: 'paid_promotion_budget', type: 'currency', description: 'Budget for boosting posts' },
+        { name: 'tool_requirements', type: 'text', description: 'Scheduling tools, design tools needed' },
+        
+        // Compliance & Brand
+        { name: 'brand_guidelines', type: 'text', description: 'Brand voice, visual standards to follow' },
+        { name: 'legal_review_needed', type: 'boolean', description: 'Posts requiring legal approval' },
+        { name: 'crisis_protocols', type: 'text', description: 'What to do if crisis occurs during calendar period' },
+        
+        // Localization
+        { name: 'multi_language', type: 'text', description: 'Languages and translation needs' },
+        { name: 'regional_adaptation', type: 'text', description: 'Regional content variations' },
+        { name: 'time_zone_scheduling', type: 'text', description: 'Multi-timezone posting strategy' },
+        
+        // Repurposing Strategy
+        { name: 'content_repurposing', type: 'text', description: 'How to reuse content across platforms' },
+        { name: 'archive_best_performers', type: 'text', description: 'Top content to reuse later' },
+        { name: 'content_atomization', type: 'text', description: 'Breaking long-form into social posts' }
+      ]
     },
     outputConfig: {
       type: 'workflow',
-      template: 'content_calendar'
+      template: 'content_calendar_advanced'
     },
-    examples: ['Monthly social calendar', 'Blog schedule', 'Campaign timeline'],
-    samplePrompt: 'Plan 30-day social media content calendar'
+    examples: [
+      '30-day multi-platform content calendar with campaigns',
+      'Quarterly social media plan with themes and series',
+      'Product launch content calendar across all channels',
+      'Holiday season content strategy and schedule',
+      'B2B LinkedIn-focused weekly calendar',
+      'Event-driven real-time content calendar',
+      'Influencer collaboration content schedule',
+      'Global brand with regional content variations'
+    ],
+    samplePrompt: 'Create 30-day content calendar for B2B SaaS company across LinkedIn, Twitter, and Instagram, with 2 posts per day, focusing on thought leadership and product education'
   },
   {
     id: 'newsletter',

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, Paperclip } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, Paperclip, Eye } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
 import { useEnhancedClipboard } from "@/hooks/useEnhancedClipboard"
 import {
@@ -30,6 +30,7 @@ import { SmartSelectionDialog } from "@/components/dialogs/smart-selection-dialo
 import { GenerationInfoBanner } from "@/components/generation-info-banner"
 import { ColumnAttachmentManager } from "@/components/column-attachment-manager"
 import { CellAttachmentManager } from "@/components/cell-attachment-manager"
+import { PreviewSidebar } from "@/components/preview-sidebar"
 import { cn } from "@/lib/utils"
 
 interface SpreadsheetViewProps {
@@ -88,7 +89,25 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const [highlightColumns, setHighlightColumns] = useState(false)
   const [showEnrichHint, setShowEnrichHint] = useState(true)
   const [hasInteractedWithColumn, setHasInteractedWithColumn] = useState(false)
+  const [previewSidebarOpen, setPreviewSidebarOpen] = useState(false)
+  const [selectedRowForPreview, setSelectedRowForPreview] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Helper function to detect if we're working with social media template
+  const isSocialMediaTemplate = () => {
+    // Check if headers include social media related columns
+    const socialMediaKeywords = [
+      'content_goal', 'target_platform', 'post_format',
+      'linkedin_headline', 'linkedin_post', 'tweet_1', 'tweet_2',
+      'instagram_caption', 'carousel_slide', 'hashtags', 'cta'
+    ]
+    
+    return headers.some(header => 
+      socialMediaKeywords.some(keyword => 
+        header.toLowerCase().includes(keyword.toLowerCase())
+      )
+    )
+  }
 
   // Listen for enrichment highlight event
   useEffect(() => {
@@ -328,15 +347,30 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
               )}
             </div>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSmartSelectionOpen(true)}
-              className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
-            >
-              <Filter className="h-3 w-3 mr-1" />
-              Smart Select
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Show preview button for social media templates */}
+              {isSocialMediaTemplate() && (
+                <Button
+                  variant={previewSidebarOpen ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPreviewSidebarOpen(!previewSidebarOpen)}
+                  className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  Preview
+                </Button>
+              )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSmartSelectionOpen(true)}
+                className="h-8 md:h-6 text-sm md:text-xs min-w-[44px] md:min-w-0"
+              >
+                <Filter className="h-3 w-3 mr-1" />
+                Smart Select
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -595,10 +629,18 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                 </thead>
                 <tbody>
                   {data.map((row, rowIndex) => (
-                    <tr key={rowIndex} className={cn(
-                      "hover:bg-gray-50 border-b border-gray-100",
-                      selectedRows.has(rowIndex) && "bg-gray-100"
-                    )}>
+                    <tr 
+                      key={rowIndex} 
+                      className={cn(
+                        "hover:bg-gray-50 border-b border-gray-100 cursor-pointer",
+                        selectedRows.has(rowIndex) && "bg-gray-100",
+                        selectedRowForPreview === rowIndex && previewSidebarOpen && "bg-blue-50"
+                      )}
+                      onClick={() => {
+                        // Update selected row for preview when clicking on any row
+                        setSelectedRowForPreview(rowIndex)
+                      }}
+                    >
                       <td className="text-center border-r border-gray-200 bg-white sticky left-0 z-10" style={{ width: '40px', height: '48px', boxSizing: 'border-box' }}>
                         <Checkbox
                           checked={selectedRows.has(rowIndex)}
@@ -720,6 +762,16 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
           columnIndex={selectedCellForAttachment.col}
           cellValue={data[selectedCellForAttachment.row]?.[selectedCellForAttachment.col] || ''}
           columnName={headers[selectedCellForAttachment.col] || ''}
+        />
+      )}
+      
+      {/* Preview Sidebar for social media templates */}
+      {isSocialMediaTemplate() && (
+        <PreviewSidebar
+          isOpen={previewSidebarOpen}
+          onToggle={() => setPreviewSidebarOpen(!previewSidebarOpen)}
+          selectedRow={selectedRowForPreview}
+          templateType="social_media_post"
         />
       )}
     </div>
