@@ -515,6 +515,194 @@ export const marketingTemplates: DashboardTemplate[] = [
       }
     ],
     defaultPrompt: "Create social media dashboard with engagement metrics and sentiment analysis"
+  },
+  {
+    id: "social_content_calendar",
+    name: "Social Media Content Calendar",
+    description: "Plan and track social media content with publishing schedule and performance",
+    icon: "📅",
+    category: "marketing",
+    sections: [
+      {
+        title: "Content Overview",
+        widgets: [
+          {
+            id: "content_kpis",
+            type: "kpi",
+            title: "Content Performance",
+            dataKey: "content_stats",
+            config: {
+              metrics: [
+                { label: "Posts This Week", key: "weekly_posts", format: "number" },
+                { label: "Avg Engagement", key: "avg_engagement", format: "percentage" },
+                { label: "Total Reach", key: "total_reach", format: "number" },
+                { label: "Content ROI", key: "content_roi", format: "percentage" }
+              ]
+            }
+          },
+          {
+            id: "platform_distribution",
+            type: "chart",
+            title: "Posts by Platform",
+            dataKey: "platform_posts",
+            config: {
+              chartType: "donut",
+              valueKey: "count",
+              labelKey: "platform"
+            }
+          }
+        ]
+      },
+      {
+        title: "Publishing Schedule",
+        widgets: [
+          {
+            id: "content_calendar",
+            type: "calendar",
+            title: "Content Calendar",
+            dataKey: "scheduled_posts",
+            config: {
+              dateField: "scheduled_date",
+              titleField: "post_text",
+              categoryField: "platform"
+            }
+          },
+          {
+            id: "upcoming_posts",
+            type: "table",
+            title: "Upcoming Posts",
+            dataKey: "scheduled_content",
+            config: {
+              columns: ["Date", "Time", "Platform", "Post", "Campaign", "Status"]
+            }
+          }
+        ]
+      },
+      {
+        title: "Content Performance",
+        widgets: [
+          {
+            id: "content_type_performance",
+            type: "chart",
+            title: "Performance by Content Type",
+            dataKey: "content_types",
+            config: {
+              chartType: "grouped-bar",
+              xAxis: "media_type",
+              yAxis: "engagement_rate",
+              series: ["Video", "Image", "Carousel", "Text", "Poll"]
+            }
+          },
+          {
+            id: "campaign_effectiveness",
+            type: "scorecard",
+            title: "Campaign Effectiveness",
+            dataKey: "campaigns",
+            config: {
+              criteria: [
+                { name: "Brand Awareness", weight: 0.25, max: 10 },
+                { name: "Lead Generation", weight: 0.3, max: 10 },
+                { name: "Community Engagement", weight: 0.2, max: 10 },
+                { name: "Conversion Rate", weight: 0.25, max: 10 }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    defaultPrompt: "Build social media content calendar with scheduling, platform distribution, and performance tracking"
+  },
+  {
+    id: "social_media_performance",
+    name: "Social Media Performance Dashboard",
+    description: "Comprehensive analytics for social media campaigns and content performance",
+    icon: "📊",
+    category: "marketing",
+    sections: [
+      {
+        title: "Performance Metrics",
+        widgets: [
+          {
+            id: "performance_kpis",
+            type: "kpi",
+            title: "Key Performance Indicators",
+            dataKey: "social_kpis",
+            config: {
+              metrics: [
+                { label: "Total Impressions", key: "impressions", format: "number" },
+                { label: "Engagement Rate", key: "engagement_rate", format: "percentage" },
+                { label: "Click-Through Rate", key: "ctr", format: "percentage" },
+                { label: "Conversion Rate", key: "conversion", format: "percentage" }
+              ]
+            }
+          },
+          {
+            id: "engagement_trend",
+            type: "chart",
+            title: "Engagement Trend",
+            dataKey: "engagement_history",
+            config: {
+              chartType: "area",
+              xAxis: "date",
+              yAxis: "engagement_rate"
+            }
+          }
+        ]
+      },
+      {
+        title: "Platform Comparison",
+        widgets: [
+          {
+            id: "platform_metrics",
+            type: "chart",
+            title: "Platform Performance Comparison",
+            dataKey: "platforms",
+            config: {
+              chartType: "radar",
+              metrics: ["Reach", "Engagement", "Clicks", "Conversions", "ROI"]
+            }
+          },
+          {
+            id: "best_performing_content",
+            type: "table",
+            title: "Top Performing Content",
+            dataKey: "top_posts",
+            config: {
+              columns: ["Post", "Platform", "Engagement Rate", "Reach", "ROI", "Date"]
+            }
+          }
+        ]
+      },
+      {
+        title: "Audience Analytics",
+        widgets: [
+          {
+            id: "audience_demographics",
+            type: "chart",
+            title: "Audience Demographics",
+            dataKey: "demographics",
+            config: {
+              chartType: "stacked-bar",
+              xAxis: "age_group",
+              yAxis: "count",
+              series: ["Male", "Female", "Other"]
+            }
+          },
+          {
+            id: "peak_engagement_times",
+            type: "heatmap",
+            title: "Peak Engagement Times",
+            dataKey: "engagement_times",
+            config: {
+              xAxis: "hour",
+              yAxis: "day_of_week",
+              valueKey: "engagement"
+            }
+          }
+        ]
+      }
+    ],
+    defaultPrompt: "Create social media performance dashboard with comprehensive analytics, platform comparison, and audience insights"
   }
 ]
 
