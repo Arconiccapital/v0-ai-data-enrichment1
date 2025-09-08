@@ -85,73 +85,75 @@ const formatTimeAgo = (date: Date): string => {
   return date.toLocaleDateString()
 }
 
+// Demo projects for display
+const getDemoProjects = (): ProjectItem[] => [
+  {
+    id: '1',
+    name: 'Q4 Sales Analysis',
+    type: 'data',
+    subtype: 'spreadsheet',
+    icon: getTypeIcon('spreadsheet'),
+    lastModified: new Date(Date.now() - 2 * 3600000),
+    status: 'in_progress',
+    metadata: { rows: 1250, columns: 15 }
+  },
+  {
+    id: '2',
+    name: 'Customer Insights Dashboard',
+    type: 'output',
+    subtype: 'dashboard',
+    icon: getTypeIcon('dashboard'),
+    lastModified: new Date(Date.now() - 5 * 3600000),
+    status: 'published',
+    metadata: { views: 342, engagement: 8.5 }
+  },
+  {
+    id: '3',
+    name: 'VC Firm Research',
+    type: 'data',
+    subtype: 'search',
+    icon: getTypeIcon('search'),
+    lastModified: new Date(Date.now() - 24 * 3600000),
+    status: 'complete',
+    metadata: { rows: 89, columns: 12 }
+  },
+  {
+    id: '4',
+    name: 'Product Launch Campaign',
+    type: 'output',
+    subtype: 'email',
+    icon: getTypeIcon('email'),
+    lastModified: new Date(Date.now() - 48 * 3600000),
+    status: 'draft',
+    metadata: { platform: 'Mailchimp' }
+  }
+]
+
 export function ProjectSpace() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'all' | 'data' | 'outputs'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [projects, setProjects] = useState<ProjectItem[]>([])
-  const [loading, setLoading] = useState(true)
+  // Initialize with demo projects immediately
+  const [projects, setProjects] = useState<ProjectItem[]>(getDemoProjects())
   
-  // Load projects from localStorage or use demo data
+  // Optionally load saved projects from localStorage on mount
   useEffect(() => {
-    const loadProjects = () => {
-      const savedProjects = localStorage.getItem('lighthouse_projects')
-      if (savedProjects) {
+    // Check for saved projects after mount
+    const savedProjects = localStorage.getItem('lighthouse_projects')
+    if (savedProjects) {
+      try {
         const parsed = JSON.parse(savedProjects)
         setProjects(parsed.map((p: any) => ({
           ...p,
           lastModified: new Date(p.lastModified),
           icon: getTypeIcon(p.subtype)
         })))
-      } else {
-        // Demo projects for first-time users
-        setProjects([
-          {
-            id: '1',
-            name: 'Q4 Sales Analysis',
-            type: 'data',
-            subtype: 'spreadsheet',
-            icon: getTypeIcon('spreadsheet'),
-            lastModified: new Date(Date.now() - 2 * 3600000),
-            status: 'in_progress',
-            metadata: { rows: 1250, columns: 15 }
-          },
-          {
-            id: '2',
-            name: 'Customer Insights Dashboard',
-            type: 'output',
-            subtype: 'dashboard',
-            icon: getTypeIcon('dashboard'),
-            lastModified: new Date(Date.now() - 5 * 3600000),
-            status: 'published',
-            metadata: { views: 342, engagement: 8.5 }
-          },
-          {
-            id: '3',
-            name: 'VC Firm Research',
-            type: 'data',
-            subtype: 'search',
-            icon: getTypeIcon('search'),
-            lastModified: new Date(Date.now() - 24 * 3600000),
-            status: 'complete',
-            metadata: { rows: 89, columns: 12 }
-          },
-          {
-            id: '4',
-            name: 'Product Launch Campaign',
-            type: 'output',
-            subtype: 'email',
-            icon: getTypeIcon('email'),
-            lastModified: new Date(Date.now() - 48 * 3600000),
-            status: 'draft',
-            metadata: { platform: 'Mailchimp' }
-          }
-        ])
+      } catch (e) {
+        console.error('Failed to parse saved projects:', e)
+        // Keep demo projects on error
       }
-      setLoading(false)
     }
-    
-    loadProjects()
+    // If no saved projects, keep the demo projects
   }, [])
   
   const filteredProjects = projects.filter(project => {
@@ -165,32 +167,133 @@ export function ProjectSpace() {
   const outputCount = projects.filter(p => p.type === 'output').length
   
   const handleProjectClick = (project: ProjectItem) => {
-    if (project.type === 'data') {
-      router.push('/')
-    } else {
-      router.push(`/create/output/${project.subtype}`)
-    }
+    // For demo purposes, just show a toast or visual feedback
+    // In a real app, this would navigate to the project
+    console.log(`Opening project: ${project.name}`)
+    
+    // Optional: You could show a toast notification
+    // toast.info(`Opening ${project.name}...`)
+    
+    // For now, just prevent navigation to avoid errors
+    // if (project.type === 'data') {
+    //   router.push('/')
+    // } else {
+    //   router.push(`/create/output/${project.subtype}`)
+    // }
   }
   
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Project Space</h3>
-            <p className="text-sm text-muted-foreground">Loading your projects...</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i} className="animate-pulse">
+  // No loading state needed - we start with demo projects
+  
+  const renderProjectGrid = (projectList: ProjectItem[]) => {
+    if (projectList.length === 0) {
+      return <EmptyState />
+    }
+    
+    if (viewMode === 'grid') {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {projectList.map(project => (
+            <Card
+              key={project.id}
+              className="cursor-pointer hover:shadow-md transition-all hover:border-primary group"
+              onClick={() => handleProjectClick(project)}
+            >
               <CardContent className="p-4">
-                <div className="h-4 bg-gray-200 rounded mb-2" />
-                <div className="h-3 bg-gray-200 rounded w-2/3" />
+                <div className="flex items-start justify-between mb-3">
+                  <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                    {project.icon}
+                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className={cn("text-xs", getStatusColor(project.status))}
+                  >
+                    {project.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                
+                <h4 className="font-medium text-sm mb-1 line-clamp-1">
+                  {project.name}
+                </h4>
+                
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                  <Clock className="h-3 w-3" />
+                  {formatTimeAgo(project.lastModified)}
+                </div>
+                
+                {project.metadata && (
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {project.metadata.rows && (
+                      <span>{project.metadata.rows.toLocaleString()} rows</span>
+                    )}
+                    {project.metadata.views && (
+                      <span className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        {project.metadata.views}
+                      </span>
+                    )}
+                    {project.metadata.platform && (
+                      <span>{project.metadata.platform}</span>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
+      )
+    }
+    
+    // List view
+    return (
+      <div className="space-y-2">
+        {projectList.map(project => (
+          <Card
+            key={project.id}
+            className="cursor-pointer hover:shadow-md transition-all hover:border-primary"
+            onClick={() => handleProjectClick(project)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  {project.icon}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-medium text-sm truncate">
+                      {project.name}
+                    </h4>
+                    <Badge 
+                      variant="outline" 
+                      className={cn("text-xs", getStatusColor(project.status))}
+                    >
+                      {project.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {formatTimeAgo(project.lastModified)}
+                    </span>
+                    
+                    {project.metadata?.rows && (
+                      <span>{project.metadata.rows.toLocaleString()} rows</span>
+                    )}
+                    {project.metadata?.views && (
+                      <span className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        {project.metadata.views} views
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     )
   }
@@ -285,111 +388,16 @@ export function ProjectSpace() {
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value={activeTab} className="mt-4">
-          {filteredProjects.length === 0 ? (
-            <EmptyState />
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredProjects.map(project => (
-                <Card
-                  key={project.id}
-                  className="cursor-pointer hover:shadow-md transition-all hover:border-primary group"
-                  onClick={() => handleProjectClick(project)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                        {project.icon}
-                      </div>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-xs", getStatusColor(project.status))}
-                      >
-                        {project.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    
-                    <h4 className="font-medium text-sm mb-1 line-clamp-1">
-                      {project.name}
-                    </h4>
-                    
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                      <Clock className="h-3 w-3" />
-                      {formatTimeAgo(project.lastModified)}
-                    </div>
-                    
-                    {project.metadata && (
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {project.metadata.rows && (
-                          <span>{project.metadata.rows.toLocaleString()} rows</span>
-                        )}
-                        {project.metadata.views && (
-                          <span className="flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3" />
-                            {project.metadata.views}
-                          </span>
-                        )}
-                        {project.metadata.platform && (
-                          <span>{project.metadata.platform}</span>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredProjects.map(project => (
-                <Card
-                  key={project.id}
-                  className="cursor-pointer hover:shadow-md transition-all hover:border-primary"
-                  onClick={() => handleProjectClick(project)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        {project.icon}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-sm truncate">
-                            {project.name}
-                          </h4>
-                          <Badge 
-                            variant="outline" 
-                            className={cn("text-xs", getStatusColor(project.status))}
-                          >
-                            {project.status.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatTimeAgo(project.lastModified)}
-                          </span>
-                          
-                          {project.metadata?.rows && (
-                            <span>{project.metadata.rows.toLocaleString()} rows</span>
-                          )}
-                          {project.metadata?.views && (
-                            <span className="flex items-center gap-1">
-                              <TrendingUp className="h-3 w-3" />
-                              {project.metadata.views} views
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+        <TabsContent value="all" className="mt-4">
+          {renderProjectGrid(projects)}
+        </TabsContent>
+        
+        <TabsContent value="data" className="mt-4">
+          {renderProjectGrid(projects.filter(p => p.type === 'data'))}
+        </TabsContent>
+        
+        <TabsContent value="outputs" className="mt-4">
+          {renderProjectGrid(projects.filter(p => p.type === 'output'))}
         </TabsContent>
       </Tabs>
     </div>

@@ -1,12 +1,27 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
-import { X, Loader2, Wand2, Sparkles, BarChart3, FileText, TrendingUp, Users, DollarSign } from "lucide-react"
+import { ColumnMapper } from "@/components/column-mapper"
+import { VibeGenerator } from "@/components/vibe-generator"
+import { flexibleTemplates } from "@/lib/flexible-templates"
+import { 
+  X, 
+  Loader2, 
+  Wand2, 
+  Sparkles, 
+  Layout,
+  Database,
+  BarChart3,
+  Users,
+  DollarSign,
+  TrendingUp
+} from "lucide-react"
 import { toast } from "sonner"
 
 interface GenerateSidebarProps {
@@ -14,116 +29,67 @@ interface GenerateSidebarProps {
   onComplete?: () => void
 }
 
-// Example prompts for quick access
-const examplePrompts = [
-  {
-    icon: <BarChart3 className="h-4 w-4" />,
-    text: "Create a sales performance dashboard with revenue trends and top performers",
-    category: "dashboard"
-  },
-  {
-    icon: <TrendingUp className="h-4 w-4" />,
-    text: "Show me what's interesting in this data",
-    category: "analysis"
-  },
-  {
-    icon: <FileText className="h-4 w-4" />,
-    text: "Generate an executive summary report with key insights",
-    category: "report"
-  },
-  {
-    icon: <Users className="h-4 w-4" />,
-    text: "Analyze customer segments and identify patterns",
-    category: "analysis"
-  },
-  {
-    icon: <TrendingUp className="h-4 w-4" />,
-    text: "Create a VC investment analysis dashboard with scoring framework",
-    category: "dashboard"
-  },
-  {
-    icon: <DollarSign className="h-4 w-4" />,
-    text: "Create an ETF comparison dashboard with performance, risk, and cost analysis",
-    category: "dashboard"
-  },
-  {
-    icon: <DollarSign className="h-4 w-4" />,
-    text: "Build a financial overview with P&L and cash flow",
-    category: "dashboard"
-  }
-]
-
-export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
+export function GenerateSidebar({ onClose, onComplete }: GenerateSidebarProps) {
   const { data, headers, addTab, setActiveTab } = useSpreadsheetStore()
-  const [prompt, setPrompt] = useState("")
+  const [activeMode, setActiveMode] = useState<'templates' | 'vibe'>('templates')
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
+  const [showMapper, setShowMapper] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generatingType, setGeneratingType] = useState<string>("")
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Focus textarea on mount
-  useEffect(() => {
-    textareaRef.current?.focus()
-  }, [])
-
-  // Detect content type from prompt
-  const detectContentType = (promptText: string): 'dashboard' | 'analysis' | 'report' => {
-    const lowerPrompt = promptText.toLowerCase()
-    
-    // Dashboard keywords
-    if (lowerPrompt.includes('dashboard') || 
-        lowerPrompt.includes('visualize') || 
-        lowerPrompt.includes('chart') || 
-        lowerPrompt.includes('kpi') ||
-        lowerPrompt.includes('metrics') ||
-        lowerPrompt.includes('overview') ||
-        lowerPrompt.includes('build') ||
-        lowerPrompt.includes('create a') ||
-        lowerPrompt.includes('generate a')) {
-      return 'dashboard'
-    }
-    
-    // Report keywords
-    if (lowerPrompt.includes('report') || 
-        lowerPrompt.includes('summary') || 
-        lowerPrompt.includes('document') ||
-        lowerPrompt.includes('presentation')) {
-      return 'report'
-    }
-    
-    // Analysis keywords
-    if (lowerPrompt.includes('analyze') || 
-        lowerPrompt.includes('analysis') || 
-        lowerPrompt.includes('insights') ||
-        lowerPrompt.includes('patterns') ||
-        lowerPrompt.includes('trends') ||
-        lowerPrompt.includes('what') ||
-        lowerPrompt.includes('why') ||
-        lowerPrompt.includes('how') ||
-        lowerPrompt.includes('interesting') ||
-        lowerPrompt.includes('find') ||
-        lowerPrompt.includes('identify')) {
-      return 'analysis'
-    }
-    
-    // Default to dashboard for ambiguous prompts
-    return 'dashboard'
+  
+  const handleTemplateSelect = (template: any) => {
+    setSelectedTemplate(template)
+    setShowMapper(true)
   }
-
-  const generateContent = async () => {
-    if (!prompt.trim()) {
-      toast.error("Please enter a prompt")
-      return
-    }
-
-    const contentType = detectContentType(prompt)
-    const displayType = contentType === 'analysis' ? 'Analysis' : 
-                       contentType === 'report' ? 'Report' : 'Dashboard'
-    
+  
+  const handleMappingComplete = async (mappings: Record<string, string>) => {
     setIsGenerating(true)
-    setGeneratingType(displayType)
     
     try {
-      // Determine the API endpoint based on content type
+      // Generate dashboard with mapped columns
+      const response = await fetch('/api/generate-dashboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template: selectedTemplate,
+          data: { headers, rows: data },
+          columnMappings: mappings
+        })
+      })
+      
+      if (!response.ok) throw new Error('Failed to generate dashboard')
+      
+      const result = await response.json()
+      
+      // Create new tab with dashboard
+      const tabId = `dashboard-${Date.now()}`
+      addTab({
+        id: tabId,
+        title: selectedTemplate.name,
+        type: 'dashboard',
+        data: result
+      })
+      setActiveTab(tabId)
+      
+      toast.success('Dashboard generated successfully')
+      onClose()
+      if (onComplete) onComplete()
+    } catch (error) {
+      console.error('Generation failed:', error)
+      toast.error('Failed to generate dashboard')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+  
+  const handleVibeGenerate = async (prompt: string) => {
+    setIsGenerating(true)
+    
+    try {
+      // Detect content type from prompt
+      const contentType = prompt.toLowerCase().includes('dashboard') || 
+                         prompt.toLowerCase().includes('visualize') || 
+                         prompt.toLowerCase().includes('chart') ? 'dashboard' : 'analysis'
+      
       const endpoint = contentType === 'analysis' ? '/api/analyze' : '/api/generate-dashboard'
       
       const payload = contentType === 'analysis' 
@@ -135,175 +101,150 @@ export function GenerateSidebar({ onClose }: GenerateSidebarProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Generation failed:', response.status, errorText)
-        throw new Error(`Failed to generate ${displayType}`)
-      }
-
+      
+      if (!response.ok) throw new Error('Failed to generate')
+      
       const result = await response.json()
       
-      // Create a new tab for the generated content
+      // Create new tab
       const tabId = `${contentType}-${Date.now()}`
-      
       addTab({
         id: tabId,
-        type: contentType === 'analysis' ? 'analysis' : 'dashboard',
-        title: `AI ${displayType}`,
-        data: result,
-        metadata: {
-          analysisType: contentType === 'analysis' ? 'quick-insight' : contentType,
-          sourceColumns: headers.slice(0, 3),
-          createdAt: new Date(),
-          prompt
-        }
+        title: contentType === 'dashboard' ? 'Custom Dashboard' : 'Analysis',
+        type: contentType,
+        data: result
       })
-      
       setActiveTab(tabId)
       
-      toast.success(`${displayType} generated successfully!`, {
-        description: `Your ${displayType.toLowerCase()} is ready to view`
-      })
-      
-      // Clear prompt and close sidebar
-      setPrompt("")
+      toast.success('Generated successfully!')
       onClose()
-      
-    } catch (error: any) {
-      console.error('Generation error:', error)
-      toast.error(`Failed to generate ${displayType}`, {
-        description: error.message || 'Please try again with a different prompt'
-      })
+      if (onComplete) onComplete()
+    } catch (error) {
+      console.error('Generation failed:', error)
+      toast.error('Failed to generate. Please try again.')
     } finally {
       setIsGenerating(false)
-      setGeneratingType("")
     }
   }
-
-  const handleExampleClick = (examplePrompt: string) => {
-    setPrompt(examplePrompt)
-    textareaRef.current?.focus()
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      generateContent()
-    }
-  }
-
+  
   return (
-    <div className="w-full sm:w-96 md:w-[450px] max-w-[450px] flex-shrink-0 h-full bg-white border-l border-gray-200 flex flex-col relative">
-      {/* Loading Overlay */}
-      {isGenerating && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center p-8">
-            <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Generating {generatingType}</h3>
-            <p className="text-sm text-gray-600">Analyzing your data...</p>
-            <p className="text-xs text-gray-500 mt-2">This may take a few moments</p>
-          </div>
-        </div>
-      )}
-      
+    <div className="w-96 h-full bg-background border-l flex flex-col shadow-xl relative">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
-          <Wand2 className="h-5 w-5 text-indigo-600" />
-          <h2 className="font-semibold">Generate with AI</h2>
+          <Wand2 className="h-5 w-5 text-primary" />
+          <h2 className="font-semibold">Create from Data</h2>
         </div>
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={onClose}
-          className="h-8 w-8 p-0"
-          disabled={isGenerating}
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
-
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {/* Main prompt input */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              What would you like to create?
-            </label>
-            <Textarea
-              ref={textareaRef}
-              placeholder="Describe what you want to generate... (e.g., 'Create a sales dashboard with revenue trends' or 'Analyze customer behavior patterns')"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="min-h-[120px] resize-none"
-              disabled={isGenerating}
-            />
-            <p className="text-xs text-gray-500">
-              Press {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Enter to generate
-            </p>
+      
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        <Tabs value={activeMode} onValueChange={(v) => setActiveMode(v as any)} className="h-full flex flex-col">
+          <div className="px-4 pt-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="templates" className="flex items-center gap-2">
+                <Layout className="h-4 w-4" />
+                Templates
+              </TabsTrigger>
+              <TabsTrigger value="vibe" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Describe It
+              </TabsTrigger>
+            </TabsList>
           </div>
-
-          {/* Example prompts */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">
-              Try these examples:
-            </p>
-            <div className="space-y-2">
-              {examplePrompts.map((example, idx) => (
-                <Card
-                  key={idx}
-                  className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => handleExampleClick(example.text)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-1.5 bg-indigo-100 rounded">
-                      {example.icon}
-                    </div>
-                    <p className="text-sm text-gray-700 flex-1">
-                      {example.text}
+          
+          <div className="flex-1 overflow-auto">
+            <TabsContent value="templates" className="h-full p-4 pt-2">
+              {showMapper && selectedTemplate ? (
+                <ColumnMapper
+                  template={selectedTemplate}
+                  onMappingComplete={handleMappingComplete}
+                  onCancel={() => {
+                    setShowMapper(false)
+                    setSelectedTemplate(null)
+                  }}
+                />
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-medium mb-1">Choose a Template</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Select a template and we'll help you map your data
                     </p>
                   </div>
-                </Card>
-              ))}
-            </div>
+                  
+                  <div className="space-y-2">
+                    {flexibleTemplates.map(template => (
+                      <Card
+                        key={template.id}
+                        className="cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => handleTemplateSelect(template)}
+                      >
+                        <CardHeader className="p-3">
+                          <div className="flex items-start gap-3">
+                            <span className="text-2xl">{template.icon}</span>
+                            <div className="flex-1">
+                              <CardTitle className="text-sm">{template.name}</CardTitle>
+                              <CardDescription className="text-xs mt-1">
+                                {template.description}
+                              </CardDescription>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {template.requiredFields.length} required fields
+                                </Badge>
+                                {template.optionalFields && template.optionalFields.length > 0 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {template.optionalFields.length} optional
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                    
+                    {/* Add more templates hint */}
+                    <Card className="border-dashed">
+                      <CardHeader className="p-3">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Database className="h-4 w-4" />
+                          <p className="text-xs">More templates coming soon...</p>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="vibe" className="h-full p-4 pt-2">
+              <VibeGenerator
+                onGenerate={handleVibeGenerate}
+                onCancel={onClose}
+              />
+            </TabsContent>
           </div>
-
-          {/* Data context */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-            <p className="text-xs font-medium text-gray-600">Your data:</p>
-            <p className="text-xs text-gray-500">
-              {data.length} rows × {headers.length} columns
-            </p>
-            <p className="text-xs text-gray-500">
-              Columns: {headers.slice(0, 3).join(', ')}
-              {headers.length > 3 && `, +${headers.length - 3} more`}
-            </p>
+        </Tabs>
+      </div>
+      
+      {/* Loading Overlay */}
+      {isGenerating && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium">Generating...</p>
+            <p className="text-xs text-muted-foreground">This may take a moment</p>
           </div>
         </div>
-      </ScrollArea>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
-        <Button 
-          className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
-          disabled={isGenerating || !prompt.trim()}
-          onClick={generateContent}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate
-            </>
-          )}
-        </Button>
-      </div>
+      )}
     </div>
   )
 }
