@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { CSVUploader } from "@/components/csv-uploader"
 import { FindDataDialog } from "@/components/dialogs/find-data-dialog"
 import { SpreadsheetView } from "@/components/spreadsheet-view"
@@ -16,6 +17,8 @@ import { ExportSidebar } from "@/components/export-sidebar"
 import { TabBar } from "@/components/tab-bar"
 import { TabContent } from "@/components/tab-content"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
+import { ProjectSpace } from "@/components/project-space"
+import { cn } from "@/lib/utils"
 import { 
   Sparkles, 
   Search, 
@@ -25,9 +28,7 @@ import {
   BarChart3,
   Mail,
   FileText,
-  MessageSquare,
-  TrendingUp,
-  DollarSign
+  MessageSquare
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -40,20 +41,12 @@ export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hoveredPath, setHoveredPath] = useState<string | null>(null)
   const [showCsvUploader, setShowCsvUploader] = useState(false)
-
   // Popular output shortcuts
   const popularOutputs = [
     { icon: <BarChart3 className="h-4 w-4" />, name: 'Dashboard', time: '5 min', route: '/create/output' },
     { icon: <Mail className="h-4 w-4" />, name: 'Email Campaign', time: '10 min', route: '/create/output' },
     { icon: <FileText className="h-4 w-4" />, name: 'Report', time: '15 min', route: '/create/output' },
     { icon: <MessageSquare className="h-4 w-4" />, name: 'Social Post', time: '2 min', route: '/create/output/social_media_post' },
-  ]
-
-  // Recent activity items
-  const recentItems = [
-    { icon: <BarChart3 className="h-4 w-4" />, name: 'Sales Dashboard', time: '2 hours ago', type: 'dashboard' },
-    { icon: <Mail className="h-4 w-4" />, name: 'Customer Email', time: 'yesterday', type: 'email' },
-    { icon: <Search className="h-4 w-4" />, name: 'VC Firm Data', time: '89 results', type: 'data' },
   ]
 
   // Show unified starting page if no data
@@ -295,28 +288,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Recent Activity */}
+          {/* Project Space */}
           <div className="border-t pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-gray-600">Recent Activity</h3>
-              <Button variant="ghost" size="sm">
-                View all
-              </Button>
-            </div>
-            
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {recentItems.map((item, idx) => (
-                <Card key={idx} className="min-w-[200px] cursor-pointer hover:border-primary">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="text-primary">{item.icon}</div>
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </div>
-                    <p className="text-xs text-gray-500">{item.time}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <ProjectSpace />
           </div>
           
           {/* CSV Upload Modal */}

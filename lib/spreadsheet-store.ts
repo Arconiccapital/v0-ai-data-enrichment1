@@ -66,6 +66,23 @@ interface DataAnalysis {
   insights: string[]
 }
 
+interface ProjectMetadata {
+  id: string
+  name: string
+  type: 'data' | 'output'
+  subtype: string
+  createdAt: Date
+  lastModified: Date
+  status: 'draft' | 'in_progress' | 'complete' | 'published'
+  metadata?: {
+    rows?: number
+    columns?: number
+    platform?: string
+    views?: number
+    engagement?: number
+  }
+}
+
 interface FilterCriteria {
   column: string
   operator: 'equals' | 'contains' | 'greater' | 'less' | 'empty' | 'not_empty'
@@ -121,6 +138,9 @@ interface SpreadsheetStore {
   hasData: boolean
   currentTemplate?: TemplateDefinition
   generationMetadata?: GenerationMetadata // Store generation process info
+  
+  // Project tracking
+  currentProject?: ProjectMetadata
   
   // Tab management
   tabs: Tab[]
@@ -201,12 +221,18 @@ interface SpreadsheetStore {
   redo: () => void
   canUndo: () => boolean
   canRedo: () => boolean
+  
+  // Project management
+  setCurrentProject: (project: ProjectMetadata) => void
+  updateProjectMetadata: (updates: Partial<ProjectMetadata>) => void
+  saveProjectToStorage: () => void
 }
 
 export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   headers: [],
   data: [],
   hasData: false,
+  currentProject: undefined,
   enrichmentStatus: {},
   columnFormats: {},
   columnEnrichmentConfigs: {},
@@ -1457,6 +1483,48 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   
   canUndo: () => useHistoryStore.getState().canUndo(),
   canRedo: () => useHistoryStore.getState().canRedo(),
+  
+  // Project management
+  setCurrentProject: (project) => {
+    set({ currentProject: project })
+    // Save to localStorage
+    const projects = JSON.parse(localStorage.getItem('lighthouse_projects') || '[]')
+    const existingIndex = projects.findIndex((p: any) => p.id === project.id)
+    if (existingIndex >= 0) {
+      projects[existingIndex] = project
+    } else {
+      projects.push(project)
+    }
+    localStorage.setItem('lighthouse_projects', JSON.stringify(projects))
+  },
+  
+  updateProjectMetadata: (updates) => {
+    const current = get().currentProject
+    if (current) {
+      const updated = {
+        ...current,
+        ...updates,
+        lastModified: new Date()
+      }
+      get().setCurrentProject(updated)
+    }
+  },
+  
+  saveProjectToStorage: () => {
+    const { currentProject, data, headers } = get()
+    if (currentProject) {
+      const updated = {
+        ...currentProject,
+        lastModified: new Date(),
+        metadata: {
+          ...currentProject.metadata,
+          rows: data.length,
+          columns: headers.length
+        }
+      }
+      get().setCurrentProject(updated)
+    }
+  },
 }))
 
 async function enrichCell(value: string, prompt: string): Promise<string> {
