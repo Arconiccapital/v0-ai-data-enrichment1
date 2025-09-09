@@ -62,9 +62,9 @@ export class PerplexityClient {
 
       const data = await response.json()
       return { data, source: 'perplexity' }
-    } catch (error: any) {
+    } catch (error) {
       return { 
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         source: 'perplexity'
       }
     }
@@ -115,9 +115,9 @@ export class OpenAIClient {
         data: completion,
         source: 'openai'
       }
-    } catch (error: any) {
+    } catch (error) {
       return { 
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         source: 'openai'
       }
     }
@@ -127,7 +127,7 @@ export class OpenAIClient {
 /**
  * Extract content from API response
  */
-export function extractResponseContent(response: any): string | null {
+export function extractResponseContent(response: unknown): string | null {
   if (!response) return null
   
   // Handle Perplexity/OpenAI response format
