@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     console.log(`[Enrichment] Forcing Perplexity Sonar for all enrichment`)
     
     const providerSelection = {
-      provider: 'perplexity' as const,
+      provider: 'perplexity' as 'perplexity' | 'openai' | 'claude',
       model: 'sonar',
       temperature: 0.1,
       maxTokens: 200,

@@ -194,7 +194,7 @@ function TableWidget({ widget, data }: any) {
             <tbody>
               {rows.map((row, rowIdx) => (
                 <tr key={rowIdx} className="border-b last:border-0">
-                  {row.map((cell, cellIdx) => (
+                  {row.map((cell: string | number | null, cellIdx: number) => (
                     <td key={cellIdx} className="py-2 pr-4">
                       {cell}
                     </td>

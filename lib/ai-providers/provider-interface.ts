@@ -31,6 +31,10 @@ export interface EnrichmentResult {
     usage?: any
     repaired?: boolean
     error?: string
+    citations?: Citation[]
+    timestamp?: string
+    verification?: Record<string, unknown>
+    entity?: string
   }
 }
 
@@ -45,8 +49,8 @@ export interface AIProvider {
   // Enrich a value with context
   enrichValue(
     value: string,
-    context: string,
-    prompt: string
+    prompt: string,
+    context?: Record<string, any>
   ): Promise<EnrichmentResult>
   
   // Provider name for logging
