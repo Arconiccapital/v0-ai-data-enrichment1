@@ -84,6 +84,9 @@ function validateResults(items: string[]): string[] {
 export async function POST(request: Request) {
   try {
     const { prompt, count = 20, type = 'first-column' } = await request.json()
+    
+    // Cap at 20 items for cost control during testing
+    const maxCount = Math.min(count, 20)
 
     if (!prompt) {
       return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
@@ -157,7 +160,7 @@ OUTPUT RULES:
     
     const userPrompt = `Task: ${prompt}
 
-Search the web to find UP TO ${count} real results for this query.
+Search the web to find UP TO ${maxCount} real results for this query.
 ${queryHint}
 
 IMPORTANT:
@@ -168,7 +171,7 @@ IMPORTANT:
 - If searching for data points: Return specific values with context
 
 Return ONLY verified results you find through web search.
-If you can only verify ${Math.min(5, Math.floor(count/4))} items, return just those.
+If you can only verify ${Math.min(5, Math.floor(maxCount/4))} items, return just those.
 Quality and accuracy are mandatory, quantity is optional.
 
 Format: JSON array of strings, each item complete and specific.`

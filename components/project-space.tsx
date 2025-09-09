@@ -312,7 +312,7 @@ export function ProjectSpace() {
           : "Get started by creating your first project"}
       </p>
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => router.push('/create/data')}>
+        <Button size="sm" onClick={() => router.push('/')}>
           <Plus className="h-4 w-4 mr-2" />
           New Data Project
         </Button>

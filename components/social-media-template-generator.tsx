@@ -81,7 +81,7 @@ export function SocialMediaTemplateGenerator({ templateId }: SocialMediaTemplate
     if (!hasData) {
       // User needs to provide data
       toast.info('Now let\'s get your data! You can upload a CSV or search for data.')
-      router.push('/create/data')
+      router.push('/')
       return
     }
     

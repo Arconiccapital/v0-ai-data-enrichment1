@@ -65,6 +65,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
     getCellAttachments,
     getCellMetadata,
     getGenerationMetadata,
+    enrichColumn,
     undo,
     redo,
     canUndo,
@@ -464,7 +465,14 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                                   </>
                                 )}
                                 {enrichmentStatus[index]?.enriching && (
-                                  <Loader2 className="h-4 w-4 animate-spin text-blue-600 flex-shrink-0" />
+                                  <div className="flex items-center gap-1">
+                                    <Loader2 className="h-3 w-3 animate-spin text-blue-600 flex-shrink-0" />
+                                    {enrichmentStatus[index]?.progress !== undefined && (
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        {enrichmentStatus[index].progress}%
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                                 {!columnEnrichmentConfigs[index]?.isConfigured && !enrichmentStatus[index]?.enriching && (
                                   <Sparkles className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
@@ -473,6 +481,17 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                                   <Play className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                 )}
                               </div>
+                              
+                              {/* Progress bar for concurrent enrichment */}
+                              {enrichmentStatus[index]?.enriching && enrichmentStatus[index]?.progress !== undefined && (
+                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                                  <div 
+                                    className="h-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${enrichmentStatus[index].progress}%` }}
+                                  />
+                                </div>
+                              )}
+                              
                               {/* Column resize handle */}
                               <div
                                 className="absolute -right-[1px] top-0 h-full w-[3px] cursor-col-resize hover:bg-blue-500 transition-colors z-10"

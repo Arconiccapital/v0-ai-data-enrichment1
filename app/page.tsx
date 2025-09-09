@@ -1,14 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { CSVUploader } from "@/components/csv-uploader"
 import { FindDataDialog } from "@/components/dialogs/find-data-dialog"
-import { SpreadsheetView } from "@/components/spreadsheet-view"
 import { AppNavigation } from "@/components/app-navigation"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { GenerateSidebar } from "@/components/generate-sidebar"
@@ -31,7 +29,6 @@ import {
   Table2,
   Layout
 } from "lucide-react"
-import { toast } from "sonner"
 
 export default function HomePage() {
   const router = useRouter()
@@ -39,7 +36,6 @@ export default function HomePage() {
   const [showGenerateSidebar, setShowGenerateSidebar] = useState(false)
   const [showExportSidebar, setShowExportSidebar] = useState(false)
   const [showFindDataDialog, setShowFindDataDialog] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hoveredPath, setHoveredPath] = useState<string | null>(null)
   const [showCsvUploader, setShowCsvUploader] = useState(false)
   const [csvUploaderMode, setCsvUploaderMode] = useState<'data' | 'enrich'>('data')
@@ -157,7 +153,7 @@ export default function HomePage() {
                   size="lg"
                   onClick={(e) => {
                     e.stopPropagation()
-                    router.push('/create/data')
+                    setShowFindDataDialog(true)
                   }}
                 >
                   Start Fresh

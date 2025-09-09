@@ -59,6 +59,7 @@ export function AIEnrichmentDialog({
   const [firstN, setFirstN] = useState(10)
   const [selectedContextColumns, setSelectedContextColumns] = useState<string[]>([])
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [selectedModel, setSelectedModel] = useState<string>("auto")
 
   // Initialize based on whether we're enriching an existing column or creating a new one
   useEffect(() => {
@@ -72,13 +73,44 @@ export function AIEnrichmentDialog({
       const existingColumnName = headers[columnIndex]
       setColumnName(existingColumnName)
       
-      // Load existing config if available but don't pre-fill prompt
+      // Load existing config if available - INCLUDING the original prompt
       const existingConfig = getColumnEnrichmentConfig(columnIndex)
-      if (existingConfig?.dataType) {
-        setDataType(existingConfig.dataType || "free")
+      if (existingConfig) {
+        // Load the original prompt
+        if (existingConfig.prompt) {
+          setPrompt(existingConfig.prompt)
+        }
+        
+        // Load data type
+        if (existingConfig.dataType) {
+          setDataType(existingConfig.dataType || "free")
+        }
+        
+        // Load advanced settings if they were saved
+        if (existingConfig.showAdvanced) {
+          setShowAdvanced(true)
+        }
+        
+        // Load context columns
+        if (existingConfig.selectedContextColumnNames) {
+          setSelectedContextColumns(existingConfig.selectedContextColumnNames)
+        }
+        
+        // Load enrichment range settings
+        if (existingConfig.enrichmentRange) {
+          setEnrichmentRange(existingConfig.enrichmentRange)
+          if (existingConfig.enrichmentRange === 'first' && existingConfig.firstN) {
+            setFirstN(existingConfig.firstN)
+          }
+        }
+        
+        // Load model selection
+        if (existingConfig.selectedModel) {
+          setSelectedModel(existingConfig.selectedModel)
+        }
       }
       
-      // Set enrichment range based on scope
+      // Override with current scope if specified
       if (enrichmentScope === 'all') {
         setEnrichmentRange('all')
       } else if (enrichmentScope === 'selected' || enrichmentScope === 'cell') {
@@ -161,7 +193,7 @@ export function AIEnrichmentDialog({
     if (isNewColumn && !columnName) return
 
     setIsEnriching(true)
-    onOpenChange(false) // Close dialog immediately when enriching starts
+    // Keep dialog open so user can start multiple enrichments
     
     try {
       // Determine format mode and prepare prompt
@@ -199,6 +231,11 @@ export function AIEnrichmentDialog({
         
         fullPrompt = `${fullPrompt}\n[Context columns: ${selectedContextColumns.join(', ')}]`
       }
+      
+      // Add model selection to prompt
+      if (selectedModel && selectedModel !== 'auto') {
+        fullPrompt = `${fullPrompt}\n[Model: ${selectedModel}]`
+      }
 
       if (isNewColumn) {
         // Store format preference for new column
@@ -212,53 +249,66 @@ export function AIEnrichmentDialog({
         // Creating a new enriched column
         if (enrichmentRange === 'first') {
           // Create column and enrich only first N rows
-          await enrichColumnToNew(-1, columnName, fullPrompt, formatMode as any, undefined, contextColumns)
+          enrichColumnToNew(-1, columnName, fullPrompt, formatMode as any, undefined, contextColumns)
           // Note: This will enrich all by default, we'd need to modify the store method to support partial enrichment
         } else {
-          await enrichColumnToNew(-1, columnName, fullPrompt, formatMode as any, undefined, contextColumns)
+          enrichColumnToNew(-1, columnName, fullPrompt, formatMode as any, undefined, contextColumns)
         }
       } else if (columnIndex !== undefined) {
         // Enriching an existing column
         
-        // Store the configuration
+        // Store the complete configuration including all advanced settings
         storeColumnEnrichmentConfig(columnIndex, {
           columnIndex,
           columnName: headers[columnIndex],
-          prompt: fullPrompt,
+          prompt: prompt, // Store the original prompt (not the full one with format instructions)
           formatMode: formatMode as any,
           dataType: actualDataType,
-          isConfigured: true
+          isConfigured: true,
+          contextColumns: contextColumns,
+          selectedContextColumnNames: selectedContextColumns,
+          enrichmentRange: enrichmentRange,
+          firstN: enrichmentRange === 'first' ? firstN : undefined,
+          showAdvanced: showAdvanced,
+          selectedModel: selectedModel
         })
         
         // Execute enrichment based on scope and range
         if (enrichmentScope === 'cell' && currentRow !== undefined) {
           // Enrich single cell
-          await enrichSingleCell(currentRow, columnIndex, fullPrompt, contextColumns)
+          enrichSingleCell(currentRow, columnIndex, fullPrompt, contextColumns)
         } else if (enrichmentScope === 'selected' && selectedRows.size > 0) {
           // Enrich selected cells
-          await enrichSelectedCells(columnIndex, selectedRows, fullPrompt, contextColumns)
+          enrichSelectedCells(columnIndex, selectedRows, fullPrompt, contextColumns)
         } else if (enrichmentRange === 'first' && enrichmentScope !== 'cell' && enrichmentScope !== 'selected') {
           // Enrich first N cells (only when not in cell or selected mode)
           const rowsToEnrich = new Set<number>()
           for (let i = 0; i < Math.min(firstN, data.length); i++) {
             rowsToEnrich.add(i)
           }
-          await enrichSelectedCells(columnIndex, rowsToEnrich, fullPrompt, contextColumns)
+          enrichSelectedCells(columnIndex, rowsToEnrich, fullPrompt, contextColumns)
         } else {
           // Enrich all cells
-          await enrichColumn(columnIndex, fullPrompt, contextColumns)
+          enrichColumn(columnIndex, fullPrompt, contextColumns)
         }
       }
       
-      // Reset form state after enrichment
+      // Reset form state after starting enrichment for next column
       setPrompt("")
       setColumnName("")
       setDataType("free")
       setSelectedContextColumns([])
       setShowAdvanced(false)
+      setIsEnriching(false)
+      
+      // Close dialog after starting enrichment so user can see the progress
+      onOpenChange(false)
+      
+      // Show success message
+      const columnLabel = isNewColumn ? columnName : headers[columnIndex!]
+      console.log(`✅ Started enriching column: ${columnLabel}`)
     } catch (error) {
       console.error("Enrichment failed:", error)
-    } finally {
       setIsEnriching(false)
     }
   }
@@ -323,6 +373,25 @@ export function AIEnrichmentDialog({
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-3 pt-2">
+              {/* AI Model Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm">AI Model</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (Recommended)</SelectItem>
+                    <SelectItem value="perplexity-sonar">Perplexity Sonar (Web Search)</SelectItem>
+                    <SelectItem value="gpt-4o">ChatGPT 4o (High Accuracy)</SelectItem>
+                    <SelectItem value="gpt-4o-mini">ChatGPT Turbo (Fast & Efficient)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Auto selects the best model based on your prompt. Perplexity for web search, ChatGPT for classification.
+                </p>
+              </div>
+              
               {/* Output Format - Now in Advanced Options */}
               <div className="space-y-2">
                 <Label className="text-sm">Output Format (Optional)</Label>

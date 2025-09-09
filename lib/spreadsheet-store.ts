@@ -27,7 +27,7 @@ interface ColumnAttachment {
   url?: string       // Deprecated - no longer using public URLs
 }
 
-interface ColumnEnrichmentConfig {
+export interface ColumnEnrichmentConfig {
   columnIndex: number
   columnName: string
   prompt: string
@@ -37,6 +37,13 @@ interface ColumnEnrichmentConfig {
   isConfigured: boolean
   attachments?: ColumnAttachment[]
   useAttachmentsAsContext?: boolean
+  // Advanced configuration options
+  contextColumns?: Set<number> // Selected context columns for enrichment
+  enrichmentRange?: 'first' | 'all' // Whether to enrich first N or all rows
+  firstN?: number // Number of rows to enrich if range is 'first'
+  showAdvanced?: boolean // Whether advanced options were shown
+  selectedContextColumnNames?: string[] // Names of selected context columns for display
+  selectedModel?: string // The AI model selected for enrichment
 }
 
 interface ColumnAnalysis {
@@ -159,7 +166,7 @@ interface SpreadsheetStore {
   filterCriteria: FilterCriteria[]
   // Data methods
   setData: (headers: string[], rows: string[][]) => void
-  setDataFromTemplate: (template: TemplateDefinition, generationMetadata?: GenerationMetadata) => void
+  setDataFromTemplate: (template: TemplateDefinition, generationMetadata?: GenerationMetadata, cellMetadataArray?: CellMetadata[]) => void
   updateCell: (rowIndex: number, colIndex: number, value: string) => void
   addColumn: (header: string) => number
   addColumnWithEnrichment: (header: string, config?: Partial<ColumnEnrichmentConfig>) => void
@@ -258,7 +265,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       currentTemplate: undefined,
     }),
 
-  setDataFromTemplate: (template, generationMetadata) => {
+  setDataFromTemplate: (template, generationMetadata, cellMetadataArray?) => {
     // Extract headers from template columns
     const headers = template.columns.map(col => col.name)
     
@@ -266,6 +273,19 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
     const data = template.sampleData.map(row => 
       headers.map(header => String(row[header] ?? ''))
     )
+    
+    // Build cell metadata map if provided
+    const newCellMetadata = new Map<string, CellMetadata>()
+    if (cellMetadataArray && cellMetadataArray.length > 0) {
+      data.forEach((row, rowIndex) => {
+        headers.forEach((header, colIndex) => {
+          if (cellMetadataArray[rowIndex]) {
+            const cellKey = `${rowIndex}-${colIndex}`
+            newCellMetadata.set(cellKey, cellMetadataArray[rowIndex])
+          }
+        })
+      })
+    }
 
     set({
       headers,
@@ -273,6 +293,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
       hasData: true,
       selectedCells: new Set(),
       cellExplanations: {},
+      cellMetadata: newCellMetadata,
       currentTemplate: template,
       enrichmentStatus: {},
       generationMetadata: generationMetadata || undefined,
@@ -467,95 +488,120 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
 
   enrichColumn: async (columnIndex, prompt, contextColumns) => {
     const { data, headers, columnEnrichmentConfigs, getCellAttachments } = get()
+    const BATCH_SIZE = 1 // Process 1 row at a time for maximum accuracy
 
     // Set enrichment status
     set((state) => ({
       enrichmentStatus: {
         ...state.enrichmentStatus,
-        [columnIndex]: { enriching: true, prompt, currentRow: 0 },
+        [columnIndex]: { enriching: true, prompt, currentRow: 0, totalRows: data.length },
       },
     }))
 
     const columnConfig = columnEnrichmentConfigs[columnIndex]
 
     try {
-      // Process each row sequentially
-      for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
-        // Update current row being processed
+      // Process rows in batches for concurrent execution
+      for (let batchStart = 0; batchStart < data.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, data.length)
+        const batchPromises = []
+
+        // Update current batch being processed
         set((state) => ({
           enrichmentStatus: {
             ...state.enrichmentStatus,
-            [columnIndex]: { ...state.enrichmentStatus[columnIndex], currentRow: rowIndex },
+            [columnIndex]: { 
+              ...state.enrichmentStatus[columnIndex], 
+              currentRow: batchStart,
+              progress: Math.round((batchStart / data.length) * 100)
+            },
           },
         }))
 
-        // Create row context with optional column filtering
-        const rowContext = {}
-        if (contextColumns && contextColumns.size > 0) {
-          // Use only selected context columns
-          contextColumns.forEach(colIndex => {
-            const header = headers[colIndex]
-            if (header && data[rowIndex][colIndex]) {
-              rowContext[header] = data[rowIndex][colIndex]
+        // Create promises for each row in the batch
+        for (let rowIndex = batchStart; rowIndex < batchEnd; rowIndex++) {
+          const processRow = async () => {
+            // Create row context with optional column filtering
+            const rowContext = {}
+            if (contextColumns && contextColumns.size > 0) {
+              // Use only selected context columns
+              contextColumns.forEach(colIndex => {
+                const header = headers[colIndex]
+                if (header && data[rowIndex][colIndex]) {
+                  rowContext[header] = data[rowIndex][colIndex]
+                }
+              })
+            } else {
+              // Use all columns (backward compatibility)
+              headers.forEach((header, colIndex) => {
+                if (header && data[rowIndex][colIndex]) {
+                  rowContext[header] = data[rowIndex][colIndex]
+                }
+              })
             }
-          })
-        } else {
-          // Use all columns (backward compatibility)
-          headers.forEach((header, colIndex) => {
-            if (header && data[rowIndex][colIndex]) {
-              rowContext[header] = data[rowIndex][colIndex]
+            
+            // Get attachment context for this specific row
+            let attachmentContext = ""
+            const cellAttachments = getCellAttachments(rowIndex, columnIndex)
+            
+            // Prioritize cell attachments, fall back to column attachments
+            if (cellAttachments.length > 0) {
+              attachmentContext = prepareAttachmentContext(cellAttachments)
+            } else if (columnConfig?.useAttachmentsAsContext && columnConfig.attachments) {
+              attachmentContext = prepareAttachmentContext(columnConfig.attachments)
             }
-          })
-        }
-        
-        // Get attachment context for this specific row
-        let attachmentContext = ""
-        const cellAttachments = getCellAttachments(rowIndex, columnIndex)
-        
-        // Prioritize cell attachments, fall back to column attachments
-        if (cellAttachments.length > 0) {
-          attachmentContext = prepareAttachmentContext(cellAttachments)
-        } else if (columnConfig?.useAttachmentsAsContext && columnConfig.attachments) {
-          attachmentContext = prepareAttachmentContext(columnConfig.attachments)
+
+            const currentValue = data[rowIndex][columnIndex] || ""
+            const result = await enrichCellWithContext(rowContext, currentValue, prompt, headers, undefined, attachmentContext)
+            
+            return { rowIndex, result }
+          }
+
+          batchPromises.push(processRow())
         }
 
-        const currentValue = data[rowIndex][columnIndex] || ""
-        const result = await enrichCellWithContext(rowContext, currentValue, prompt, headers, undefined, attachmentContext)
-        const enrichedValue = result.value
+        // Wait for all rows in the batch to complete
+        const batchResults = await Promise.all(batchPromises)
 
-        // Update the cell with enriched value and metadata
+        // Update all cells in the batch
         set((state) => {
           const newData = [...state.data]
-          newData[rowIndex] = [...newData[rowIndex]]
-          newData[rowIndex][columnIndex] = enrichedValue
-          
-          const updates: any = { data: newData }
-          if (result.process) {
-            const cellKey = `${rowIndex}-${columnIndex}`
-            const newMetadata = new Map(state.cellMetadata)
-            newMetadata.set(cellKey, {
-              query: result.process.query,
-              response: result.process.response,
-              citations: result.process.citations,
-              timestamp: result.process.timestamp,
-              isEnriched: true,
-              provider: result.process.provider,
-              model: result.process.model,
-              confidence: result.process.confidence,
-              status: result.process.status,
-              verification: result.process.verification,
-              entity: result.process.entity,
-              routerType: result.process.routerType,
-              estimatedCost: result.process.estimatedCost
-            })
-            updates.cellMetadata = newMetadata
+          const newMetadata = new Map(state.cellMetadata)
+
+          batchResults.forEach(({ rowIndex, result }) => {
+            newData[rowIndex] = [...newData[rowIndex]]
+            newData[rowIndex][columnIndex] = result.value
+
+            if (result.process) {
+              const cellKey = `${rowIndex}-${columnIndex}`
+              newMetadata.set(cellKey, {
+                query: result.process.query,
+                response: result.process.response,
+                citations: result.process.citations,
+                timestamp: result.process.timestamp,
+                isEnriched: true,
+                provider: result.process.provider,
+                model: result.process.model,
+                confidence: result.process.confidence,
+                status: result.process.status,
+                verification: result.process.verification,
+                entity: result.process.entity,
+                routerType: result.process.routerType,
+                estimatedCost: result.process.estimatedCost
+              })
+            }
+          })
+
+          return { 
+            data: newData,
+            cellMetadata: newMetadata
           }
-          
-          return updates
         })
 
-        // Small delay to show progress
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        // Small delay between batches to prevent overwhelming the API
+        if (batchEnd < data.length) {
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
       }
     } catch (error) {
       // Enrichment failed

@@ -860,7 +860,7 @@ export const automationTemplates: OutputTemplate[] = [
       enhanced: []
     },
     outputConfig: {
-      type: 'automation',
+      type: 'workflow' as const,
       template: 'sms'
     },
     examples: ['Appointment reminders', 'Promotions', 'Order updates'],
@@ -886,7 +886,7 @@ export const automationTemplates: OutputTemplate[] = [
       enhanced: []
     },
     outputConfig: {
-      type: 'automation',
+      type: 'workflow' as const,
       template: 'chatbot'
     },
     examples: ['Customer support', 'Lead qualification', 'FAQ bot'],

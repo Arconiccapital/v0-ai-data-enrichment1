@@ -41,9 +41,15 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
     try {
       // Parse the prompt to determine count and type
       const countMatch = prompt.match(/(\d+)\s+/);
-      const count = countMatch ? parseInt(countMatch[1]) : 20;
+      let requestedCount = countMatch ? parseInt(countMatch[1]) : 20;
+      // Cap at 20 for cost control
+      const count = Math.min(requestedCount, 20);
       
-      setProgress(`Finding ${count} items matching your request...`)
+      if (requestedCount > 20) {
+        setProgress(`Finding ${count} items (capped from ${requestedCount} for cost control)...`)
+      } else {
+        setProgress(`Finding ${count} items matching your request...`)
+      }
       
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -82,6 +88,20 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
           source: result.source
         } : undefined
         
+        // Create cell metadata for each result
+        const cellMetadataArray = result.data.map((item: string) => ({
+          query: result.process?.query || prompt,
+          response: item,
+          citations: result.process?.citations || [],
+          timestamp: result.process?.timestamp || new Date().toISOString(),
+          isEnriched: true,
+          provider: result.source || 'perplexity-sonar',
+          model: result.model || 'sonar',
+          confidence: 1,
+          status: 'completed',
+          entity: item
+        }))
+        
         setDataFromTemplate({
           id: 'custom-search',
           name: 'Search Results',
@@ -90,7 +110,7 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
           category: 'business',
           columns: [{ name: 'Results', type: 'text' }],
           sampleData: result.data.map((item: string) => ({ 'Results': item }))
-        }, generationMetadata)
+        }, generationMetadata, cellMetadataArray)
         onClose()
       } else {
         setProgress('No data found. Try a different search.')
@@ -107,11 +127,11 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
   }
 
   const examplePrompts = [
-    "50 Fortune 500 companies",
-    "20 AI startups in San Francisco",
-    "30 venture capital firms",
-    "25 SaaS companies with over $10M revenue",
-    "40 tech company founders",
+    "20 Fortune 500 companies",
+    "15 AI startups in San Francisco",
+    "20 venture capital firms",
+    "18 SaaS companies with over $10M revenue",
+    "20 tech company founders",
     "15 real estate properties in Manhattan"
   ]
 
@@ -121,7 +141,7 @@ export function FindDataDialog({ open, onClose }: FindDataDialogProps) {
         <DialogHeader>
           <DialogTitle>Find Data</DialogTitle>
           <DialogDescription>
-            Describe what data you're looking for and we'll help you find it
+            Describe what data you're looking for and we'll help you find it (max 20 items)
           </DialogDescription>
         </DialogHeader>
 

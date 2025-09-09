@@ -742,7 +742,7 @@ export const templates: Record<string, TemplateDefinition> = {
     name: 'Travel Planning',
     description: 'Plan and organize travel destinations and itineraries',
     icon: '✈️',
-    category: 'travel',
+    category: 'business' as const,
     columns: [
       { name: 'Destination', type: 'text' },
       { name: 'Best Time to Visit', type: 'text' },
@@ -836,7 +836,7 @@ export const templates: Record<string, TemplateDefinition> = {
     name: 'Social Media Content Calendar',
     description: 'Plan, schedule, and track social media posts across platforms',
     icon: '📱',
-    category: 'marketing',
+    category: 'business' as const,
     columns: [
       { name: 'Post Text', type: 'text' },
       { name: 'Caption', type: 'text' },

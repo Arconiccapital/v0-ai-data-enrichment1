@@ -112,7 +112,7 @@ export function ColumnMapper({ template, onMappingComplete, onCancel }: ColumnMa
   const handleMappingChange = (fieldKey: string, columnName: string) => {
     setMappings(prev => ({
       ...prev,
-      [fieldKey]: columnName
+      [fieldKey]: columnName === 'none' ? '' : columnName
     }))
   }
   
@@ -200,7 +200,7 @@ export function ColumnMapper({ template, onMappingComplete, onCancel }: ColumnMa
                   <SelectValue placeholder="Select column..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {headers.map((header, idx) => {
                     const columnType = detectColumnType(idx)
                     const isGoodMatch = columnType === field.type

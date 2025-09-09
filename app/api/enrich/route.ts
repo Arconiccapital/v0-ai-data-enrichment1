@@ -19,12 +19,15 @@ export async function POST(request: Request) {
     const expectedType = typeMatch ? typeMatch[1] : 'text'
     const patternMatch = prompt.match(/\[Pattern: ([^\]]+)\]/)
     const customPattern = patternMatch ? patternMatch[1] : null
+    const modelMatch = prompt.match(/\[Model: ([^\]]+)\]/)
+    const requestedModel = modelMatch ? modelMatch[1] : null
     
     // Clean prompt from annotations
     const cleanPrompt = prompt
       .replace(/\[Expected type: \w+\]/, '')
       .replace(/\[Format mode: \w+\]/, '')
       .replace(/\[Pattern: [^\]]+\]/, '')
+      .replace(/\[Model: [^\]]+\]/, '')
       .trim()
     
     // Build context object
@@ -40,19 +43,135 @@ export async function POST(request: Request) {
       context.attachments = attachmentContext
     }
     
-    // FORCE PERPLEXITY SONAR FOR ALL ENRICHMENT
-    // Skip routing and always use Perplexity Sonar
-    console.log(`[Enrichment] Forcing Perplexity Sonar for all enrichment`)
+    // Intelligent model routing
+    let providerSelection: {
+      provider: 'perplexity' | 'openai' | 'claude',
+      model: string,
+      temperature: number,
+      maxTokens: number,
+      estimatedCost: number,
+      reason: string,
+      routerType: string,
+      confidence: number
+    }
     
-    const providerSelection = {
-      provider: 'perplexity' as 'perplexity' | 'openai' | 'claude',
-      model: 'sonar',
-      temperature: 0.1,
-      maxTokens: 200,
-      estimatedCost: 0.001,
-      reason: 'Forced to use Perplexity Sonar for all enrichment',
-      routerType: 'forced',
-      confidence: 1
+    // Check if user explicitly selected a model
+    if (requestedModel && requestedModel !== 'auto') {
+      console.log(`[Enrichment] User selected model: ${requestedModel}`)
+      
+      if (requestedModel === 'perplexity-sonar') {
+        providerSelection = {
+          provider: 'perplexity',
+          model: 'sonar',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.001,
+          reason: 'User selected Perplexity Sonar',
+          routerType: 'forced',
+          confidence: 1
+        }
+      } else if (requestedModel === 'gpt-4o') {
+        providerSelection = {
+          provider: 'openai',
+          model: 'gpt-4o',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.003,
+          reason: 'User selected GPT-4o',
+          routerType: 'forced',
+          confidence: 1
+        }
+      } else if (requestedModel === 'gpt-4o-mini') {
+        providerSelection = {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.0005,
+          reason: 'User selected GPT-4o-mini',
+          routerType: 'forced',
+          confidence: 1
+        }
+      } else {
+        // Default to Perplexity if unknown model
+        providerSelection = {
+          provider: 'perplexity',
+          model: 'sonar',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.001,
+          reason: 'Unknown model, defaulting to Perplexity',
+          routerType: 'forced',
+          confidence: 1
+        }
+      }
+    } else {
+      // Auto-routing based on prompt content
+      const lowerPrompt = cleanPrompt.toLowerCase()
+      
+      // Check for search-related keywords
+      const searchKeywords = ['find', 'search', 'lookup', 'latest', 'current', 'website', 'email', 'contact', 'address', 'location', 'url', 'link']
+      const hasSearchIntent = searchKeywords.some(keyword => lowerPrompt.includes(keyword))
+      
+      // Check for classification keywords
+      const classificationKeywords = ['categorize', 'classify', 'type', 'category', 'group', 'organize', 'label', 'tag', 'industry', 'sector', 'segment']
+      const hasClassificationIntent = classificationKeywords.some(keyword => lowerPrompt.includes(keyword))
+      
+      // Check for extraction keywords
+      const extractionKeywords = ['extract', 'parse', 'format', 'clean', 'normalize', 'standardize', 'convert']
+      const hasExtractionIntent = extractionKeywords.some(keyword => lowerPrompt.includes(keyword))
+      
+      if (hasSearchIntent) {
+        console.log('[Enrichment] Auto-routing: Detected search intent, using Perplexity')
+        providerSelection = {
+          provider: 'perplexity',
+          model: 'sonar',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.001,
+          reason: 'Search intent detected - best for web search',
+          routerType: 'rule',
+          confidence: 0.9
+        }
+      } else if (hasClassificationIntent) {
+        console.log('[Enrichment] Auto-routing: Detected classification intent, using GPT-4o-mini')
+        providerSelection = {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.0005,
+          reason: 'Classification intent detected - best for categorization',
+          routerType: 'rule',
+          confidence: 0.9
+        }
+      } else if (hasExtractionIntent) {
+        console.log('[Enrichment] Auto-routing: Detected extraction intent, using GPT-4o-mini')
+        providerSelection = {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.0005,
+          reason: 'Extraction intent detected - best for data formatting',
+          routerType: 'rule',
+          confidence: 0.85
+        }
+      } else {
+        // Default to Perplexity Sonar for general enrichment
+        // Most enrichment tasks benefit from current web data
+        console.log('[Enrichment] Auto-routing: General enrichment, defaulting to Perplexity for current data')
+        providerSelection = {
+          provider: 'perplexity',
+          model: 'sonar',
+          temperature: 0.1,
+          maxTokens: 200,
+          estimatedCost: 0.001,
+          reason: 'Default to web search for current data',
+          routerType: 'rule',
+          confidence: 0.7
+        }
+      }
     }
     
     // Initialize the selected provider

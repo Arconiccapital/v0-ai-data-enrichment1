@@ -160,11 +160,32 @@ NEVER DO THIS:
       else if (promptLower.includes('ceo') || promptLower.includes('founder')) dataType = 'ceo'
       else if (promptLower.includes('employees') || promptLower.includes('count')) dataType = 'number'
       
-      // Get raw value
-      let rawValue = parsedResponse.value || value
+      // Get raw value - ensure we extract just the value field
+      let rawValue
+      if (typeof parsedResponse === 'object' && parsedResponse !== null) {
+        // Extract just the value field from JSON response
+        rawValue = parsedResponse.value !== undefined ? parsedResponse.value : null
+      } else {
+        rawValue = parsedResponse || value
+      }
+      
+      // Handle null/not found cases
+      if (rawValue === null || rawValue === undefined) {
+        if (parsedResponse?.status === 'not_found') {
+          rawValue = ''  // Return empty string for not found
+        } else {
+          rawValue = value || ''  // Fallback to original value or empty
+        }
+      }
+      
+      // Ensure rawValue is not an object
+      if (typeof rawValue === 'object' && rawValue !== null) {
+        console.warn('[OpenAI] Warning: rawValue is an object, extracting value field')
+        rawValue = rawValue.value || ''
+      }
       
       // If response is verbose, try extraction
-      if (rawValue && rawValue.length > 50 && dataType !== 'text') {
+      if (rawValue && typeof rawValue === 'string' && rawValue.length > 50 && dataType !== 'text') {
         const extracted = extractFromVerboseResponse(rawValue, dataType)
         if (extracted) {
           rawValue = extracted
@@ -172,8 +193,8 @@ NEVER DO THIS:
       }
       
       // Validate and standardize
-      const validation = validateResponse(rawValue, dataType)
-      const enrichedValue = validation.isValid ? validation.value : rawValue
+      const validation = validateResponse(rawValue || '', dataType)
+      const enrichedValue = validation.isValid ? validation.value : (rawValue || '')
       
       // Adjust confidence based on validation
       const confidence = validation.isValid 
@@ -184,8 +205,20 @@ NEVER DO THIS:
         ? (parsedResponse.status || 'success')
         : 'needs_review'
 
+      // Final safety check - ensure value is never an object
+      let safeValue = enrichedValue
+      if (typeof safeValue === 'object' && safeValue !== null) {
+        console.warn('[OpenAI] Warning: enrichedValue is still an object, extracting value field')
+        safeValue = safeValue.value || ''
+      }
+      if (safeValue === null || safeValue === undefined) {
+        safeValue = ''
+      }
+      // Ensure it's a string
+      safeValue = String(safeValue)
+      
       return {
-        value: enrichedValue,
+        value: safeValue,
         sources: [], // OpenAI doesn't provide web sources
         fullResponse: data.choices[0].message.content,
         metadata: {

@@ -29,7 +29,7 @@ export class PerplexityClient {
     return Boolean(this.apiKey)
   }
 
-  async completion(messages: Array<{ role: string; content: string }>, options: {
+  async completion(messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, options: {
     temperature?: number
     maxTokens?: number
   } = {}): Promise<APIResponse> {
@@ -86,7 +86,7 @@ export class OpenAIClient {
     return Boolean(this.apiKey)
   }
 
-  async completion(messages: Array<{ role: string; content: string }>, options: {
+  async completion(messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>, options: {
     temperature?: number
     maxTokens?: number
     responseFormat?: { type: string }

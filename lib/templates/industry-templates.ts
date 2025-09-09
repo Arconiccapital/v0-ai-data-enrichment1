@@ -558,7 +558,7 @@ export const marketingTemplates: DashboardTemplate[] = [
         widgets: [
           {
             id: "content_calendar",
-            type: "calendar",
+            type: "table" as const,
             title: "Content Calendar",
             dataKey: "scheduled_posts",
             config: {
@@ -690,7 +690,7 @@ export const marketingTemplates: DashboardTemplate[] = [
           },
           {
             id: "peak_engagement_times",
-            type: "heatmap",
+            type: "chart" as const,
             title: "Peak Engagement Times",
             dataKey: "engagement_times",
             config: {

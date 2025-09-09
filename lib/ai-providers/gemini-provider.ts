@@ -163,14 +163,15 @@ Return only the raw JSON object for ONE item.`
   
   async enrichValue(
     value: string,
-    context: string,
-    prompt: string
+    prompt: string,
+    context?: Record<string, any>
   ): Promise<EnrichmentResult> {
     try {
+      const contextStr = context ? JSON.stringify(context) : ''
       const fullPrompt = `${prompt}
 
 Current value: "${value}"
-Context: ${context}
+Context: ${contextStr}
 
 Search the web for accurate, up-to-date information to answer this query.
 Return a concise, factual answer based on your search results.`

@@ -283,20 +283,43 @@ NEVER DO THIS:
       // Extract sources from the response if mentioned
       const sources = parsedResponse.sources || citations.map(c => c.uri)
       
-      // Get raw value from response
-      let rawValue = parsedResponse.value || this.extractValue(responseContent)
+      // Get raw value from response - ensure we extract just the value field
+      let rawValue
+      if (isJsonResponse && typeof parsedResponse === 'object') {
+        // If it's a JSON response, extract just the value field
+        rawValue = parsedResponse.value !== undefined ? parsedResponse.value : null
+      } else {
+        // Plain text response
+        rawValue = this.extractValue(responseContent)
+      }
+      
+      // Handle null/not found cases
+      if (rawValue === null || rawValue === undefined) {
+        if (parsedResponse.status === 'not_found') {
+          rawValue = ''  // Return empty string for not found
+        } else {
+          // Try to extract from response content as fallback
+          rawValue = this.extractValue(responseContent) || ''
+        }
+      }
       
       // If response is verbose or not in correct format, try extraction
-      if (!parsedResponse.value || !isJsonResponse) {
+      if (!rawValue && responseContent) {
         const extracted = extractFromVerboseResponse(responseContent, dataType.toLowerCase().replace('/', ''))
         if (extracted) {
           rawValue = extracted
         }
       }
       
+      // Ensure rawValue is a string, not an object
+      if (typeof rawValue === 'object' && rawValue !== null) {
+        // If somehow still an object, try to extract value field or stringify
+        rawValue = rawValue.value || JSON.stringify(rawValue)
+      }
+      
       // Validate and standardize the response
-      const validation = validateResponse(rawValue, dataType.toLowerCase().replace('/', ''))
-      const finalValue = validation.isValid ? validation.value : rawValue
+      const validation = validateResponse(rawValue || '', dataType.toLowerCase().replace('/', ''))
+      const finalValue = validation.isValid ? validation.value : (rawValue || '')
       
       // Update confidence based on validation
       const finalConfidence = validation.isValid 
@@ -308,8 +331,20 @@ NEVER DO THIS:
       
       console.log('[Perplexity] Returning result with citations:', finalCitations.length)
       
+      // Final safety check - ensure value is never an object
+      let safeValue = finalValue
+      if (typeof safeValue === 'object' && safeValue !== null) {
+        console.warn('[Perplexity] Warning: finalValue is still an object, extracting value field')
+        safeValue = safeValue.value || ''
+      }
+      if (safeValue === null || safeValue === undefined) {
+        safeValue = ''
+      }
+      // Ensure it's a string
+      safeValue = String(safeValue)
+      
       return {
-        value: finalValue,
+        value: safeValue,
         sources: finalCitations,
         fullResponse: responseContent,
         searchQueries: [prompt],
