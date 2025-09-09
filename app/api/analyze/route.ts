@@ -140,10 +140,10 @@ Example response format:
     }
 
     return NextResponse.json({ results, explanations, mock: false })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Analysis error:', error)
     return NextResponse.json(
-      { error: 'Failed to analyze data', message: error.message },
+      { error: 'Failed to analyze data', message: (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

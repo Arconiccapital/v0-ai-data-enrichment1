@@ -89,10 +89,10 @@ Keep the response professional and data-driven.`
         template: template.id
       }
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Report generation error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate report', message: error.message },
+      { error: 'Failed to generate report', message: (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

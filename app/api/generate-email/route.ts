@@ -83,10 +83,10 @@ Return the enhanced email in JSON format:
       emails: enhancedEmails,
       enhanced: true 
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Email generation error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate emails', message: error.message },
+      { error: 'Failed to generate emails', message: (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }
@@ -127,10 +127,10 @@ export async function PUT(request: NextRequest) {
         queued: emails.length
       })
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Email sending error:', error)
     return NextResponse.json(
-      { error: 'Failed to send emails', message: error.message },
+      { error: 'Failed to send emails', message: (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

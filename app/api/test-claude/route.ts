@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
       response: response.content[0]
     })
     
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json({
       status: 'error',
       message: 'Claude API test failed',
-      error: error.message,
+      error: (error instanceof Error ? error.message : String(error)),
       model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest'
     })
   }

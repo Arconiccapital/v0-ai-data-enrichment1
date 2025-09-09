@@ -94,14 +94,14 @@ type SelectionMode = 'single' | 'multiple' | 'range'
 interface CellMetadata {
   query: string
   response: string
-  citations?: any[]
+  citations?: Array<{ uri: string; title: string; snippet?: string }>
   timestamp: string
   isEnriched: boolean
   provider?: string
   model?: string
   confidence?: number
   status?: string
-  verification?: any
+  verification?: Record<string, unknown>
   entity?: string
   routerType?: string
   estimatedCost?: number
@@ -123,7 +123,7 @@ export interface Tab {
   type: 'spreadsheet' | 'dashboard' | 'analysis'
   title: string
   permanent?: boolean
-  data?: any // Store dashboard or analysis data
+  data?: Record<string, unknown> // Store dashboard or analysis data
   metadata?: {
     sourceColumns?: string[]
     createdAt?: Date
@@ -1574,13 +1574,13 @@ async function enrichCellWithContext(
 ): Promise<{ value: string; process?: { 
   query: string; 
   response: string; 
-  citations?: any[]; 
+  citations?: Array<{ uri: string; title: string; snippet?: string }>; 
   timestamp: string;
   provider?: string;
   model?: string;
   confidence?: number;
   status?: string;
-  verification?: any;
+  verification?: Record<string, unknown>;
   entity?: string;
   routerType?: string;
   estimatedCost?: number;

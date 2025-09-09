@@ -199,10 +199,10 @@ export async function POST(request: Request) {
       throw providerError
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Enrichment API error:", error)
     return Response.json({ 
-      error: `Failed to enrich data: ${error.message}` 
+      error: `Failed to enrich data: ${(error instanceof Error ? error.message : String(error))}` 
     }, { status: 500 })
   }
 }

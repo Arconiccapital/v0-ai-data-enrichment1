@@ -72,10 +72,10 @@ export async function POST(request: NextRequest) {
         }
       })
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Dashboard generation error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate dashboard', message: error.message },
+      { error: 'Failed to generate dashboard', message: (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

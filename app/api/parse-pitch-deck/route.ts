@@ -69,11 +69,11 @@ async function extractTextFromFile(file: File): Promise<{ content: string; error
       const text = await file.text()
       return { content: text }
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error extracting text from file:', error)
     return { 
       content: '', 
-      error: `File extraction failed: ${error.message}. Using sample data.` 
+      error: `File extraction failed: ${(error instanceof Error ? error.message : String(error))}. Using sample data.` 
     }
   }
 }
@@ -203,10 +203,10 @@ Extract and structure the information according to the VC investment framework.`
       return NextResponse.json(generateMockPitchDeckData(file.name))
     }
     
-  } catch (error: any) {
+  } catch (error) {
     console.error('Pitch deck parsing error:', error)
     return NextResponse.json(
-      { error: 'Failed to parse pitch deck', message: error.message },
+      { error: 'Failed to parse pitch deck', message: (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     )
   }

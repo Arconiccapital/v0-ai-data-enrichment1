@@ -53,11 +53,11 @@ export async function GET(request: NextRequest) {
       },
       scenarios: testScenarios
     })
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json({
       status: 'error',
       message: 'Test failed',
-      error: error.message
+      error: (error instanceof Error ? error.message : String(error))
     })
   }
 }

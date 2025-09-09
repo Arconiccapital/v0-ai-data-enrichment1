@@ -302,10 +302,10 @@ Format: JSON array of strings, each item complete and specific.`
       }
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Find Data] Error:', error)
     return NextResponse.json(
-      { error: `Failed to generate data: ${error.message}` },
+      { error: `Failed to generate data: ${(error instanceof Error ? error.message : String(error))}` },
       { status: 500 }
     )
   }
