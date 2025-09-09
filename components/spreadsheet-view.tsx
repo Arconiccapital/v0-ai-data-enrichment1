@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
+import { VibeModeDialog } from "@/components/dialogs/vibe-mode-dialog"
+import { FloatingVibeButton } from "@/components/floating-vibe-button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, Paperclip, Eye } from "lucide-react"
+import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, Paperclip, Eye, Download, Copy, Trash2, Edit3, BarChart3, Wand2 } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
 import { useEnhancedClipboard } from "@/hooks/useEnhancedClipboard"
 import {
@@ -32,6 +34,7 @@ import { ColumnAttachmentManager } from "@/components/column-attachment-manager"
 import { CellAttachmentManager } from "@/components/cell-attachment-manager"
 import { PreviewSidebar } from "@/components/preview-sidebar"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface SpreadsheetViewProps {
   activeWorkflowStep?: string | null
@@ -91,6 +94,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const [hasInteractedWithColumn, setHasInteractedWithColumn] = useState(false)
   const [previewSidebarOpen, setPreviewSidebarOpen] = useState(false)
   const [selectedRowForPreview, setSelectedRowForPreview] = useState(0)
+  const [vibeModeDialogOpen, setVibeModeDialogOpen] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Helper function to detect if we're working with social media template
@@ -774,6 +778,15 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
           templateType="social_media_post"
         />
       )}
+      
+      {/* Floating Vibe Mode Button */}
+      <FloatingVibeButton onClick={() => setVibeModeDialogOpen(true)} />
+      
+      {/* Vibe Mode Dialog */}
+      <VibeModeDialog
+        open={vibeModeDialogOpen}
+        onClose={() => setVibeModeDialogOpen(false)}
+      />
     </div>
   )
 }

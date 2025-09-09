@@ -24,7 +24,7 @@ import {
   Calendar,
   Loader2
 } from "lucide-react"
-import { CsvUploader } from "@/components/csv-uploader"
+import { CSVUploader } from "@/components/csv-uploader"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 
 interface DataOption {
@@ -164,7 +164,7 @@ export function DataSourceSelector() {
         return (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold mb-2">Upload your data file</h3>
-            <CsvUploader onDataParsed={handleFileUploaded} />
+            <CSVUploader />
             <div className="bg-muted p-4 rounded-lg">
               <h4 className="font-medium mb-2">Supported formats:</h4>
               <ul className="text-sm space-y-1 text-muted-foreground">

@@ -40,7 +40,7 @@ interface SidebarSection {
   items: {
     id: string
     label: string
-    icon?: React.ElementType | React.ReactNode
+    icon?: React.ElementType
     onClick?: () => void
     isActive?: boolean
     badge?: string
@@ -57,26 +57,26 @@ interface ProjectItem {
   name: string
   type: 'data' | 'output'
   subtype: string
-  icon: React.ReactNode
+  icon: React.ElementType
   lastModified: Date
   status: 'draft' | 'in_progress' | 'complete' | 'published'
 }
 
 const getTypeIcon = (subtype: string) => {
-  const iconMap: Record<string, React.ReactNode> = {
-    'spreadsheet': <FileSpreadsheet className="h-3 w-3" />,
-    'dataset': <Table2 className="h-3 w-3" />,
-    'search': <Search className="h-3 w-3" />,
-    'dashboard': <BarChart3 className="h-3 w-3" />,
-    'email': <Mail className="h-3 w-3" />,
-    'social_post': <MessageSquare className="h-3 w-3" />,
-    'report': <FileText className="h-3 w-3" />,
-    'presentation': <Layout className="h-3 w-3" />,
-    'calendar': <Calendar className="h-3 w-3" />,
-    'video': <Video className="h-3 w-3" />,
-    'infographic': <ImageIcon className="h-3 w-3" />
+  const iconMap: Record<string, React.ElementType> = {
+    'spreadsheet': FileSpreadsheet,
+    'dataset': Table2,
+    'search': Search,
+    'dashboard': BarChart3,
+    'email': Mail,
+    'social_post': MessageSquare,
+    'report': FileText,
+    'presentation': Layout,
+    'calendar': Calendar,
+    'video': Video,
+    'infographic': ImageIcon
   }
-  return iconMap[subtype] || <Database className="h-3 w-3" />
+  return iconMap[subtype] || Database
 }
 
 const formatTimeAgo = (date: Date): string => {
@@ -199,7 +199,7 @@ export function SidebarNav() {
         {
           id: "view-all",
           label: "View all projects",
-          icon: <Folder className="h-3 w-3" />,
+          icon: Folder,
           onClick: () => {
             clearData()
             router.push('/')
@@ -213,13 +213,13 @@ export function SidebarNav() {
         {
           id: "current",
           label: hasData ? "Active Spreadsheet" : "No file loaded",
-          icon: <FileSpreadsheet className="h-3 w-3" />,
+          icon: FileSpreadsheet,
           isActive: hasData
         },
         {
           id: "new",
           label: "New File",
-          icon: <Plus className="h-3 w-3" />,
+          icon: Plus,
           onClick: () => {
             clearData()
             window.location.reload()
@@ -296,8 +296,7 @@ export function SidebarNav() {
               {(isCollapsed || expandedSections.has(section.title.toLowerCase())) && (
                 <div className={cn("space-y-1", !isCollapsed && "mt-2")}>
                   {section.items.map((item) => {
-                    const Icon = typeof item.icon === 'function' ? item.icon : null
-                    const iconElement = typeof item.icon === 'object' ? item.icon : null
+                    const Icon = item.icon
                     
                     return (
                       <Button
@@ -319,7 +318,6 @@ export function SidebarNav() {
                           isCollapsed ? "justify-center" : "justify-start gap-2 w-full"
                         )}>
                           {Icon && <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />}
-                          {iconElement && <div className="flex-shrink-0">{iconElement}</div>}
                           
                           {!isCollapsed && (
                             <div className="flex-1 min-w-0">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,6 @@ import { CSVUploader } from "@/components/csv-uploader"
 import { FindDataDialog } from "@/components/dialogs/find-data-dialog"
 import { SpreadsheetView } from "@/components/spreadsheet-view"
 import { AppNavigation } from "@/components/app-navigation"
-import { WorkflowIndicator } from "@/components/workflow-indicator"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { GenerateSidebar } from "@/components/generate-sidebar"
 import { ExportSidebar } from "@/components/export-sidebar"
@@ -37,33 +36,20 @@ import { toast } from "sonner"
 export default function HomePage() {
   const router = useRouter()
   const { hasData, tabs, activeTab, setActiveTab, removeTab } = useSpreadsheetStore()
-  const [activeWorkflowStep, setActiveWorkflowStep] = useState<string | null>(null)
-  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
+  const [showGenerateSidebar, setShowGenerateSidebar] = useState(false)
+  const [showExportSidebar, setShowExportSidebar] = useState(false)
   const [showFindDataDialog, setShowFindDataDialog] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hoveredPath, setHoveredPath] = useState<string | null>(null)
   const [showCsvUploader, setShowCsvUploader] = useState(false)
   const [csvUploaderMode, setCsvUploaderMode] = useState<'data' | 'enrich'>('data')
-  const [shouldActivateEnrich, setShouldActivateEnrich] = useState(false)
-  
-  // Activate enrichment workflow when data is loaded via enrichment path
-  useEffect(() => {
-    if (hasData && shouldActivateEnrich) {
-      setActiveWorkflowStep('enrich')
-      setShouldActivateEnrich(false)
-      toast.info('Data loaded! Click any column header to start enriching', {
-        description: 'You can add emails, companies, categories, and more with AI',
-        duration: 5000
-      })
-    }
-  }, [hasData, shouldActivateEnrich])
   
   // Popular output shortcuts
   const popularOutputs = [
-    { icon: <BarChart3 className="h-4 w-4" />, name: 'Dashboard', time: '5 min', route: '/create/output' },
-    { icon: <Mail className="h-4 w-4" />, name: 'Email Campaign', time: '10 min', route: '/create/output' },
-    { icon: <FileText className="h-4 w-4" />, name: 'Report', time: '15 min', route: '/create/output' },
-    { icon: <MessageSquare className="h-4 w-4" />, name: 'Social Post', time: '2 min', route: '/create/output/social_media_post' },
+    { IconComponent: BarChart3, name: 'Dashboard', time: '5 min', route: '/create/output' },
+    { IconComponent: Mail, name: 'Email Campaign', time: '10 min', route: '/create/output' },
+    { IconComponent: FileText, name: 'Report', time: '15 min', route: '/create/output' },
+    { IconComponent: MessageSquare, name: 'Social Post', time: '2 min', route: '/create/output/social_media_post' },
   ]
 
   // Show unified starting page if no data
@@ -93,10 +79,14 @@ export default function HomePage() {
           </div>
           
           {/* Main Pathways */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
             {/* Path 1: Start with Your Data */}
             <Card
-              className="cursor-pointer transition-all hover:shadow-lg hover:border-primary"
+              className={cn(
+                "group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative overflow-hidden h-full flex flex-col",
+                "bg-white border-gray-200 hover:border-gray-400",
+                hoveredPath === 'data-first' && "ring-2 ring-gray-400 ring-opacity-50"
+              )}
               onMouseEnter={() => setHoveredPath('data-first')}
               onMouseLeave={() => setHoveredPath(null)}
             >
@@ -104,8 +94,8 @@ export default function HomePage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Table2 className="h-8 w-8 text-primary" />
+                      <div className="p-3 bg-black rounded-lg group-hover:scale-110 transition-transform duration-300">
+                        <Table2 className="h-6 w-6 text-white" />
                       </div>
                       <CardTitle className="text-lg">Start Fresh</CardTitle>
                     </div>
@@ -116,7 +106,7 @@ export default function HomePage() {
                 </div>
               </CardHeader>
               
-              <CardContent>
+              <CardContent className="flex-1 flex flex-col">
                 <div className="mb-4">
                   <p className="text-sm font-medium mb-2">Start from:</p>
                   <div className="space-y-2">
@@ -125,10 +115,10 @@ export default function HomePage() {
                         e.stopPropagation()
                         setShowFindDataDialog(true)
                       }}
-                      className="w-full flex items-center gap-2 p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-left"
+                      className="w-full flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left border border-gray-200"
                     >
-                      <Search className="h-4 w-4" />
-                      <span className="text-sm">Find Data</span>
+                      <Search className="h-4 w-4 text-gray-600" />
+                      <span className="text-sm font-medium">Find Data</span>
                     </button>
                     
                     <button
@@ -136,10 +126,10 @@ export default function HomePage() {
                         e.stopPropagation()
                         router.push('/templates')
                       }}
-                      className="w-full flex items-center gap-2 p-2 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-left"
+                      className="w-full flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left border border-gray-200"
                     >
-                      <Database className="h-4 w-4" />
-                      <span className="text-sm">Data Templates</span>
+                      <Database className="h-4 w-4 text-gray-600" />
+                      <span className="text-sm font-medium">Data Templates</span>
                     </button>
                   </div>
                 </div>
@@ -163,8 +153,8 @@ export default function HomePage() {
                 </div>
 
                 <Button 
-                  className="w-full" 
-                  variant="outline"
+                  className="w-full mt-auto bg-black hover:bg-gray-800 text-white border-0 transition-all" 
+                  size="lg"
                   onClick={(e) => {
                     e.stopPropagation()
                     router.push('/create/data')
@@ -178,7 +168,11 @@ export default function HomePage() {
 
             {/* Path 2: Enhance Existing Data */}
             <Card
-              className="cursor-pointer transition-all hover:shadow-lg hover:border-primary"
+              className={cn(
+                "group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative overflow-hidden h-full flex flex-col",
+                "bg-white border-gray-200 hover:border-gray-400",
+                hoveredPath === 'enrich-first' && "ring-2 ring-gray-400 ring-opacity-50"
+              )}
               onMouseEnter={() => setHoveredPath('enrich-first')}
               onMouseLeave={() => setHoveredPath(null)}
             >
@@ -186,8 +180,8 @@ export default function HomePage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Sparkles className="h-8 w-8 text-primary" />
+                      <div className="p-3 bg-black rounded-lg group-hover:scale-110 transition-transform duration-300">
+                        <Sparkles className="h-6 w-6 text-white" />
                       </div>
                       <CardTitle className="text-lg">Enhance Your Data</CardTitle>
                     </div>
@@ -198,38 +192,37 @@ export default function HomePage() {
                 </div>
               </CardHeader>
               
-              <CardContent>
+              <CardContent className="flex-1 flex flex-col">
                 <div className="mb-4">
                   <p className="text-sm font-medium mb-2">How it works:</p>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       setCsvUploaderMode('enrich')
-                      setShouldActivateEnrich(true)
                       setShowCsvUploader(true)
                     }}
-                    className="w-full flex items-center gap-2 p-2 bg-primary/10 rounded-md hover:bg-primary/20 transition-colors text-left mb-3 border border-primary/20"
+                    className="w-full flex items-center gap-2 p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all text-left mb-3 border border-gray-300"
                   >
-                    <Upload className="h-4 w-4" />
-                    <span className="text-sm font-medium">Upload Your CSV</span>
+                    <Upload className="h-4 w-4 text-gray-700" />
+                    <span className="text-sm font-medium text-gray-800">Upload Your CSV</span>
                   </button>
                   <p className="text-sm font-medium mb-2">Then enrich with:</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                      <Mail className="h-4 w-4" />
-                      <span className="text-sm">Emails</span>
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-gray-600">
+                      <Mail className="h-3.5 w-3.5" />
+                      <span className="text-xs">Emails</span>
                     </div>
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                      <Database className="h-4 w-4" />
-                      <span className="text-sm">Companies</span>
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-gray-600">
+                      <Database className="h-3.5 w-3.5" />
+                      <span className="text-xs">Companies</span>
                     </div>
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                      <BarChart3 className="h-4 w-4" />
-                      <span className="text-sm">Categories</span>
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-gray-600">
+                      <BarChart3 className="h-3.5 w-3.5" />
+                      <span className="text-xs">Categories</span>
                     </div>
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-sm">Locations</span>
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded text-gray-600">
+                      <FileText className="h-3.5 w-3.5" />
+                      <span className="text-xs">Locations</span>
                     </div>
                   </div>
                 </div>
@@ -253,12 +246,11 @@ export default function HomePage() {
                 </div>
 
                 <Button 
-                  className="w-full" 
-                  variant="outline"
+                  className="w-full mt-auto bg-black hover:bg-gray-800 text-white border-0 transition-all" 
+                  size="lg"
                   onClick={(e) => {
                     e.stopPropagation()
                     setCsvUploaderMode('enrich')
-                    setShouldActivateEnrich(true)
                     setShowCsvUploader(true)
                   }}
                 >
@@ -270,7 +262,11 @@ export default function HomePage() {
 
             {/* Path 3: Create from Templates */}
             <Card
-              className="cursor-pointer transition-all hover:shadow-lg hover:border-primary"
+              className={cn(
+                "group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative overflow-hidden h-full flex flex-col",
+                "bg-white border-gray-200 hover:border-gray-400",
+                hoveredPath === 'output-first' && "ring-2 ring-gray-400 ring-opacity-50"
+              )}
               onMouseEnter={() => setHoveredPath('output-first')}
               onMouseLeave={() => setHoveredPath(null)}
               onClick={() => router.push('/create/output')}
@@ -279,8 +275,8 @@ export default function HomePage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Layout className="h-8 w-8 text-primary" />
+                      <div className="p-3 bg-black rounded-lg group-hover:scale-110 transition-transform duration-300">
+                        <Layout className="h-6 w-6 text-white" />
                       </div>
                       <CardTitle className="text-lg">Create from Templates</CardTitle>
                     </div>
@@ -291,19 +287,24 @@ export default function HomePage() {
                 </div>
               </CardHeader>
               
-              <CardContent>
+              <CardContent className="flex-1 flex flex-col">
                 <div className="mb-4">
                   <p className="text-sm font-medium mb-2">Popular outputs:</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {popularOutputs.slice(0, 4).map((output, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 p-2 bg-gray-50 rounded-md"
-                      >
-                        {output.icon}
-                        <span className="text-sm">{output.name}</span>
-                      </div>
-                    ))}
+                    {popularOutputs.slice(0, 4).map((output, idx) => {
+                      const Icon = output.IconComponent
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 p-2 bg-gray-50 rounded text-gray-600"
+                        >
+                          <div className="text-gray-500">
+                            <Icon className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-xs">{output.name}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -325,7 +326,10 @@ export default function HomePage() {
                   </ul>
                 </div>
 
-                <Button className="w-full" variant={hoveredPath === 'output-first' ? "default" : "outline"}>
+                <Button 
+                  className="w-full mt-auto bg-black hover:bg-gray-800 text-white border-0 transition-all" 
+                  size="lg"
+                >
                   Choose Template
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
@@ -342,7 +346,7 @@ export default function HomePage() {
                 onClick={() => router.push('/templates')}
                 className="flex items-center gap-2"
               >
-                <Sparkles className="h-4 w-4" />
+                <Database className="h-4 w-4" />
                 Browse Templates
               </Button>
               <Button
@@ -406,51 +410,7 @@ export default function HomePage() {
     )
   }
 
-  const handleWorkflowStepClick = (stepId: string) => {
-    // Special handling for enrich - show guidance
-    if (stepId === 'enrich') {
-      // Show helpful toast with guidance
-      toast.info('Click any column header to enrich data', {
-        description: 'Right-click for more options or click the sparkles icon to configure AI enrichment',
-        duration: 5000,
-        action: {
-          label: 'Got it',
-          onClick: () => {}
-        }
-      })
-      
-      // Trigger column header highlight effect
-      const event = new CustomEvent('highlightEnrichment')
-      window.dispatchEvent(event)
-      return
-    }
-    
-    // If clicking the same step, close it
-    if (activeWorkflowStep === stepId) {
-      setActiveWorkflowStep(null)
-    } else {
-      // Mark the previous step as completed when moving to a new step
-      if (activeWorkflowStep) {
-        setCompletedSteps(prev => new Set([...prev, activeWorkflowStep]))
-      }
-      setActiveWorkflowStep(stepId)
-    }
-  }
 
-  // Function to progress to the next workflow step
-  const progressToNextStep = () => {
-    const workflowSteps = ['enrich', 'generate', 'export']
-    const currentIndex = workflowSteps.indexOf(activeWorkflowStep || '')
-    
-    if (currentIndex !== -1 && currentIndex < workflowSteps.length - 1) {
-      // Mark current step as completed
-      if (activeWorkflowStep) {
-        setCompletedSteps(prev => new Set([...prev, activeWorkflowStep]))
-      }
-      // Move to next step
-      setActiveWorkflowStep(workflowSteps[currentIndex + 1])
-    }
-  }
 
   // Main application with data loaded
   return (
@@ -458,11 +418,6 @@ export default function HomePage() {
       {/* Top Navigation */}
       <AppNavigation />
       
-      {/* Workflow Indicator */}
-      <WorkflowIndicator 
-        onStepClick={handleWorkflowStepClick}
-        activeStep={activeWorkflowStep || undefined}
-      />
       
       {/* Main Content with Sidebar */}
       <div className="flex-1 flex relative overflow-hidden min-h-0">
@@ -481,21 +436,24 @@ export default function HomePage() {
             />
             
             {/* Tab Content */}
-            <TabContent activeWorkflowStep={activeWorkflowStep} />
+            <TabContent activeWorkflowStep={null} />
           </div>
           
-          {/* Right Sidebar based on active workflow step */}
-          {activeWorkflowStep && (
+          {/* Right Sidebar based on active state */}
+          {(showGenerateSidebar || showExportSidebar) && (
             <div className="absolute lg:relative inset-0 lg:inset-auto z-30 lg:z-auto flex-shrink-0">
-              {activeWorkflowStep === 'generate' && (
+              {showGenerateSidebar && (
                 <GenerateSidebar 
-                  onClose={() => setActiveWorkflowStep(null)}
-                  onComplete={progressToNextStep}
+                  onClose={() => setShowGenerateSidebar(false)}
+                  onComplete={() => {
+                    setShowGenerateSidebar(false)
+                    setShowExportSidebar(true)
+                  }}
                 />
               )}
-              {activeWorkflowStep === 'export' && (
+              {showExportSidebar && (
                 <ExportSidebar 
-                  onClose={() => setActiveWorkflowStep(null)}
+                  onClose={() => setShowExportSidebar(false)}
                 />
               )}
             </div>
