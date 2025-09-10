@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     
     // Test with a simple message
     const response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest',
+      model: process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307',
       max_tokens: 100,
       messages: [{
         role: 'user',
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       status: 'success',
       message: 'Claude API is working',
-      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest',
+      model: process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307',
       response: response.content[0]
     })
     

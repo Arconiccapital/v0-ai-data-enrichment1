@@ -127,7 +127,7 @@ interface GenerationMetadata {
 
 export interface Tab {
   id: string
-  type: 'spreadsheet' | 'dashboard' | 'analysis'
+  type: 'spreadsheet' | 'dashboard' | 'analysis' | 'vibe'
   title: string
   permanent?: boolean
   data?: Record<string, unknown> // Store dashboard or analysis data

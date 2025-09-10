@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AddColumnDialog } from "@/components/add-column-dialog"
 import { VibeModeDialog } from "@/components/dialogs/vibe-mode-dialog"
-import { FloatingVibeButton } from "@/components/floating-vibe-button"
+import { VirtualizedSpreadsheet } from "@/components/virtualized-spreadsheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Sparkles, Plus, Loader2, Info, X, Settings, Zap, Play, Filter, Paperclip, Eye, Download, Copy, Trash2, Edit3, BarChart3, Wand2 } from "lucide-react"
 import { SpreadsheetCell } from "./spreadsheet-cell"
@@ -263,53 +263,122 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
   const selectedColumnName = selectedCell ? headers[selectedCell.col] || "" : ""
 
   // Function to scroll to a specific column
-  const scrollToColumn = (columnIndex: number) => {
-    // Use a timeout to ensure DOM has updated with the new column
-    setTimeout(() => {
-      // Find the th element for the new column
-      const tableHeaders = document.querySelectorAll('thead th')
-      // Account for checkbox (index 0) and row number (index 1) columns
-      const targetHeader = tableHeaders[columnIndex + 2] as HTMLElement
-      
-      if (targetHeader && scrollContainerRef.current) {
-        // Get positions
-        const containerRect = scrollContainerRef.current.getBoundingClientRect()
+  const scrollToColumn = (columnIndex: number, retryCount = 0) => {
+    // Use requestAnimationFrame for better performance
+    requestAnimationFrame(() => {
+      // Small delay to ensure DOM has updated with the new column
+      setTimeout(() => {
+        const container = scrollContainerRef.current
+        if (!container) {
+          return
+        }
+
+        // Find all th elements in the table
+        const tableHeaders = container.querySelectorAll('thead th')
+        
+        // Account for checkbox (index 0) and row number (index 1) columns
+        const targetHeaderIndex = columnIndex + 2
+        const targetHeader = tableHeaders[targetHeaderIndex] as HTMLElement
+        
+        if (!targetHeader) {
+          if (retryCount < 5) {
+            // Retry with longer delay
+            setTimeout(() => scrollToColumn(columnIndex, retryCount + 1), 200)
+          }
+          return
+        }
+        
+        // Get the table element to calculate scroll position
+        const table = container.querySelector('table')
+        if (!table) {
+          return
+        }
+        
+        // Calculate the position of the target column
         const headerRect = targetHeader.getBoundingClientRect()
+        const containerRect = container.getBoundingClientRect()
         
-        // Important: We want to keep the Add Column button visible (180px sticky on right)
-        // So we need to ensure there's always 180px of space on the right for it
-        const addColumnButtonWidth = 180
-        const fixedColumnsWidth = 88 // Width of checkbox and row number columns
+        // Calculate how much we need to scroll
+        // We want to show the new column with some padding from the right edge
+        const padding = 100
+        const targetScrollPosition = targetHeader.offsetLeft - containerRect.width + targetHeader.offsetWidth + padding
         
-        // Calculate the visible area excluding the Add Column button
-        const visibleRightEdge = containerRect.right - addColumnButtonWidth
+        // Only scroll if the column is not fully visible
+        const columnRightEdge = targetHeader.offsetLeft + targetHeader.offsetWidth
+        const viewportRightEdge = container.scrollLeft + containerRect.width
         
-        // Check if column is out of view
-        const isOutOfViewRight = headerRect.left > visibleRightEdge - 100 // Need some space to see the column
-        const isOutOfViewLeft = headerRect.left < containerRect.left + fixedColumnsWidth
-        
-        if (isOutOfViewRight) {
-          // Scroll right to show the column, but not so far that we lose the Add Column button
-          // Position the new column to be visible just before the Add Column button
-          const targetScrollLeft = headerRect.left - containerRect.left - (containerRect.width - addColumnButtonWidth - 200)
-          scrollContainerRef.current.scrollLeft = Math.max(0, targetScrollLeft)
-        } else if (isOutOfViewLeft) {
-          // Scroll left to show the column
-          const scrollAmount = containerRect.left - headerRect.left + fixedColumnsWidth + 20
-          scrollContainerRef.current.scrollLeft = Math.max(0, scrollContainerRef.current.scrollLeft - scrollAmount)
+        if (columnRightEdge > viewportRightEdge - 200) {
+          // Column is off screen or too close to right edge, scroll to show it
+          container.scrollTo({
+            left: Math.max(0, targetScrollPosition),
+            behavior: 'smooth'
+          })
         }
-        
-        // Special case: if this is likely a new column at the end,
-        // scroll to show it but keep Add Column button visible
-        if (columnIndex === headers.length - 1) {
-          // This is the last column, position it nicely visible
-          const optimalScrollLeft = headerRect.left - containerRect.left - (containerRect.width - addColumnButtonWidth - 250)
-          scrollContainerRef.current.scrollLeft = Math.max(0, optimalScrollLeft)
-        }
-      }
-    }, 200) // Increased timeout to ensure DOM update
+      }, retryCount === 0 ? 100 : 300) // Give more time for DOM updates
+    })
   }
 
+  // Use virtualized spreadsheet for large datasets (> 1000 rows)
+  const USE_VIRTUAL_THRESHOLD = 1000
+  const shouldUseVirtualized = data.length > USE_VIRTUAL_THRESHOLD
+
+  // If we should use virtualized spreadsheet for performance
+  if (shouldUseVirtualized) {
+    return (
+      <>
+        <VirtualizedSpreadsheet
+          onOpenEnrichmentDialog={(columnIndex, scope, rowIndex) => {
+            setEnrichmentColumnIndex(columnIndex)
+            setEnrichmentScope(scope || 'all')
+            setCurrentEnrichRow(rowIndex)
+            setEnrichmentDialogOpen(true)
+          }}
+          onOpenAttachmentManager={(columnIndex) => {
+            setAttachmentColumnIndex(columnIndex)
+            setAttachmentManagerOpen(true)
+          }}
+          onOpenCellAttachment={(row, col) => {
+            setSelectedCellForAttachment({ row, col })
+            setCellAttachmentOpen(true)
+          }}
+          onOpenVibeMode={() => setVibeModeDialogOpen(true)}
+          selectedCell={selectedCell}
+          setSelectedCell={setSelectedCell}
+          columnWidths={columnWidths}
+          setColumnWidths={setColumnWidths}
+        />
+        
+        {/* Dialogs */}
+        <AIEnrichmentDialog
+          open={enrichmentDialogOpen}
+          onOpenChange={setEnrichmentDialogOpen}
+          defaultColumnIndex={enrichmentColumnIndex}
+          defaultScope={enrichmentScope}
+          defaultRowIndex={currentEnrichRow}
+        />
+        
+        <VibeModeDialog
+          open={vibeModeDialogOpen}
+          onOpenChange={setVibeModeDialogOpen}
+        />
+        
+        <ColumnAttachmentManager
+          open={attachmentManagerOpen}
+          onOpenChange={setAttachmentManagerOpen}
+          columnIndex={attachmentColumnIndex}
+        />
+        
+        <CellAttachmentManager
+          open={cellAttachmentOpen}
+          onOpenChange={setCellAttachmentOpen}
+          rowIndex={selectedCellForAttachment?.row ?? 0}
+          colIndex={selectedCellForAttachment?.col ?? 0}
+        />
+      </>
+    )
+  }
+
+  // Original non-virtualized rendering for smaller datasets
   return (
     <div className="flex h-full bg-white overflow-hidden">
       {/* Main Content */}
@@ -383,8 +452,7 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
 
         <div className="flex-1 bg-gray-50 overflow-hidden flex flex-col min-h-0">
           <div className="flex-1 overflow-auto relative" ref={scrollContainerRef}>
-            <div className="min-w-full overflow-x-auto">
-              <table className="w-full border-collapse bg-white" style={{ tableLayout: 'fixed' }} tabIndex={0}>
+            <table className="w-full border-collapse bg-white" style={{ tableLayout: 'auto', minWidth: 'max-content' }} tabIndex={0}>
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-center border-r border-gray-200 bg-white sticky left-0 z-30" style={{ width: '40px', height: '48px', boxSizing: 'border-box' }}>
@@ -720,7 +788,6 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
                   </tr>
                 </tbody>
               </table>
-            </div>
           </div>
         </div>
 
@@ -741,7 +808,6 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
             </div>
           </div>
         </div>
-      </div>
 
       <AIEnrichmentDialog 
         open={enrichmentDialogOpen} 
@@ -798,14 +864,13 @@ export function SpreadsheetView({ }: SpreadsheetViewProps) {
         />
       )}
       
-      {/* Floating Vibe Mode Button */}
-      <FloatingVibeButton onClick={() => setVibeModeDialogOpen(true)} />
       
       {/* Vibe Mode Dialog */}
       <VibeModeDialog
         open={vibeModeDialogOpen}
         onClose={() => setVibeModeDialogOpen(false)}
       />
+      </div>
     </div>
   )
 }

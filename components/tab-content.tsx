@@ -3,6 +3,7 @@
 import { SpreadsheetView } from "./spreadsheet-view"
 import { DashboardPreview } from "./dashboard-preview"
 import { AnalysisContent } from "./analysis-content"
+import { VibeModeTab } from "./vibe-mode-tab"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -118,6 +119,10 @@ export function TabContent({ activeWorkflowStep }: TabContentProps) {
           />
         </div>
       )
+      
+    case 'vibe':
+      // Show vibe mode interface
+      return <VibeModeTab />
       
     default:
       return (

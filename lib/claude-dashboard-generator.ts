@@ -2,9 +2,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { DashboardTemplate, DashboardWidget } from './dashboard-templates'
 
 // Model configuration from environment
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
-// Use 4096 max tokens for Haiku model, 8000 for Sonnet
-const MAX_TOKENS = MODEL.includes('haiku') ? 4096 : parseInt(process.env.ANTHROPIC_MAX_TOKENS || '8000')
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307'
+// Always use 4096 max tokens for Haiku model (it's the maximum supported)
+const MAX_TOKENS = 4096
 const TEMPERATURE = parseFloat(process.env.ANTHROPIC_TEMPERATURE || '0.7')
 
 // Expert system prompt for all interactions
