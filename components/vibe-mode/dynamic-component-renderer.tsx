@@ -19,6 +19,11 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
 
   useEffect(() => {
     try {
+      // Validate code before transformation
+      if (!code || !code.includes('function GeneratedVisualization')) {
+        throw new Error('Invalid component code received. The code must contain a GeneratedVisualization function.')
+      }
+      
       // Transform JSX to JavaScript using Babel
       const transformedCode = Babel.transform(code, {
         presets: ['react'],

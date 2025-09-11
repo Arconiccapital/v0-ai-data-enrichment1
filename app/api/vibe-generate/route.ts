@@ -4,6 +4,37 @@ import Anthropic from '@anthropic-ai/sdk'
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307'
 const MAX_TOKENS = Number(process.env.VIBE_MAX_TOKENS || 3000)
 
+// Helper function to extract code from various response formats
+function extractCodeFromResponse(response: string): string | null {
+  // First, try to extract from markdown code blocks
+  const codeBlockRegex = /```(?:javascript|jsx|js|typescript|tsx)?\n?([\s\S]*?)```/
+  const codeBlockMatch = response.match(codeBlockRegex)
+  if (codeBlockMatch) {
+    return codeBlockMatch[1].trim()
+  }
+
+  // Second, look for function definition directly
+  const functionRegex = /function\s+GeneratedVisualization[\s\S]*?^}/m
+  const functionMatch = response.match(functionRegex)
+  if (functionMatch) {
+    return functionMatch[0]
+  }
+
+  // Third, if the response starts with function, assume it's all code
+  if (response.trim().startsWith('function GeneratedVisualization')) {
+    return response.trim()
+  }
+
+  // Last resort: try to find anything between function and the last closing brace
+  const lastResortRegex = /function GeneratedVisualization[\s\S]*\n}/
+  const lastResortMatch = response.match(lastResortRegex)
+  if (lastResortMatch) {
+    return lastResortMatch[0]
+  }
+
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { prompt, headers, data } = await request.json()
@@ -33,42 +64,50 @@ export async function POST(request: NextRequest) {
     
     const systemPrompt = `You are an expert React developer. Generate a complete, self-contained React component based on the user's request and data.
 
-IMPORTANT: Generate pure JavaScript without TypeScript type annotations. Do NOT include type definitions like ": { data: any[], headers: string[] }" in the function signature.
+CRITICAL INSTRUCTIONS:
+- Return ONLY the function code, nothing else
+- Do NOT include any explanatory text before or after the code
+- Do NOT wrap the code in markdown code blocks
+- Do NOT include comments outside the function
+- Start directly with: function GeneratedVisualization
+- End with the closing brace of the function
 
-AVAILABLE IMPORTS:
-- import { BarChart, LineChart, PieChart, AreaChart, RadarChart, ComposedChart, Treemap, Bar, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
-- import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-- import { Badge } from '@/components/ui/badge'
-- import { ArrowUp, ArrowDown, TrendingUp, TrendingDown, Users, DollarSign, Activity, CreditCard, Package, ShoppingCart, Calendar, Clock, Globe, Mail, Phone, MapPin, Star, Heart, AlertCircle, CheckCircle, Info } from 'lucide-react'
+CORRECT EXAMPLE:
+function GeneratedVisualization({ data, headers }) {
+  return <div>...</div>
+}
+
+INCORRECT EXAMPLE (DO NOT DO THIS):
+Here is a React component:
+\`\`\`javascript
+function GeneratedVisualization({ data, headers }) {
+  return <div>...</div>
+}
+\`\`\`
+
+AVAILABLE IMPORTS (already available in scope, do not import):
+- React and all React hooks (useState, useEffect, useMemo, useCallback)
+- All Recharts components (BarChart, LineChart, PieChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell)
+- All Lucide icons (ArrowUp, ArrowDown, TrendingUp, Users, DollarSign, Activity, etc.)
+- UI components: Card, CardContent, CardHeader, CardTitle, CardDescription, Badge
 
 STYLING:
 - Use Tailwind CSS classes for all styling
-- Use modern, clean design principles
 - Make it responsive and beautiful
 
 REQUIREMENTS:
 1. Generate ONLY the component code, no explanations
 2. Component must accept props: data and headers (without type annotations)
 3. The data array contains objects where keys are the header names (e.g., data[0].Company, data[0].Revenue)
-4. Process and transform the data as needed for visualizations
-5. Create a beautiful UI that matches the user's intent
-6. Use real data values from the actual data objects, not placeholders
-7. DO NOT include TypeScript type annotations - use pure JavaScript
-
-INTERPRETING USER REQUESTS:
-- "report" → Create formal document-style layout with sections and summaries
-- "dashboard" → Create grid layout with multiple charts and KPI cards
-- "presentation" → Create slide-like sections with large, impactful visuals
-- "analysis" → Focus on detailed charts with insights
-- "summary" → Create concise overview with key metrics
-- Creative requests → Interpret and create matching unique designs
+4. Create a beautiful UI that matches the user's intent
+5. Use real data values from the actual data objects
+6. DO NOT include TypeScript type annotations - use pure JavaScript
 
 START YOUR RESPONSE WITH:
 function GeneratedVisualization({ data, headers }) {
 
 END YOUR RESPONSE WITH:
-}
-`
+}`
 
     const userPrompt = `USER REQUEST: "${prompt}"
 
@@ -79,12 +118,12 @@ Total Rows: ${data.length}
 SAMPLE DATA (first 10 rows):
 ${JSON.stringify(sampleData, null, 2)}
 
-Based on the user's request "${prompt}", generate a React component that visualizes this data exactly as requested. Make it beautiful, functional, and perfectly matched to what the user asked for.`
+Generate the React component code ONLY. No explanations, no markdown, just the function code.`
 
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      temperature: 0.7,
+      temperature: 0.3, // Lower temperature for more consistent output format
       system: systemPrompt,
       messages: [{
         role: 'user',
@@ -94,24 +133,63 @@ Based on the user's request "${prompt}", generate a React component that visuali
     
     // Extract the component code from Claude's response
     const content = response.content[0]
-    const componentCode = content?.type === 'text' ? content.text : ''
+    let rawResponse = content?.type === 'text' ? content.text : ''
     
-    // Basic validation that it looks like a React component
-    if (componentCode.includes('function GeneratedVisualization') && componentCode.includes('return')) {
-      console.log('✅ Successfully generated React component')
+    console.log('📝 Raw response length:', rawResponse.length)
+    console.log('📝 First 100 chars:', rawResponse.substring(0, 100))
+    
+    // Extract code from the response
+    const extractedCode = extractCodeFromResponse(rawResponse)
+    
+    if (extractedCode) {
+      // Additional validation
+      if (extractedCode.includes('function GeneratedVisualization') && 
+          extractedCode.includes('return') &&
+          !extractedCode.includes('```')) {
+        console.log('✅ Successfully extracted and validated React component')
+        return NextResponse.json({
+          success: true,
+          code: extractedCode,
+          model: MODEL
+        })
+      }
+    }
+    
+    // If extraction failed, log the issue
+    console.error('❌ Failed to extract valid code from response')
+    console.error('Raw response:', rawResponse.substring(0, 500))
+    
+    // Try one more time with stricter prompt
+    const retryResponse = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      temperature: 0.1, // Even lower temperature
+      system: 'Return ONLY a JavaScript function named GeneratedVisualization. Start with "function GeneratedVisualization" and end with "}". No other text.',
+      messages: [{
+        role: 'user',
+        content: `Create a React component for: "${prompt}". Data has columns: ${headers.join(', ')}. Return ONLY the function code.`
+      }]
+    })
+    
+    const retryContent = retryResponse.content[0]
+    const retryRawResponse = retryContent?.type === 'text' ? retryContent.text : ''
+    const retryExtractedCode = extractCodeFromResponse(retryRawResponse)
+    
+    if (retryExtractedCode && retryExtractedCode.includes('function GeneratedVisualization')) {
+      console.log('✅ Retry successful')
       return NextResponse.json({
         success: true,
-        code: componentCode,
+        code: retryExtractedCode,
         model: MODEL
       })
-    } else {
-      console.error('❌ Generated code does not appear to be a valid React component')
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to generate valid React component',
-        code: componentCode // Still return it for debugging
-      })
     }
+    
+    // Final fallback
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to generate valid React component',
+      rawResponse: rawResponse.substring(0, 1000) // Include for debugging
+    })
     
   } catch (error) {
     console.error('Vibe generation error:', error)

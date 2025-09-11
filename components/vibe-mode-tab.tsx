@@ -88,6 +88,10 @@ export function VibeModeTab() {
           timestamp: new Date()
         }])
       } else {
+        // Log raw response for debugging if available
+        if (result.rawResponse) {
+          console.error('Raw response from API:', result.rawResponse)
+        }
         throw new Error(result.error || 'Failed to generate visualization')
       }
     } catch (error) {
