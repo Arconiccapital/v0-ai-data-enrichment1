@@ -23,6 +23,8 @@ export class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Component error:', error, errorInfo)
+    // Reset to show fallback
+    this.setState({ hasError: true, error })
   }
 
   render() {

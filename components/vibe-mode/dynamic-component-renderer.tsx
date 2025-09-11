@@ -14,9 +14,73 @@ interface DynamicComponentRendererProps {
   headers: string[]
 }
 
+// Fallback component that ALWAYS works
+function SafeFallbackComponent({ data, headers }: { data: any[], headers: string[] }) {
+  return (
+    <div className="p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Visualization</CardTitle>
+          <CardDescription>Displaying {data.length} rows with {headers.length} columns</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Simple stats */}
+            <div className="grid grid-cols-3 gap-4">
+              {headers.slice(0, 3).map((header, i) => (
+                <Card key={i}>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold">{data[0]?.[header] || 'N/A'}</div>
+                    <p className="text-xs text-muted-foreground">{header}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            {/* Data table */}
+            <div className="overflow-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    {headers.map((h, i) => (
+                      <th key={i} className="px-4 py-2 text-left">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.slice(0, 10).map((row, i) => (
+                    <tr key={i}>
+                      {headers.map((h, j) => (
+                        <td key={j} className="px-4 py-2 border-t">{row[h]}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 export function DynamicComponentRenderer({ code, data, headers }: DynamicComponentRendererProps) {
   const [Component, setComponent] = useState<React.ComponentType<any> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [useFallback, setUseFallback] = useState(false)
+  
+  // Convert data to objects with header keys for the component
+  // MUST be called unconditionally to maintain hook order
+  const processedData = React.useMemo(() => {
+    return data.map(row => {
+      const obj: any = {}
+      headers.forEach((header, index) => {
+        obj[header] = row[index]
+      })
+      return obj
+    })
+  }, [data, headers])
 
   useEffect(() => {
     try {
@@ -25,11 +89,23 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
         throw new Error('Invalid component code received. The code must contain a GeneratedVisualization function.')
       }
       
+      console.log('🔍 Rendering component with code length:', code.length)
+      console.log('🔍 Code preview:', code.substring(0, 200))
+      
       // Transform JSX to JavaScript using Babel
-      const transformedCode = Babel.transform(code, {
-        presets: ['react'],
-        filename: 'component.jsx'
-      }).code
+      let transformedCode: string
+      try {
+        transformedCode = Babel.transform(code, {
+          presets: ['react'],
+          filename: 'component.jsx'
+        }).code
+      } catch (babelError) {
+        console.error('❌ Babel transformation failed:', babelError)
+        console.log('🔄 Using fallback due to JSX syntax error')
+        setUseFallback(true)
+        setError('JSX syntax error - using fallback visualization')
+        return
+      }
 
       // Create a sandbox context with all the imports available
       const sandboxContext = {
@@ -42,12 +118,17 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
         CardTitle,
         CardDescription,
         Badge,
+        // Add color palette for charts
+        COLORS: ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042'],
         // Add any other commonly used utilities
         useState: React.useState,
         useEffect: React.useEffect,
         useMemo: React.useMemo,
         useCallback: React.useCallback,
       }
+
+      // Log available Recharts components for debugging
+      console.log('📊 Available Recharts components:', Object.keys(Recharts).filter(k => k[0] === k[0].toUpperCase()).join(', '))
 
       // Create the function string that will return the component
       const functionString = `
@@ -63,9 +144,13 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
 
       setComponent(() => GeneratedComponent)
       setError(null)
+      setUseFallback(false)
+      console.log('✅ Component created successfully')
     } catch (err) {
-      console.error('Failed to render dynamic component:', err)
+      console.error('❌ Failed to render dynamic component:', err)
+      console.error('🔄 Switching to fallback visualization')
       setError(err instanceof Error ? err.message : 'Failed to render component')
+      setUseFallback(true)
     }
   }, [code])
 
@@ -103,12 +188,23 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
     )
   }
 
+  // Use fallback if needed
+  if (useFallback) {
+    return (
+      <div className="flex-1 overflow-auto">
+        <SafeFallbackComponent data={processedData} headers={headers} />
+      </div>
+    )
+  }
+
   // Render the dynamically created component with error boundary
   try {
     return (
       <div className="flex-1 overflow-auto">
         <ErrorBoundary>
-          <Component data={data} headers={headers} />
+          <div className="w-full h-full">
+            <Component data={processedData} headers={headers} />
+          </div>
         </ErrorBoundary>
       </div>
     )

@@ -47,6 +47,7 @@ export function VibeModeTab() {
     
     try {
       // Call the V1 API for dynamic code generation
+      // Pass previous code if this is a modification request
       const response = await fetch('/api/vibe-generate', {
         method: 'POST',
         headers: {
@@ -55,7 +56,9 @@ export function VibeModeTab() {
         body: JSON.stringify({
           prompt,
           headers,
-          data
+          data,
+          previousCode: generatedCode || undefined, // Send previous code if it exists
+          isModification: !!generatedCode // Flag to indicate this is a modification
         })
       })
       
@@ -82,9 +85,13 @@ export function VibeModeTab() {
         setActiveTab('canvas')
         
         // Add success message to chat
+        const successMessage = generatedCode 
+          ? "I've updated your visualization based on your request. You can continue refining it or try something completely different!"
+          : "I've generated your visualization. You can see it in the Canvas tab. Feel free to ask for modifications or try something completely different!"
+        
         setChatHistory(prev => [...prev, {
           role: 'assistant',
-          content: "I've generated your visualization. You can see it in the Canvas tab. Feel free to ask for modifications or try something completely different!",
+          content: successMessage,
           timestamp: new Date()
         }])
       } else {
