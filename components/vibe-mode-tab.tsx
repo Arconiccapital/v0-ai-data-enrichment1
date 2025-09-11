@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { GeneratedView } from "./vibe-mode/generated-view"
-import { SafeVisualizationRenderer } from "./vibe-mode/safe-visualization-renderer"
 import { LovableChat } from "./vibe-mode/lovable-chat"
 import { VibeTabs } from "./vibe-mode/vibe-tabs"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
@@ -19,8 +18,6 @@ export function VibeModeTab() {
   const { headers, data } = useSpreadsheetStore()
   const [activeTab, setActiveTab] = useState<TabType>('canvas')
   const [generatedCode, setGeneratedCode] = useState<string>('')
-  const [visualizationConfig, setVisualizationConfig] = useState<any>(null)
-  const [useV2API, setUseV2API] = useState(true) // Use the safe V2 API by default
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string>('')
   const [history, setHistory] = useState<GenerationHistory[]>([])
@@ -49,10 +46,8 @@ export function VibeModeTab() {
     setIsGenerating(true)
     
     try {
-      // Use V2 API for safe template-based rendering
-      const apiEndpoint = useV2API ? '/api/vibe-generate-v2' : '/api/vibe-generate'
-      
-      const response = await fetch(apiEndpoint, {
+      // Call the V1 API for dynamic code generation
+      const response = await fetch('/api/vibe-generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,37 +61,8 @@ export function VibeModeTab() {
       
       const result = await response.json()
       
-      if (useV2API && result.success && result.visualizationConfig) {
-        // V2 API - Using safe templates
-        console.log('🔵 VibeModeTab received config:', {
-          type: result.visualizationConfig.type,
-          model: result.model,
-          fallback: result.fallback
-        })
-        
-        // Store the visualization config
-        setVisualizationConfig(result.visualizationConfig)
-        
-        // Add to history
-        setHistory(prev => [...prev, {
-          prompt,
-          code: JSON.stringify(result.visualizationConfig), // Store as string for consistency
-          timestamp: new Date()
-        }])
-        
-        // Switch to canvas tab to show result
-        setActiveTab('canvas')
-        
-        // Add success message to chat
-        setChatHistory(prev => [...prev, {
-          role: 'assistant',
-          content: result.fallback 
-            ? "I've created a basic view of your data. Try being more specific about what type of visualization you'd like!"
-            : "I've generated your visualization. You can see it in the Canvas tab. Feel free to ask for modifications or try something completely different!",
-          timestamp: new Date()
-        }])
-      } else if (!useV2API && result.success && result.code) {
-        // DEBUG: Log what we received from API
+      if (result.success && result.code) {
+        // Log what we received from API
         console.log('🔵 VibeModeTab received code:', {
           codeLength: result.code.length,
           model: result.model
@@ -146,45 +112,13 @@ export function VibeModeTab() {
   const renderContent = () => {
     switch (activeTab) {
       case 'canvas':
-        // Use safe renderer for V2 API, dynamic renderer for V1
-        if (useV2API) {
-          // Convert data to object format for templates
-          const dataObjects = data.map(row => {
-            const obj: any = {}
-            headers.forEach((header, index) => {
-              obj[header] = row[index]
-            })
-            return obj
-          })
-          
-          if (isGenerating) {
-            return (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Generating visualization...</p>
-                </div>
-              </div>
-            )
-          }
-          
-          return (
-            <SafeVisualizationRenderer 
-              config={visualizationConfig}
-              data={dataObjects}
-              headers={headers}
-            />
-          )
-        } else {
-          // Legacy dynamic code rendering (V1)
-          return (
-            <GeneratedView 
-              code={generatedCode}
-              isLoading={isGenerating}
-              error={generationError}
-            />
-          )
-        }
+        return (
+          <GeneratedView 
+            code={generatedCode}
+            isLoading={isGenerating}
+            error={generationError}
+          />
+        )
       
       case 'data':
         // Show the original spreadsheet data
@@ -233,19 +167,7 @@ export function VibeModeTab() {
                     </div>
                     <button
                       onClick={() => {
-                        // Check if it's a config (V2) or code (V1)
-                        try {
-                          const parsed = JSON.parse(item.code)
-                          if (parsed.type && parsed.config) {
-                            // It's a V2 config
-                            setVisualizationConfig(parsed)
-                            setUseV2API(true)
-                          }
-                        } catch {
-                          // It's V1 code
-                          setGeneratedCode(item.code)
-                          setUseV2API(false)
-                        }
+                        setGeneratedCode(item.code)
                         setActiveTab('canvas')
                       }}
                       className="text-sm text-black hover:underline"
