@@ -19,12 +19,14 @@ interface GeneratedViewProps {
 export function GeneratedView({ config, isLoading, error }: GeneratedViewProps) {
   const { headers, data } = useSpreadsheetStore()
   
-  // Debug logging
+  // Enhanced debug logging
   console.log('🎭 GeneratedView received config:', {
     hasConfig: !!config,
     layoutType: config?.layout?.type,
     hasDataSchema: !!config?.dataSchema,
-    hasComponents: !!config?.components
+    hasComponents: !!config?.components,
+    configStructure: config ? Object.keys(config) : 'no config',
+    fullConfig: config
   })
   
   if (isLoading) {

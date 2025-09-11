@@ -453,23 +453,59 @@ IMPORTANT:
       const expectedLayoutType = detectLayoutType(prompt)
       console.log(`🔍 DEBUG: Prompt="${prompt}" → Expected layout="${expectedLayoutType}", Claude returned="${parsed.layout?.type}"`)
       
-      // ALWAYS override with our detection to ensure correct layout type
-      // This ensures the system works even if Claude doesn't follow instructions
-      if (parsed.layout) {
-        if (parsed.layout.type !== expectedLayoutType) {
-          console.log(`⚠️ Overriding Claude's layout type from '${parsed.layout.type}' to '${expectedLayoutType}'`)
+      // TRANSFORM TO NEW FORMAT IF NEEDED
+      let finalConfig = parsed
+      
+      // If config has old format (components array), transform it
+      if (parsed.components && !parsed.dataSchema) {
+        console.log('📦 Transforming old config format to new format with dataSchema')
+        finalConfig = {
+          dataSchema: {
+            primaryKey: headers[0] || 'id',
+            metrics: [],
+            dimensions: headers
+          },
+          layout: {
+            type: expectedLayoutType,
+            columns: 3
+          },
+          components: parsed.components,
+          title: parsed.title || 'Dashboard',
+          subtitle: parsed.subtitle || ''
         }
-        parsed.layout.type = expectedLayoutType
+      }
+      
+      // ALWAYS override with our detection to ensure correct layout type
+      if (finalConfig.layout) {
+        if (finalConfig.layout.type !== expectedLayoutType) {
+          console.log(`⚠️ Overriding layout type from '${finalConfig.layout.type}' to '${expectedLayoutType}'`)
+        }
+        finalConfig.layout.type = expectedLayoutType
       } else {
         // If no layout object, create one
-        parsed.layout = { type: expectedLayoutType, columns: 3 }
+        finalConfig.layout = { type: expectedLayoutType, columns: 3 }
         console.log(`⚠️ No layout object found, creating with type '${expectedLayoutType}'`)
       }
       
-      console.log('✅ Final config layout type:', parsed.layout?.type)
+      // ENSURE dataSchema exists (required for routing)
+      if (!finalConfig.dataSchema) {
+        finalConfig.dataSchema = {
+          primaryKey: headers[0] || 'id',
+          metrics: [],
+          dimensions: headers
+        }
+        console.log('📊 Added missing dataSchema to enable view routing')
+      }
+      
+      console.log('✅ Final config:', {
+        layoutType: finalConfig.layout?.type,
+        hasDataSchema: !!finalConfig.dataSchema,
+        hasComponents: !!finalConfig.components
+      })
+      
       return NextResponse.json({
         success: true,
-        config: parsed,
+        config: finalConfig,
         model: MODEL,
         meta: { source: 'anthropic', sampled: sampledResult.sampleSize, total: sampledResult.totalRows }
       })

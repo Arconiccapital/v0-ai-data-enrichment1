@@ -63,6 +63,14 @@ export function VibeModeTab() {
       const result = await response.json()
       
       if (result.success && result.config) {
+        // DEBUG: Log what we received from API
+        console.log('🔵 VibeModeTab received config:', {
+          layoutType: result.config.layout?.type,
+          hasDataSchema: !!result.config.dataSchema,
+          hasComponents: !!result.config.components,
+          fullConfig: result.config
+        })
+        
         // Store the generated config
         setGeneratedConfig(result.config)
         
