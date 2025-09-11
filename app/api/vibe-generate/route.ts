@@ -3,7 +3,63 @@ import Anthropic from '@anthropic-ai/sdk'
 import { sampleDataForAPI, prepareLLMContext } from '@/lib/data-sampling'
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307'
-const MAX_TOKENS = 4096  // Haiku's max limit
+const MAX_TOKENS = Number(process.env.VIBE_MAX_TOKENS || 1800)
+const SAMPLE_MAX_ROWS = Number(process.env.VIBE_SAMPLE_MAX_ROWS || 250)
+
+// Try to extract a JSON object/array from a model's text output
+function tryExtractJSON(text: string): any | null {
+  if (!text) return null
+  const cleaned = text
+    .replace(/```json\n?/gi, '')
+    .replace(/```\n?/g, '')
+    .trim()
+
+  // Fast path: try direct parse first
+  try {
+    return JSON.parse(cleaned)
+  } catch {}
+
+  // Find the first top-level JSON object or array using a simple stack parser
+  const startIdxCandidates = [cleaned.indexOf('{'), cleaned.indexOf('[')].filter(i => i >= 0)
+  if (startIdxCandidates.length === 0) return null
+  const start = Math.min(...startIdxCandidates)
+
+  const stack: string[] = []
+  let inString = false
+  let escape = false
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i]
+    if (inString) {
+      if (escape) {
+        escape = false
+      } else if (ch === '\\') {
+        escape = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+    if (ch === '{' || ch === '[') stack.push(ch)
+    else if (ch === '}' || ch === ']') {
+      const last = stack.pop()
+      if ((last === '{' && ch !== '}') || (last === '[' && ch !== ']')) {
+        // mismatched, abort
+        break
+      }
+      if (stack.length === 0) {
+        const candidate = cleaned.slice(start, i + 1)
+        try {
+          return JSON.parse(candidate)
+        } catch {}
+      }
+    }
+  }
+  return null
+}
 
 // Helper function to analyze data types and patterns
 function analyzeData(headers: string[], data: string[][]) {
@@ -122,12 +178,17 @@ export async function POST(request: NextRequest) {
   try {
     const { prompt, headers, data } = await request.json()
     
+    console.log('🎯 Vibe Generate API called with prompt:', prompt)
+    
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY
     if (!apiKey || apiKey === 'your-claude-api-key-here') {
+      console.log('⚠️ No API key, using fallback')
       // Return a fallback dashboard configuration
+      const fallbackConfig = generateFallbackConfig(prompt, headers, data)
+      console.log('📊 Fallback config layout type:', fallbackConfig.layout?.type)
       return NextResponse.json({
         success: true,
-        config: generateFallbackConfig(prompt, headers, data),
+        config: fallbackConfig,
         model: 'fallback'
       })
     }
@@ -140,7 +201,7 @@ export async function POST(request: NextRequest) {
     
     // Sample data for large datasets to prevent API limits
     const sampledResult = sampleDataForAPI(data, headers, {
-      maxRows: 500,  // Limit to 500 rows for API
+      maxRows: SAMPLE_MAX_ROWS,
       strategy: 'smart'
     })
     
@@ -166,13 +227,21 @@ CRITICAL REQUIREMENTS:
 4. Create diverse visualizations that tell a complete story
 5. Generate insights and comparisons between data points
 
+LAYOUT TYPE SELECTION (IMPORTANT):
+Choose the layout type based on the user's request:
+- "report": For formal reports, executive summaries, business documents (when user says "report", "summary", "document")
+- "presentation": For slides, pitch decks, presentations (when user says "presentation", "slides", "pitch")
+- "kpi": For KPI dashboards, scorecards, metric-focused views (when user says "KPI", "metrics", "scorecard")
+- "ranking": For leaderboards, top performers, rankings (when user says "ranking", "leaderboard", "top", "best")
+- "dashboard": Default for general dashboards, analytics, overviews (when user says "dashboard" or general requests)
+
 OUTPUT FORMAT:
 Return ONLY valid JSON with this exact structure:
 
 {
-  "title": "Dashboard title based on the data",
+  "title": "Title based on the data and request",
   "layout": {
-    "type": "dashboard",
+    "type": "report" | "presentation" | "kpi" | "ranking" | "dashboard",
     "columns": 3
   },
   "components": [component objects]
@@ -246,6 +315,14 @@ Remember: Return ONLY the JSON configuration, no explanations.`
 
     const userPrompt = `User Request: "${prompt}"
 
+LAYOUT TYPE DETECTION:
+Based on the user's request "${prompt}", determine the appropriate layout type:
+- If they mention "report", "summary", "document" → use type: "report"
+- If they mention "presentation", "slides", "pitch" → use type: "presentation"
+- If they mention "KPI", "metrics", "scorecard" → use type: "kpi"
+- If they mention "ranking", "leaderboard", "top", "best", "winners" → use type: "ranking"
+- Otherwise → use type: "dashboard"
+
 DATA STRUCTURE:
 Columns: ${headers.join(', ')}
 Total Rows: ${sampledResult.totalRows}
@@ -259,15 +336,17 @@ ${JSON.stringify(dataAnalysis, null, 2)}
 
 VISUALIZATION OPTIONS: ${vizSuggestions.join(', ')}
 
-Create a comprehensive dashboard that:
+Create a comprehensive visualization that:
 1. Uses EVERY column from the data (${headers.join(', ')})
 2. Shows actual values from the dataset
 3. Includes totals, averages, and comparisons
 4. Highlights top performers and interesting patterns
 5. Provides multiple visualization types
 6. Tells the complete story of this data
+7. MATCHES THE USER'S REQUEST INTENT (report vs dashboard vs presentation etc)
 
 IMPORTANT: 
+- Select the correct layout.type based on the user's request keywords
 - For large numbers like 14400000, store as number but mark isCurrency: true
 - Include ALL ${headers.length} columns in visualizations
 - Create at least 3-4 metric cards with key statistics
@@ -287,27 +366,30 @@ IMPORTANT:
     
     // Extract and parse the JSON configuration
     const content = response.content[0]
-    const configText = content.type === 'text' ? content.text : '{}'
-    
-    try {
-      // Clean up the response (remove any markdown if present)
-      const cleanedText = configText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const config = JSON.parse(cleanedText)
-      
+    const configText = content?.type === 'text' ? content.text : ''
+
+    const parsed = tryExtractJSON(configText)
+    if (parsed) {
+      console.log('✅ Claude generated config with layout type:', parsed.layout?.type)
       return NextResponse.json({
         success: true,
-        config: config,
-        model: MODEL
-      })
-    } catch (parseError) {
-      console.error('Failed to parse Claude response:', configText)
-      // Return fallback if parsing fails
-      return NextResponse.json({
-        success: true,
-        config: generateFallbackConfig(prompt, headers, data),
-        model: 'fallback'
+        config: parsed,
+        model: MODEL,
+        meta: { source: 'anthropic', sampled: sampledResult.sampleSize, total: sampledResult.totalRows }
       })
     }
+
+    console.error('Failed to parse Claude response (showing first 500 chars):', configText?.slice(0, 500))
+    console.log('⚠️ Parsing failed, using fallback')
+    // Return fallback if parsing fails
+    const fallbackConfig = generateFallbackConfig(prompt, headers, data)
+    console.log('📊 Fallback config layout type:', fallbackConfig.layout?.type)
+    return NextResponse.json({
+      success: true,
+      config: fallbackConfig,
+      model: 'fallback',
+      meta: { source: 'fallback', sampled: sampledResult.sampleSize, total: sampledResult.totalRows }
+    })
     
   } catch (error) {
     console.error('Vibe generation error:', error)
@@ -347,16 +429,59 @@ function generateFallbackConfig(prompt: string, headers: string[], data: string[
     }
   })
   
-  // Determine dashboard type based on prompt
-  const isReport = lowerPrompt.includes('report')
-  const isPresentation = lowerPrompt.includes('presentation') || lowerPrompt.includes('present')
-  const isDashboard = lowerPrompt.includes('dashboard')
-  const isKPI = lowerPrompt.includes('kpi') || lowerPrompt.includes('key metric')
-  const isSales = lowerPrompt.includes('sale') || lowerPrompt.includes('revenue') || lowerPrompt.includes('deal')
-  const isRanking = lowerPrompt.includes('top') || lowerPrompt.includes('best') || lowerPrompt.includes('rank') || lowerPrompt.includes('leaderboard') || lowerPrompt.includes('winner')
-  const isComparison = lowerPrompt.includes('compar') || lowerPrompt.includes('versus') || lowerPrompt.includes('vs')
-  const isTrend = lowerPrompt.includes('trend') || lowerPrompt.includes('over time') || lowerPrompt.includes('timeline')
-  const isExecutive = lowerPrompt.includes('executive') || lowerPrompt.includes('summary')
+  // Determine dashboard type based on prompt - more robust detection
+  const isReport = lowerPrompt.includes('report') || 
+                   lowerPrompt.includes('build a report') || 
+                   lowerPrompt.includes('create a report') ||
+                   lowerPrompt.includes('generate a report') ||
+                   lowerPrompt.includes('formal') ||
+                   lowerPrompt.includes('document')
+                   
+  const isPresentation = lowerPrompt.includes('presentation') || 
+                        lowerPrompt.includes('present') ||
+                        lowerPrompt.includes('slide') ||
+                        lowerPrompt.includes('pitch') ||
+                        lowerPrompt.includes('deck')
+                        
+  const isDashboard = lowerPrompt.includes('dashboard') ||
+                     lowerPrompt.includes('build a dashboard') ||
+                     lowerPrompt.includes('create dashboard')
+                     
+  const isKPI = lowerPrompt.includes('kpi') || 
+               lowerPrompt.includes('key metric') ||
+               lowerPrompt.includes('key performance') ||
+               lowerPrompt.includes('metric') ||
+               lowerPrompt.includes('big numbers')
+               
+  const isSales = lowerPrompt.includes('sale') || 
+                 lowerPrompt.includes('revenue') || 
+                 lowerPrompt.includes('deal') ||
+                 lowerPrompt.includes('performance')
+                 
+  const isRanking = lowerPrompt.includes('top') || 
+                   lowerPrompt.includes('best') || 
+                   lowerPrompt.includes('rank') || 
+                   lowerPrompt.includes('leaderboard') || 
+                   lowerPrompt.includes('winner') ||
+                   lowerPrompt.includes('performers') ||
+                   lowerPrompt.includes('highest') ||
+                   lowerPrompt.includes('lowest')
+                   
+  const isComparison = lowerPrompt.includes('compar') || 
+                      lowerPrompt.includes('versus') || 
+                      lowerPrompt.includes('vs')
+                      
+  const isTrend = lowerPrompt.includes('trend') || 
+                 lowerPrompt.includes('over time') || 
+                 lowerPrompt.includes('timeline')
+                 
+  const isExecutive = lowerPrompt.includes('executive') || 
+                     lowerPrompt.includes('summary')
+  
+  console.log('🎨 Detected dashboard type:', {
+    isReport, isPresentation, isDashboard, isKPI, isRanking,
+    prompt: lowerPrompt.substring(0, 50) + '...'
+  })
   
   // Create charts based on dashboard type (using supported chart types only)
   if (isReport) {

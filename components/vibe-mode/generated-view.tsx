@@ -18,6 +18,15 @@ interface GeneratedViewProps {
 
 export function GeneratedView({ config, isLoading, error }: GeneratedViewProps) {
   const { headers, data } = useSpreadsheetStore()
+  
+  // Debug logging
+  console.log('🎭 GeneratedView received config:', {
+    hasConfig: !!config,
+    layoutType: config?.layout?.type,
+    hasDataSchema: !!config?.dataSchema,
+    hasComponents: !!config?.components
+  })
+  
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -93,20 +102,53 @@ export function GeneratedView({ config, isLoading, error }: GeneratedViewProps) 
     
     // Route to appropriate view component based on layout type
     const layoutType = config.layout?.type
+    console.log('🚀 Routing to view based on layout type:', layoutType)
+    
+    // Add a visual indicator of which view is being used
+    const ViewBadge = () => (
+      <div className="fixed top-4 right-4 z-50 bg-black text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
+        {layoutType ? layoutType.toUpperCase() : 'DASHBOARD'} MODE
+      </div>
+    )
     
     switch(layoutType) {
       case 'report':
-        return <ReportView config={config} data={entities} />
+        return (
+          <>
+            <ViewBadge />
+            <ReportView config={config} data={entities} />
+          </>
+        )
       case 'presentation':
-        return <PresentationView config={config} data={entities} />
+        return (
+          <>
+            <ViewBadge />
+            <PresentationView config={config} data={entities} />
+          </>
+        )
       case 'kpi':
-        return <KPIView config={config} data={entities} />
+        return (
+          <>
+            <ViewBadge />
+            <KPIView config={config} data={entities} />
+          </>
+        )
       case 'ranking':
       case 'leaderboard':
-        return <RankingView config={config} data={entities} />
+        return (
+          <>
+            <ViewBadge />
+            <RankingView config={config} data={entities} />
+          </>
+        )
       case 'dashboard':
       default:
-        return <FlexibleDashboard config={config} data={entities} />
+        return (
+          <>
+            <ViewBadge />
+            <FlexibleDashboard config={config} data={entities} />
+          </>
+        )
     }
   }
   
