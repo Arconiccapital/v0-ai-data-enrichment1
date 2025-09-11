@@ -2,19 +2,45 @@
 
 import { Loader2 } from "lucide-react"
 import { DynamicComponentRenderer } from "./dynamic-component-renderer"
+import { ArtifactViewer } from "./artifact-viewer"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
+import { useCallback, useState } from "react"
 
 interface GeneratedViewProps {
   code?: string
+  artifactHtml?: string
   isLoading?: boolean
   error?: string
+  lastPrompt?: string
 }
 
-export function GeneratedView({ code, isLoading, error }: GeneratedViewProps) {
+export function GeneratedView({ code, artifactHtml, isLoading, error, lastPrompt }: GeneratedViewProps) {
   const { headers, data } = useSpreadsheetStore()
+  const [artifactOnError, setArtifactOnError] = useState<string>('')
+  
+  // Must call hooks unconditionally at the top level
+  const handleRendererError = useCallback(async () => {
+    // Attempt artifact fallback using lastPrompt or a generic instruction
+    try {
+      const prompt = lastPrompt || `Create a clean dashboard using columns: ${headers.join(', ')}`
+      const res = await fetch('/api/vibe-artifact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, headers, data })
+      })
+      const json = await res.json()
+      if (json.success && json.html) {
+        setArtifactOnError(json.html)
+      }
+    } catch (e) {
+      // ignore; SafeFallbackComponent remains visible
+      console.warn('Artifact fallback after renderer error failed', e)
+    }
+  }, [lastPrompt, headers, data])
   
   console.log('🎨 GeneratedView:', {
     hasCode: !!code,
+    hasArtifact: !!artifactHtml || !!artifactOnError,
     isLoading,
     hasError: !!error,
     dataRows: data.length,
@@ -47,7 +73,7 @@ export function GeneratedView({ code, isLoading, error }: GeneratedViewProps) {
     )
   }
   
-  if (!code) {
+  if (!code && !artifactHtml && !artifactOnError) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-2xl">
@@ -83,7 +109,12 @@ export function GeneratedView({ code, isLoading, error }: GeneratedViewProps) {
     )
   }
   
-  // Convert spreadsheet data to array of objects for easier use in components
+  // Prefer artifact if present, else use dynamic component
+  if (artifactHtml || artifactOnError) {
+    return <ArtifactViewer html={artifactHtml || artifactOnError} headers={headers} data={data} />
+  }
+
+  // Convert spreadsheet data to array of objects for dynamic component
   const dataObjects = data.map(row => {
     const obj: any = {}
     headers.forEach((header, index) => {
@@ -91,7 +122,6 @@ export function GeneratedView({ code, isLoading, error }: GeneratedViewProps) {
     })
     return obj
   })
-  
-  // Render the dynamically generated component
-  return <DynamicComponentRenderer code={code} data={dataObjects} headers={headers} />
+
+  return <DynamicComponentRenderer code={code!} data={dataObjects} headers={headers} onError={handleRendererError} />
 }

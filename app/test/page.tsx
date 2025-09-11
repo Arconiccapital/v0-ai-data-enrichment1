@@ -40,7 +40,7 @@ export default function TestPage() {
 
   const testNavigation = () => {
     // Test if all major routes are accessible
-    const routes = ["/", "/dashboard", "/outputs", "/pricing", "/faq", "/help"]
+    const routes = ["/", "/outputs", "/pricing", "/faq", "/help"]
     setTestResults(prev => ({ ...prev, navigation: true }))
   }
 
@@ -97,11 +97,6 @@ export default function TestPage() {
             <Link href="/">
               <Button variant="outline" className="border-gray-300">
                 Go to Main App
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button variant="outline" className="border-gray-300">
-                Go to Dashboard
               </Button>
             </Link>
           </CardContent>

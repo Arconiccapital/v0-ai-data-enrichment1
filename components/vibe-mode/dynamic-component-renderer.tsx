@@ -12,6 +12,7 @@ interface DynamicComponentRendererProps {
   code: string
   data: any[]
   headers: string[]
+  onError?: (message: string) => void
 }
 
 // Fallback component that ALWAYS works
@@ -65,7 +66,7 @@ function SafeFallbackComponent({ data, headers }: { data: any[], headers: string
   )
 }
 
-export function DynamicComponentRenderer({ code, data, headers }: DynamicComponentRendererProps) {
+export function DynamicComponentRenderer({ code, data, headers, onError }: DynamicComponentRendererProps) {
   const [Component, setComponent] = useState<React.ComponentType<any> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [useFallback, setUseFallback] = useState(false)
@@ -91,17 +92,61 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
       
       console.log('🔍 Rendering component with code length:', code.length)
       console.log('🔍 Code preview:', code.substring(0, 200))
-      
+
+      // Security: block obviously unsafe patterns (no window/document/eval/require/import/fetch)
+      const forbiddenPatterns = [
+        /\bwindow\b/,
+        /\bdocument\b/,
+        /\beval\s*\(/,
+        /new\s+Function\s*\(/,
+        /\bimport\b/,
+        /\brequire\b/,
+        /\bfetch\s*\(/,
+        /<script/i
+      ]
+      if (forbiddenPatterns.some((re) => re.test(code))) {
+        throw new Error('Blocked potentially unsafe code. Please try a different request.')
+      }
+
+      // Light JSX sanitizer to reduce common LLM mistakes
+      const sanitizeJSX = (src: string) => {
+        let out = src
+        // Collapse duplicate closing tags for common Recharts elements
+        const tags = ['Tooltip', 'Legend', 'XAxis', 'YAxis', 'CartesianGrid', 'Bar', 'Line', 'Area', 'Pie']
+        tags.forEach(tag => {
+          const dupClose = new RegExp(`(?:</${tag}>){2,}`, 'g')
+          out = out.replace(dupClose, `</${tag}>`)
+        })
+        // Balance container tags: ensure at most one closing per opening
+        const containers = ['BarChart', 'LineChart', 'AreaChart', 'PieChart', 'ScatterChart', 'ComposedChart', 'ResponsiveContainer']
+        containers.forEach(tag => {
+          const openCount = (out.match(new RegExp(`<${tag}[\\s>]`, 'g')) || []).length
+          let closeCount = (out.match(new RegExp(`</${tag}>`, 'g')) || []).length
+          while (closeCount > openCount) {
+            // remove the last extra closing tag
+            const idx = out.lastIndexOf(`</${tag}>`)
+            if (idx >= 0) {
+              out = out.slice(0, idx) + out.slice(idx + (`</${tag}>`).length)
+              closeCount--
+            } else {
+              break
+            }
+          }
+        })
+        return out
+      }
+      const safeCode = sanitizeJSX(code)
+
       // Transform JSX to JavaScript using Babel
       let transformedCode: string
       try {
-        transformedCode = Babel.transform(code, {
+        transformedCode = Babel.transform(safeCode, {
           presets: ['react'],
           filename: 'component.jsx'
         }).code
       } catch (babelError) {
-        console.error('❌ Babel transformation failed:', babelError)
-        console.log('🔄 Using fallback due to JSX syntax error')
+        console.warn('❌ Babel transformation failed; using fallback.', babelError)
+        onError?.('babel')
         setUseFallback(true)
         setError('JSX syntax error - using fallback visualization')
         return
@@ -112,6 +157,7 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
         React,
         ...Recharts,
         ...LucideIcons,
+        Lucide: LucideIcons, // Add Lucide namespace for generated code
         Card,
         CardContent,
         CardHeader,
@@ -128,7 +174,7 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
       }
 
       // Log available Recharts components for debugging
-      console.log('📊 Available Recharts components:', Object.keys(Recharts).filter(k => k[0] === k[0].toUpperCase()).join(', '))
+      // console.debug('📊 Available Recharts:', Object.keys(Recharts).filter(k => k[0] === k[0].toUpperCase()).join(', '))
 
       // Create the function string that will return the component
       const functionString = `
@@ -147,8 +193,8 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
       setUseFallback(false)
       console.log('✅ Component created successfully')
     } catch (err) {
-      console.error('❌ Failed to render dynamic component:', err)
-      console.error('🔄 Switching to fallback visualization')
+      console.warn('❌ Failed to render dynamic component; switching to fallback.', err)
+      onError?.('runtime')
       setError(err instanceof Error ? err.message : 'Failed to render component')
       setUseFallback(true)
     }
@@ -209,7 +255,8 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
       </div>
     )
   } catch (renderError) {
-    console.error('Runtime error in generated component:', renderError)
+    console.warn('Runtime error in generated component:', renderError)
+    onError?.('render')
     return (
       <div className="flex-1 p-8">
         <Card className="border-red-200 bg-red-50">

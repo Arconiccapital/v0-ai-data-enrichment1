@@ -7,10 +7,8 @@ import {
   LayoutDashboard,
   Calculator,
   Sparkles,
-  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSpreadsheetStore } from "@/lib/spreadsheet-store";
 
 export interface Tab {
   id: string;
@@ -52,17 +50,6 @@ export function TabBar({
     }
   };
 
-  const handleAddVibeTab = () => {
-    const { addTab, setActiveTab } = useSpreadsheetStore.getState();
-    const newTabId = `vibe-${Date.now()}`;
-    addTab({
-      id: newTabId,
-      type: "vibe",
-      title: "Vibe Mode ✨",
-      permanent: false,
-    });
-    setActiveTab(newTabId);
-  };
 
   return (
     <div className="bg-white border-b border-gray-200">
@@ -120,17 +107,6 @@ export function TabBar({
           })}
         </div>
 
-        {/* Add Vibe Mode Button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleAddVibeTab}
-          className="flex items-center gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-        >
-          <Plus className="h-4 w-4" />
-          <Sparkles className="h-4 w-4" />
-          <span className="text-sm font-medium">Vibe Mode</span>
-        </Button>
       </div>
     </div>
   );

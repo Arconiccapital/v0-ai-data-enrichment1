@@ -149,6 +149,7 @@ interface SpreadsheetStore {
   // Project tracking
   currentProject?: ProjectMetadata
   
+  
   // Tab management
   tabs: Tab[]
   activeTab: string
@@ -251,6 +252,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   selectedColumns: new Set(),
   selectionMode: 'multiple',
   filterCriteria: [],
+  
   
   // Initialize with data tab
   tabs: [{ id: 'data', type: 'spreadsheet', title: 'Data', permanent: true }],
@@ -1406,6 +1408,7 @@ export const useSpreadsheetStore = create<SpreadsheetStore>((set, get) => ({
   
   setActiveTab: (tabId) =>
     set({ activeTab: tabId }),
+  
   
   getTab: (tabId) => {
     return get().tabs.find(t => t.id === tabId)

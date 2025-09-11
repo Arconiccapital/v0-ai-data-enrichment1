@@ -260,6 +260,10 @@ Card, CardContent, CardHeader, CardTitle, CardDescription, Badge
 All Lucide icons
 COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042']
 
+SECURITY RULES (MANDATORY):
+- Do NOT use or reference: window, document, eval, new Function, import, require, fetch
+- Only use the provided globals; do not import anything
+
 RECHARTS STRUCTURE (MANDATORY):
 <ResponsiveContainer width="100%" height={300}>
   <BarChart data={data}>

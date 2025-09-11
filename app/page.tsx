@@ -1,14 +1,13 @@
 "use client"
 
-import React, { useState } from "react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CSVUploader } from "@/components/csv-uploader"
 import { FindDataDialog } from "@/components/dialogs/find-data-dialog"
 import { AppNavigation } from "@/components/app-navigation"
-import { SidebarNav } from "@/components/sidebar-nav"
 import { GenerateSidebar } from "@/components/generate-sidebar"
 import { ExportSidebar } from "@/components/export-sidebar"
 import { TabBar } from "@/components/tab-bar"
@@ -27,18 +26,40 @@ import {
   FileText,
   MessageSquare,
   Table2,
-  Layout
+  Layout,
+  Lightbulb,
+  Wand2
 } from "lucide-react"
 
 export default function HomePage() {
   const router = useRouter()
-  const { hasData, tabs, activeTab, setActiveTab, removeTab } = useSpreadsheetStore()
+  const searchParams = useSearchParams()
+  const { hasData, tabs, activeTab, setActiveTab, removeTab, addTab } = useSpreadsheetStore()
   const [showGenerateSidebar, setShowGenerateSidebar] = useState(false)
   const [showExportSidebar, setShowExportSidebar] = useState(false)
   const [showFindDataDialog, setShowFindDataDialog] = useState(false)
   const [hoveredPath, setHoveredPath] = useState<string | null>(null)
   const [showCsvUploader, setShowCsvUploader] = useState(false)
   const [csvUploaderMode, setCsvUploaderMode] = useState<'data' | 'enrich'>('data')
+  
+  // Check for design mode parameter
+  useEffect(() => {
+    const mode = searchParams.get('mode')
+    if (mode === 'design') {
+      // Open Vibe Mode tab in design mode
+      const vibeTabId = 'vibe-mode'
+      const existingTab = tabs.find(t => t.id === vibeTabId)
+      if (!existingTab) {
+        addTab({ 
+          id: vibeTabId,
+          type: 'vibe', 
+          title: 'Vibe Mode'
+        })
+      } else {
+        setActiveTab(vibeTabId)
+      }
+    }
+  }, [searchParams])
   
   // Popular output shortcuts
   const popularOutputs = [
@@ -91,12 +112,12 @@ export default function HomePage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="p-3 bg-black rounded-lg group-hover:scale-110 transition-transform duration-300">
-                        <Table2 className="h-6 w-6 text-white" />
+                        <Lightbulb className="h-6 w-6 text-white" />
                       </div>
-                      <CardTitle className="text-lg">Start Fresh</CardTitle>
+                      <CardTitle className="text-lg">Start with an Idea</CardTitle>
                     </div>
                     <CardDescription className="text-sm">
-                      Find datasets or use templates to begin
+                      Design your visualization or find data
                     </CardDescription>
                   </div>
                 </div>
@@ -104,8 +125,35 @@ export default function HomePage() {
               
               <CardContent className="flex-1 flex flex-col">
                 <div className="mb-4">
-                  <p className="text-sm font-medium mb-2">Start from:</p>
+                  <p className="text-sm font-medium mb-2">Choose your path:</p>
                   <div className="space-y-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Initialize empty spreadsheet if no data exists
+                        const { setData, hasData } = useSpreadsheetStore.getState()
+                        if (!hasData) {
+                          // Initialize with empty spreadsheet
+                          setData(['Column 1'], [['']])
+                        }
+                        // Open Vibe Mode directly in design mode
+                        const vibeTabId = 'vibe-mode'
+                        const existingTab = tabs.find(t => t.id === vibeTabId)
+                        if (!existingTab) {
+                          addTab({ 
+                            id: vibeTabId,
+                            type: 'vibe', 
+                            title: 'Vibe Mode'
+                          })
+                        }
+                        setActiveTab(vibeTabId)
+                      }}
+                      className="w-full flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left border border-gray-200"
+                    >
+                      <Wand2 className="h-4 w-4 text-gray-600" />
+                      <span className="text-sm font-medium">Generate Visualization</span>
+                    </button>
+                    
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -135,15 +183,15 @@ export default function HomePage() {
                   <ul className="space-y-1">
                     <li className="text-sm text-gray-600 flex items-start gap-2">
                       <span className="text-primary mt-0.5">•</span>
+                      <span>Have a visualization idea</span>
+                    </li>
+                    <li className="text-sm text-gray-600 flex items-start gap-2">
+                      <span className="text-primary mt-0.5">•</span>
                       <span>Starting from scratch</span>
                     </li>
                     <li className="text-sm text-gray-600 flex items-start gap-2">
                       <span className="text-primary mt-0.5">•</span>
                       <span>Need to find relevant data</span>
-                    </li>
-                    <li className="text-sm text-gray-600 flex items-start gap-2">
-                      <span className="text-primary mt-0.5">•</span>
-                      <span>Want data templates</span>
                     </li>
                   </ul>
                 </div>
@@ -153,10 +201,26 @@ export default function HomePage() {
                   size="lg"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setShowFindDataDialog(true)
+                    // Initialize empty spreadsheet if no data exists
+                    const { setData, hasData } = useSpreadsheetStore.getState()
+                    if (!hasData) {
+                      // Initialize with empty spreadsheet
+                      setData(['Column 1'], [['']])
+                    }
+                    // Open Vibe Mode directly
+                    const vibeTabId = 'vibe-mode'
+                    const existingTab = tabs.find(t => t.id === vibeTabId)
+                    if (!existingTab) {
+                      addTab({ 
+                        id: vibeTabId,
+                        type: 'vibe', 
+                        title: 'Vibe Mode'
+                      })
+                    }
+                    setActiveTab(vibeTabId)
                   }}
                 >
-                  Start Fresh
+                  Get Started
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </CardContent>
@@ -339,6 +403,32 @@ export default function HomePage() {
             <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
+                onClick={() => {
+                  // Initialize empty spreadsheet if no data exists
+                  const { setData, hasData } = useSpreadsheetStore.getState()
+                  if (!hasData) {
+                    // Initialize with empty spreadsheet
+                    setData(['Column 1'], [['']])
+                  }
+                  // Open Vibe Mode directly
+                  const vibeTabId = 'vibe-mode'
+                  const existingTab = tabs.find(t => t.id === vibeTabId)
+                  if (!existingTab) {
+                    addTab({ 
+                      id: vibeTabId,
+                      type: 'vibe', 
+                      title: 'Vibe Mode'
+                    })
+                  }
+                  setActiveTab(vibeTabId)
+                }}
+                className="flex items-center gap-2"
+              >
+                <Wand2 className="h-4 w-4" />
+                Generate Visualization
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => router.push('/templates')}
                 className="flex items-center gap-2"
               >
@@ -415,11 +505,8 @@ export default function HomePage() {
       <AppNavigation />
       
       
-      {/* Main Content with Sidebar */}
+      {/* Main Content */}
       <div className="flex-1 flex relative overflow-hidden min-h-0">
-        {/* Left Sidebar */}
-        <SidebarNav />
-        
         {/* Content Area */}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           <div className="flex-1 min-w-0 flex flex-col">
