@@ -6,6 +6,47 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307'
 const MAX_TOKENS = Number(process.env.VIBE_MAX_TOKENS || 1800)
 const SAMPLE_MAX_ROWS = Number(process.env.VIBE_SAMPLE_MAX_ROWS || 250)
 
+// Detect the expected layout type based on prompt keywords
+function detectLayoutType(prompt: string): string {
+  const lowerPrompt = prompt.toLowerCase()
+  
+  if (lowerPrompt.includes('report') || 
+      lowerPrompt.includes('summary') || 
+      lowerPrompt.includes('document') ||
+      lowerPrompt.includes('analysis') ||
+      lowerPrompt.includes('review')) {
+    return 'report'
+  }
+  
+  if (lowerPrompt.includes('presentation') || 
+      lowerPrompt.includes('slide') || 
+      lowerPrompt.includes('pitch') ||
+      lowerPrompt.includes('deck') ||
+      lowerPrompt.includes('showcase')) {
+    return 'presentation'
+  }
+  
+  if (lowerPrompt.includes('kpi') || 
+      lowerPrompt.includes('metric') || 
+      lowerPrompt.includes('scorecard') ||
+      lowerPrompt.includes('indicator') ||
+      lowerPrompt.includes('performance')) {
+    return 'kpi'
+  }
+  
+  if (lowerPrompt.includes('ranking') || 
+      lowerPrompt.includes('leaderboard') || 
+      lowerPrompt.includes('top') ||
+      lowerPrompt.includes('best') ||
+      lowerPrompt.includes('winner') ||
+      lowerPrompt.includes('highest') ||
+      lowerPrompt.includes('lowest')) {
+    return 'ranking'
+  }
+  
+  return 'dashboard'
+}
+
 // Try to extract a JSON object/array from a model's text output
 function tryExtractJSON(text: string): any | null {
   if (!text) return null
@@ -218,30 +259,39 @@ export async function POST(request: NextRequest) {
       ? prepareLLMContext(sampledResult)
       : ''
     
-    const systemPrompt = `You are an expert data visualization designer who creates comprehensive, insightful dashboards.
+    const systemPrompt = `You are an expert data visualization designer. Your FIRST and MOST IMPORTANT task is to determine the correct layout type based on the user's request.
 
-CRITICAL REQUIREMENTS:
-1. Use EVERY column from the data in meaningful ways - don't ignore any data
+STEP 1 - LAYOUT TYPE DETECTION (CRITICAL):
+Analyze the user's request and select the appropriate layout type:
+
+Examples of layout type selection:
+- User says "generate a report" → layout.type = "report"
+- User says "create a presentation" → layout.type = "presentation"  
+- User says "show KPIs" or "metrics dashboard" → layout.type = "kpi"
+- User says "show top performers" or "ranking" → layout.type = "ranking"
+- User says "dashboard" or general request → layout.type = "dashboard"
+
+Keywords to detect:
+- REPORT keywords: report, summary, document, analysis, review
+- PRESENTATION keywords: presentation, slides, pitch, deck, showcase
+- KPI keywords: kpi, metrics, scorecard, indicators, performance
+- RANKING keywords: ranking, leaderboard, top, best, winners, highest, lowest
+- DASHBOARD keywords: dashboard, overview, analytics (or no specific keyword)
+
+STEP 2 - GENERATE VISUALIZATION:
+1. Use EVERY column from the data in meaningful ways
 2. Always use ACTUAL values from the dataset, never placeholders
-3. Format large numbers properly (e.g., 14400000 should display as "$14.4M" if currency)
+3. Format large numbers properly (e.g., 14400000 → "$14.4M")
 4. Create diverse visualizations that tell a complete story
 5. Generate insights and comparisons between data points
 
-LAYOUT TYPE SELECTION (IMPORTANT):
-Choose the layout type based on the user's request:
-- "report": For formal reports, executive summaries, business documents (when user says "report", "summary", "document")
-- "presentation": For slides, pitch decks, presentations (when user says "presentation", "slides", "pitch")
-- "kpi": For KPI dashboards, scorecards, metric-focused views (when user says "KPI", "metrics", "scorecard")
-- "ranking": For leaderboards, top performers, rankings (when user says "ranking", "leaderboard", "top", "best")
-- "dashboard": Default for general dashboards, analytics, overviews (when user says "dashboard" or general requests)
-
 OUTPUT FORMAT:
-Return ONLY valid JSON with this exact structure:
+Return ONLY valid JSON. The layout.type field MUST match the user's request intent:
 
 {
   "title": "Title based on the data and request",
   "layout": {
-    "type": "report" | "presentation" | "kpi" | "ranking" | "dashboard",
+    "type": "[MUST BE: report|presentation|kpi|ranking|dashboard based on user request]",
     "columns": 3
   },
   "components": [component objects]
@@ -315,13 +365,28 @@ Remember: Return ONLY the JSON configuration, no explanations.`
 
     const userPrompt = `User Request: "${prompt}"
 
-LAYOUT TYPE DETECTION:
-Based on the user's request "${prompt}", determine the appropriate layout type:
-- If they mention "report", "summary", "document" → use type: "report"
-- If they mention "presentation", "slides", "pitch" → use type: "presentation"
-- If they mention "KPI", "metrics", "scorecard" → use type: "kpi"
-- If they mention "ranking", "leaderboard", "top", "best", "winners" → use type: "ranking"
-- Otherwise → use type: "dashboard"
+YOUR FIRST TASK - DETERMINE LAYOUT TYPE:
+The user said: "${prompt}"
+
+EXAMPLES OF CORRECT LAYOUT TYPE SELECTION:
+- "generate a report" → YOU MUST SET layout.type = "report"
+- "create a business report" → YOU MUST SET layout.type = "report"
+- "build a presentation" → YOU MUST SET layout.type = "presentation"
+- "show me slides" → YOU MUST SET layout.type = "presentation"
+- "display KPIs" → YOU MUST SET layout.type = "kpi"
+- "show metrics" → YOU MUST SET layout.type = "kpi"
+- "show top performers" → YOU MUST SET layout.type = "ranking"
+- "create a leaderboard" → YOU MUST SET layout.type = "ranking"
+- "build a dashboard" → YOU MUST SET layout.type = "dashboard"
+- "visualize this data" → YOU MUST SET layout.type = "dashboard"
+
+For this specific request "${prompt}", you MUST set the layout.type to: ${
+  prompt.toLowerCase().includes('report') ? '"report"' :
+  prompt.toLowerCase().includes('presentation') || prompt.toLowerCase().includes('slide') ? '"presentation"' :
+  prompt.toLowerCase().includes('kpi') || prompt.toLowerCase().includes('metric') || prompt.toLowerCase().includes('scorecard') ? '"kpi"' :
+  prompt.toLowerCase().includes('ranking') || prompt.toLowerCase().includes('leaderboard') || prompt.toLowerCase().includes('top') || prompt.toLowerCase().includes('best') ? '"ranking"' :
+  '"dashboard"'
+}
 
 DATA STRUCTURE:
 Columns: ${headers.join(', ')}
@@ -370,6 +435,13 @@ IMPORTANT:
 
     const parsed = tryExtractJSON(configText)
     if (parsed) {
+      // Override layout type if Claude didn't follow instructions
+      const expectedLayoutType = detectLayoutType(prompt)
+      if (parsed.layout && parsed.layout.type !== expectedLayoutType) {
+        console.log(`⚠️ Claude returned layout type '${parsed.layout.type}' but expected '${expectedLayoutType}' based on prompt. Overriding...`)
+        parsed.layout.type = expectedLayoutType
+      }
+      
       console.log('✅ Claude generated config with layout type:', parsed.layout?.type)
       return NextResponse.json({
         success: true,
