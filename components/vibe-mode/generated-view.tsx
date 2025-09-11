@@ -1,32 +1,24 @@
 "use client"
 
 import { Loader2 } from "lucide-react"
-import { DashboardRenderer } from "./dashboard-renderer"
-import { FlexibleDashboard } from "./flexible-dashboard"
-import { KPIView } from "./views/KPIView"
-import { ReportView } from "./views/ReportView"
-import { PresentationView } from "./views/PresentationView"
-import { RankingView } from "./views/RankingView"
-import { generateDashboardConfig, generateConfigFromData } from "@/lib/config-generator"
+import { DynamicComponentRenderer } from "./dynamic-component-renderer"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
 
 interface GeneratedViewProps {
-  config?: any
+  code?: string
   isLoading?: boolean
   error?: string
 }
 
-export function GeneratedView({ config, isLoading, error }: GeneratedViewProps) {
+export function GeneratedView({ code, isLoading, error }: GeneratedViewProps) {
   const { headers, data } = useSpreadsheetStore()
   
-  // Enhanced debug logging
-  console.log('🎭 GeneratedView received config:', {
-    hasConfig: !!config,
-    layoutType: config?.layout?.type,
-    hasDataSchema: !!config?.dataSchema,
-    hasComponents: !!config?.components,
-    configStructure: config ? Object.keys(config) : 'no config',
-    fullConfig: config
+  console.log('🎨 GeneratedView:', {
+    hasCode: !!code,
+    isLoading,
+    hasError: !!error,
+    dataRows: data.length,
+    headers: headers.length
   })
   
   if (isLoading) {
@@ -35,7 +27,7 @@ export function GeneratedView({ config, isLoading, error }: GeneratedViewProps) 
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-gray-600 mx-auto mb-4" />
           <p className="text-gray-600">Generating your visualization...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+          <p className="text-sm text-gray-500 mt-2">Claude is writing custom code for your request</p>
         </div>
       </div>
     )
@@ -55,140 +47,51 @@ export function GeneratedView({ config, isLoading, error }: GeneratedViewProps) 
     )
   }
   
-  if (!config) {
+  if (!code) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-2xl">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Dynamic Canvas
+            AI Code Canvas
           </h2>
           <p className="text-lg text-gray-600 mb-8">
-            I can generate any visualization you imagine. Try these:
+            I'll write custom React components for any visualization you imagine. No templates, no limits.
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm font-medium text-gray-700">Dashboard</p>
-              <p className="text-xs text-gray-500 mt-1">"Create a KPI dashboard"</p>
+              <p className="text-sm font-medium text-gray-700">Try:</p>
+              <p className="text-xs text-gray-500 mt-1">"Create a beautiful executive report"</p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm font-medium text-gray-700">Report</p>
-              <p className="text-xs text-gray-500 mt-1">"Generate an executive summary"</p>
+              <p className="text-sm font-medium text-gray-700">Try:</p>
+              <p className="text-xs text-gray-500 mt-1">"Build a dark mode dashboard"</p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm font-medium text-gray-700">Visualization</p>
-              <p className="text-xs text-gray-500 mt-1">"Show revenue trends"</p>
+              <p className="text-sm font-medium text-gray-700">Try:</p>
+              <p className="text-xs text-gray-500 mt-1">"Show this like Apple's website"</p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm font-medium text-gray-700">Analysis</p>
-              <p className="text-xs text-gray-500 mt-1">"Analyze top performers"</p>
+              <p className="text-sm font-medium text-gray-700">Try:</p>
+              <p className="text-xs text-gray-500 mt-1">"Make it fun and colorful"</p>
             </div>
           </div>
+          <p className="text-sm text-gray-500 mt-8">
+            Each request generates completely unique code - no predefined templates
+          </p>
         </div>
       </div>
     )
   }
   
-  // Check if config has the new structure (dataSchema property)
-  if (config.dataSchema) {
-    // New flexible dashboard config
-    const entities = data.map((row, index) => {
-      const entity: any = { id: index, name: row[0] }
-      headers.forEach((header, i) => {
-        // Keep BOTH original header name AND normalized key
-        entity[header] = row[i]
-        const normalizedKey = header.toLowerCase().replace(/[^a-z0-9]/g, '_')
-        entity[normalizedKey] = row[i]
-      })
-      return entity
+  // Convert spreadsheet data to array of objects for easier use in components
+  const dataObjects = data.map(row => {
+    const obj: any = {}
+    headers.forEach((header, index) => {
+      obj[header] = row[index]
     })
-    
-    // Route to appropriate view component based on layout type
-    const layoutType = config.layout?.type
-    console.log('🚀 Routing to view based on layout type:', layoutType)
-    
-    // Add a visual indicator of which view is being used
-    const ViewBadge = () => (
-      <div className="fixed top-4 right-4 z-50 bg-black text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
-        {layoutType ? layoutType.toUpperCase() : 'DASHBOARD'} MODE
-      </div>
-    )
-    
-    switch(layoutType) {
-      case 'report':
-        return (
-          <>
-            <ViewBadge />
-            <ReportView config={config} data={entities} />
-          </>
-        )
-      case 'presentation':
-        return (
-          <>
-            <ViewBadge />
-            <PresentationView config={config} data={entities} />
-          </>
-        )
-      case 'kpi':
-        return (
-          <>
-            <ViewBadge />
-            <KPIView config={config} data={entities} />
-          </>
-        )
-      case 'ranking':
-      case 'leaderboard':
-        return (
-          <>
-            <ViewBadge />
-            <RankingView config={config} data={entities} />
-          </>
-        )
-      case 'dashboard':
-      default:
-        return (
-          <>
-            <ViewBadge />
-            <FlexibleDashboard config={config} data={entities} />
-          </>
-        )
-    }
-  }
-  
-  // Check if config is in simple format (components array)
-  if (config.components) {
-    // Try to use flexible dashboard by converting the config
-    try {
-      const flexConfig = generateDashboardConfig(config)
-      const entities = data.map((row, index) => {
-        const entity: any = { id: index, name: row[0] }
-        headers.forEach((header, i) => {
-          // Keep BOTH original header name AND normalized key
-          entity[header] = row[i]
-          const normalizedKey = header.toLowerCase().replace(/[^a-z0-9]/g, '_')
-          entity[normalizedKey] = row[i]
-        })
-        return entity
-      })
-      
-      return <FlexibleDashboard config={flexConfig} data={entities} />
-    } catch (e) {
-      // Fallback to original renderer if conversion fails
-      return <DashboardRenderer config={config} />
-    }
-  }
-  
-  // Fallback: generate config from data
-  const flexConfig = generateConfigFromData(headers, data)
-  const entities = data.map((row, index) => {
-    const entity: any = { id: index, name: row[0] }
-    headers.forEach((header, i) => {
-      // Keep BOTH original header name AND normalized key
-      entity[header] = row[i]
-      const normalizedKey = header.toLowerCase().replace(/[^a-z0-9]/g, '_')
-      entity[normalizedKey] = row[i]
-    })
-    return entity
+    return obj
   })
   
-  return <FlexibleDashboard config={flexConfig} data={entities} />
+  // Render the dynamically generated component
+  return <DynamicComponentRenderer code={code} data={dataObjects} headers={headers} />
 }

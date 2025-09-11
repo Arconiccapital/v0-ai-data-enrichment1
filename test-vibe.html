@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Vibe Generation</title>
+</head>
+<body>
+    <h1>Test Vibe Generation</h1>
+    <button onclick="testGeneration()">Test Generation</button>
+    <pre id="result"></pre>
+    
+    <script>
+    async function testGeneration() {
+        const response = await fetch('http://localhost:3000/api/vibe-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: 'create a colorful dashboard',
+                headers: ['Product', 'Sales'],
+                data: [['A', '100'], ['B', '200']]
+            })
+        });
+        const result = await response.json();
+        document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+        console.log('Generated code starts with:', result.code?.substring(0, 100));
+    }
+    </script>
+</body>
+</html>

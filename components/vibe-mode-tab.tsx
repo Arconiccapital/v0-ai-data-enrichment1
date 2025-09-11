@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { GeneratedView } from "./vibe-mode/generated-view"
-import { DynamicCanvas } from "./vibe-mode/dynamic-canvas"
 import { LovableChat } from "./vibe-mode/lovable-chat"
 import { VibeTabs } from "./vibe-mode/vibe-tabs"
 import { useSpreadsheetStore } from "@/lib/spreadsheet-store"
@@ -11,14 +10,14 @@ type TabType = 'canvas' | 'data' | 'history'
 
 interface GenerationHistory {
   prompt: string
-  config: any
+  code: string
   timestamp: Date
 }
 
 export function VibeModeTab() {
   const { headers, data } = useSpreadsheetStore()
   const [activeTab, setActiveTab] = useState<TabType>('canvas')
-  const [generatedConfig, setGeneratedConfig] = useState<any>(null)
+  const [generatedCode, setGeneratedCode] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string>('')
   const [history, setHistory] = useState<GenerationHistory[]>([])
@@ -62,22 +61,20 @@ export function VibeModeTab() {
       
       const result = await response.json()
       
-      if (result.success && result.config) {
+      if (result.success && result.code) {
         // DEBUG: Log what we received from API
-        console.log('🔵 VibeModeTab received config:', {
-          layoutType: result.config.layout?.type,
-          hasDataSchema: !!result.config.dataSchema,
-          hasComponents: !!result.config.components,
-          fullConfig: result.config
+        console.log('🔵 VibeModeTab received code:', {
+          codeLength: result.code.length,
+          model: result.model
         })
         
-        // Store the generated config
-        setGeneratedConfig(result.config)
+        // Store the generated code
+        setGeneratedCode(result.code)
         
         // Add to history
         setHistory(prev => [...prev, {
           prompt,
-          config: result.config,
+          code: result.code,
           timestamp: new Date()
         }])
         
@@ -113,7 +110,7 @@ export function VibeModeTab() {
       case 'canvas':
         return (
           <GeneratedView 
-            config={generatedConfig}
+            code={generatedCode}
             isLoading={isGenerating}
             error={generationError}
           />
@@ -166,7 +163,7 @@ export function VibeModeTab() {
                     </div>
                     <button
                       onClick={() => {
-                        setGeneratedConfig(item.config)
+                        setGeneratedCode(item.code)
                         setActiveTab('canvas')
                       }}
                       className="text-sm text-black hover:underline"
@@ -219,7 +216,7 @@ export function VibeModeTab() {
             </div>
             <button 
               className="px-3 py-1 text-sm bg-black text-white rounded hover:bg-gray-800 transition-colors"
-              disabled={!generatedConfig || isGenerating}
+              disabled={!generatedCode || isGenerating}
             >
               Deploy when ready
             </button>
