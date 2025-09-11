@@ -273,24 +273,16 @@ export async function POST(request: NextRequest) {
       ? prepareLLMContext(sampledResult)
       : ''
     
-    const systemPrompt = `You are an expert data visualization designer. Your FIRST and MOST IMPORTANT task is to determine the correct layout type based on the user's request.
+    const systemPrompt = `You MUST generate a JSON config for data visualization.
 
-STEP 1 - LAYOUT TYPE DETECTION (CRITICAL):
-Analyze the user's request and select the appropriate layout type:
+CRITICAL REQUIREMENT: Set layout.type based on the user's request:
+- If user mentions "report" → YOU MUST SET layout.type = "report"
+- If user mentions "presentation" or "slides" → YOU MUST SET layout.type = "presentation"
+- If user mentions "KPI" or "metrics" → YOU MUST SET layout.type = "kpi"
+- If user mentions "ranking" or "top" or "leaderboard" → YOU MUST SET layout.type = "ranking"
+- Otherwise → SET layout.type = "dashboard"
 
-Examples of layout type selection:
-- User says "generate a report" → layout.type = "report"
-- User says "create a presentation" → layout.type = "presentation"  
-- User says "show KPIs" or "metrics dashboard" → layout.type = "kpi"
-- User says "show top performers" or "ranking" → layout.type = "ranking"
-- User says "dashboard" or general request → layout.type = "dashboard"
-
-Keywords to detect:
-- REPORT keywords: report, summary, document, analysis, review
-- PRESENTATION keywords: presentation, slides, pitch, deck, showcase
-- KPI keywords: kpi, metrics, scorecard, indicators, performance
-- RANKING keywords: ranking, leaderboard, top, best, winners, highest, lowest
-- DASHBOARD keywords: dashboard, overview, analytics (or no specific keyword)
+THE LAYOUT TYPE IS CRITICAL AND MUST BE CORRECT!
 
 STEP 2 - GENERATE VISUALIZATION:
 1. Use EVERY column from the data in meaningful ways
@@ -299,17 +291,22 @@ STEP 2 - GENERATE VISUALIZATION:
 4. Create diverse visualizations that tell a complete story
 5. Generate insights and comparisons between data points
 
-OUTPUT FORMAT:
-Return ONLY valid JSON. The layout.type field MUST match the user's request intent:
-
+OUTPUT FORMAT - YOU MUST RETURN THIS EXACT STRUCTURE:
 {
-  "title": "Title based on the data and request",
+  "title": "Title based on the data",
+  "dataSchema": {
+    "primaryKey": "first_column_name",
+    "metrics": [],
+    "dimensions": ["list", "of", "column", "names"]
+  },
   "layout": {
-    "type": "[MUST BE: report|presentation|kpi|ranking|dashboard based on user request]",
+    "type": "CRITICAL: Set this to report|presentation|kpi|ranking|dashboard based on user request",
     "columns": 3
   },
   "components": [component objects]
 }
+
+REMEMBER: layout.type MUST match what the user asked for!
 
 COMPONENT TYPES TO USE:
 
@@ -377,30 +374,21 @@ SMART DATA USAGE RULES:
 
 Remember: Return ONLY the JSON configuration, no explanations.`
 
+    // Determine the EXACT layout type to use
+    const detectedLayoutType = detectLayoutType(prompt)
+    
     const userPrompt = `User Request: "${prompt}"
 
-YOUR FIRST TASK - DETERMINE LAYOUT TYPE:
-The user said: "${prompt}"
+CRITICAL INSTRUCTION:
+You MUST set layout.type = "${detectedLayoutType}"
 
-EXAMPLES OF CORRECT LAYOUT TYPE SELECTION:
-- "generate a report" → YOU MUST SET layout.type = "report"
-- "create a business report" → YOU MUST SET layout.type = "report"
-- "build a presentation" → YOU MUST SET layout.type = "presentation"
-- "show me slides" → YOU MUST SET layout.type = "presentation"
-- "display KPIs" → YOU MUST SET layout.type = "kpi"
-- "show metrics" → YOU MUST SET layout.type = "kpi"
-- "show top performers" → YOU MUST SET layout.type = "ranking"
-- "create a leaderboard" → YOU MUST SET layout.type = "ranking"
-- "build a dashboard" → YOU MUST SET layout.type = "dashboard"
-- "visualize this data" → YOU MUST SET layout.type = "dashboard"
+I am telling you explicitly: layout.type MUST be "${detectedLayoutType}"
+Do NOT use any other value. The layout.type MUST be exactly "${detectedLayoutType}"
 
-For this specific request "${prompt}", you MUST set the layout.type to: ${
-  prompt.toLowerCase().includes('report') ? '"report"' :
-  prompt.toLowerCase().includes('presentation') || prompt.toLowerCase().includes('slide') ? '"presentation"' :
-  prompt.toLowerCase().includes('kpi') || prompt.toLowerCase().includes('metric') || prompt.toLowerCase().includes('scorecard') ? '"kpi"' :
-  prompt.toLowerCase().includes('ranking') || prompt.toLowerCase().includes('leaderboard') || prompt.toLowerCase().includes('top') || prompt.toLowerCase().includes('best') ? '"ranking"' :
-  '"dashboard"'
-}
+The user requested: "${prompt}"
+Therefore layout.type = "${detectedLayoutType}"
+
+This is non-negotiable. Set layout.type to "${detectedLayoutType}"
 
 DATA STRUCTURE:
 Columns: ${headers.join(', ')}
@@ -422,15 +410,15 @@ Create a comprehensive visualization that:
 4. Highlights top performers and interesting patterns
 5. Provides multiple visualization types
 6. Tells the complete story of this data
-7. MATCHES THE USER'S REQUEST INTENT (report vs dashboard vs presentation etc)
 
-IMPORTANT: 
-- Select the correct layout.type based on the user's request keywords
-- For large numbers like 14400000, store as number but mark isCurrency: true
-- Include ALL ${headers.length} columns in visualizations
-- Create at least 3-4 metric cards with key statistics
-- Include at least 2 different chart types
-- Add a comprehensive data table showing all columns`
+FINAL REMINDER - THIS IS CRITICAL:
+You MUST include dataSchema in your response.
+You MUST set layout.type = "${detectedLayoutType}"
+Do not use any other layout type. It MUST be "${detectedLayoutType}"
+
+The correct layout.type is: "${detectedLayoutType}"
+Set it to: "${detectedLayoutType}"
+Nothing else. Just "${detectedLayoutType}"`
 
     const response = await anthropic.messages.create({
       model: MODEL,
