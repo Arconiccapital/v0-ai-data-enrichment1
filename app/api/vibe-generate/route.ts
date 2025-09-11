@@ -8,42 +8,56 @@ const SAMPLE_MAX_ROWS = Number(process.env.VIBE_SAMPLE_MAX_ROWS || 250)
 
 // Detect the expected layout type based on prompt keywords
 function detectLayoutType(prompt: string): string {
-  const lowerPrompt = prompt.toLowerCase()
+  const lowerPrompt = prompt.toLowerCase().trim()
   
+  // Report detection - check first as it's commonly requested
   if (lowerPrompt.includes('report') || 
       lowerPrompt.includes('summary') || 
       lowerPrompt.includes('document') ||
       lowerPrompt.includes('analysis') ||
-      lowerPrompt.includes('review')) {
+      lowerPrompt.includes('review') ||
+      lowerPrompt.includes('brief') ||
+      lowerPrompt.includes('overview')) {
+    console.log(`📄 Detected REPORT keywords in: "${prompt}"`)
     return 'report'
   }
   
+  // Presentation detection
   if (lowerPrompt.includes('presentation') || 
       lowerPrompt.includes('slide') || 
       lowerPrompt.includes('pitch') ||
       lowerPrompt.includes('deck') ||
-      lowerPrompt.includes('showcase')) {
+      lowerPrompt.includes('showcase') ||
+      lowerPrompt.includes('present')) {
+    console.log(`🎭 Detected PRESENTATION keywords in: "${prompt}"`)
     return 'presentation'
   }
   
+  // KPI detection - be careful not to trigger on "performance" alone
   if (lowerPrompt.includes('kpi') || 
-      lowerPrompt.includes('metric') || 
+      lowerPrompt.includes('key metric') || 
       lowerPrompt.includes('scorecard') ||
       lowerPrompt.includes('indicator') ||
-      lowerPrompt.includes('performance')) {
+      (lowerPrompt.includes('metric') && !lowerPrompt.includes('report')) ||
+      (lowerPrompt.includes('performance') && lowerPrompt.includes('indicator'))) {
+    console.log(`📊 Detected KPI keywords in: "${prompt}"`)
     return 'kpi'
   }
   
+  // Ranking detection
   if (lowerPrompt.includes('ranking') || 
       lowerPrompt.includes('leaderboard') || 
-      lowerPrompt.includes('top') ||
-      lowerPrompt.includes('best') ||
+      lowerPrompt.includes('top performer') ||
+      lowerPrompt.includes('best performer') ||
       lowerPrompt.includes('winner') ||
-      lowerPrompt.includes('highest') ||
-      lowerPrompt.includes('lowest')) {
+      lowerPrompt.includes('podium') ||
+      (lowerPrompt.includes('top') && (lowerPrompt.includes('10') || lowerPrompt.includes('5') || lowerPrompt.includes('company') || lowerPrompt.includes('performer')))) {
+    console.log(`🏆 Detected RANKING keywords in: "${prompt}"`)
     return 'ranking'
   }
   
+  // Default to dashboard
+  console.log(`📈 No specific layout keywords detected, defaulting to DASHBOARD for: "${prompt}"`)
   return 'dashboard'
 }
 
@@ -435,14 +449,24 @@ IMPORTANT:
 
     const parsed = tryExtractJSON(configText)
     if (parsed) {
-      // Override layout type if Claude didn't follow instructions
+      // Debug: Log what Claude returned vs what we expect
       const expectedLayoutType = detectLayoutType(prompt)
-      if (parsed.layout && parsed.layout.type !== expectedLayoutType) {
-        console.log(`⚠️ Claude returned layout type '${parsed.layout.type}' but expected '${expectedLayoutType}' based on prompt. Overriding...`)
+      console.log(`🔍 DEBUG: Prompt="${prompt}" → Expected layout="${expectedLayoutType}", Claude returned="${parsed.layout?.type}"`)
+      
+      // ALWAYS override with our detection to ensure correct layout type
+      // This ensures the system works even if Claude doesn't follow instructions
+      if (parsed.layout) {
+        if (parsed.layout.type !== expectedLayoutType) {
+          console.log(`⚠️ Overriding Claude's layout type from '${parsed.layout.type}' to '${expectedLayoutType}'`)
+        }
         parsed.layout.type = expectedLayoutType
+      } else {
+        // If no layout object, create one
+        parsed.layout = { type: expectedLayoutType, columns: 3 }
+        console.log(`⚠️ No layout object found, creating with type '${expectedLayoutType}'`)
       }
       
-      console.log('✅ Claude generated config with layout type:', parsed.layout?.type)
+      console.log('✅ Final config layout type:', parsed.layout?.type)
       return NextResponse.json({
         success: true,
         config: parsed,
