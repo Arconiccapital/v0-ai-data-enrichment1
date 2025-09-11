@@ -91,6 +91,28 @@ AVAILABLE IMPORTS (already available in scope, do not import):
 - All Lucide icons (ArrowUp, ArrowDown, TrendingUp, Users, DollarSign, Activity, etc.)
 - UI components: Card, CardContent, CardHeader, CardTitle, CardDescription, Badge
 
+IMPORTANT RECHARTS RULES:
+- XAxis, YAxis, CartesianGrid, Tooltip, Legend MUST be inside a chart component (BarChart, LineChart, etc.)
+- ALWAYS wrap charts in ResponsiveContainer with width and height
+- Bar component must be inside BarChart
+- Line component must be inside LineChart
+- Pie component must be inside PieChart
+
+CORRECT RECHARTS EXAMPLE:
+<ResponsiveContainer width="100%" height={300}>
+  <BarChart data={data}>
+    <CartesianGrid strokeDasharray="3 3" />
+    <XAxis dataKey="name" />
+    <YAxis />
+    <Tooltip />
+    <Bar dataKey="value" fill="#8884d8" />
+  </BarChart>
+</ResponsiveContainer>
+
+INCORRECT (DO NOT DO THIS):
+<XAxis /> // XAxis cannot be used outside of a chart
+<Bar /> // Bar cannot be used outside of BarChart
+
 STYLING:
 - Use Tailwind CSS classes for all styling
 - Make it responsive and beautiful

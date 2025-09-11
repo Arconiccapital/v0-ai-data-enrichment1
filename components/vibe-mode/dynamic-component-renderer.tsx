@@ -6,6 +6,7 @@ import * as LucideIcons from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import * as Babel from '@babel/standalone'
+import { ErrorBoundary } from './error-boundary'
 
 interface DynamicComponentRendererProps {
   code: string
@@ -102,10 +103,33 @@ export function DynamicComponentRenderer({ code, data, headers }: DynamicCompone
     )
   }
 
-  // Render the dynamically created component
-  return (
-    <div className="flex-1 overflow-auto">
-      <Component data={data} headers={headers} />
-    </div>
-  )
+  // Render the dynamically created component with error boundary
+  try {
+    return (
+      <div className="flex-1 overflow-auto">
+        <ErrorBoundary>
+          <Component data={data} headers={headers} />
+        </ErrorBoundary>
+      </div>
+    )
+  } catch (renderError) {
+    console.error('Runtime error in generated component:', renderError)
+    return (
+      <div className="flex-1 p-8">
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-800">Runtime Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-600 mb-4">
+              {renderError instanceof Error ? renderError.message : 'Failed to render component'}
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              This usually happens when chart components are used incorrectly. Try rephrasing your request.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 }
